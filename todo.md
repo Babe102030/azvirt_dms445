@@ -73,3 +73,10 @@
 
 ## UI Enhancements
 - [x] Add high-resolution background image to main content area
+
+## Dashboard Widgets
+- [x] Create backend procedure for delivery trends statistics
+- [x] Create backend procedure for material consumption statistics
+- [x] Build monthly delivery trends chart component
+- [x] Build material consumption graph component
+- [x] Integrate charts into dashboard homepage

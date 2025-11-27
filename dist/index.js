@@ -1013,6 +1013,35 @@ var appRouter = router({
         totalMaterials: allMaterials.length,
         totalDeliveries: allDeliveries.length
       };
+    }),
+    deliveryTrends: protectedProcedure.query(async () => {
+      const deliveries2 = await getDeliveries();
+      const now = /* @__PURE__ */ new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const monthlyData = {};
+      deliveries2.forEach((delivery) => {
+        const deliveryDate = new Date(delivery.scheduledTime);
+        if (deliveryDate >= sixMonthsAgo) {
+          const monthKey = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth() + 1).padStart(2, "0")}`;
+          const monthName = deliveryDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { month: monthName, deliveries: 0, volume: 0 };
+          }
+          monthlyData[monthKey].deliveries++;
+          monthlyData[monthKey].volume += delivery.volume;
+        }
+      });
+      return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+    }),
+    materialConsumption: protectedProcedure.query(async () => {
+      const materials2 = await getMaterials();
+      const sortedMaterials = materials2.sort((a, b) => b.quantity - a.quantity).slice(0, 6).map((m) => ({
+        name: m.name,
+        quantity: m.quantity,
+        unit: m.unit,
+        minStock: m.minStock
+      }));
+      return sortedMaterials;
     })
   })
 });

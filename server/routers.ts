@@ -285,7 +285,51 @@ export const appRouter = router({
         totalDeliveries: allDeliveries.length,
       };
     }),
+
+    deliveryTrends: protectedProcedure.query(async () => {
+      const deliveries = await db.getDeliveries();
+      const now = new Date();
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      
+      // Group deliveries by month
+      const monthlyData: Record<string, { month: string; deliveries: number; volume: number }> = {};
+      
+      deliveries.forEach(delivery => {
+        const deliveryDate = new Date(delivery.scheduledTime);
+        if (deliveryDate >= sixMonthsAgo) {
+          const monthKey = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth() + 1).padStart(2, '0')}`;
+          const monthName = deliveryDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { month: monthName, deliveries: 0, volume: 0 };
+          }
+          
+          monthlyData[monthKey].deliveries++;
+          monthlyData[monthKey].volume += delivery.volume;
+        }
+      });
+      
+      return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+    }),
+
+    materialConsumption: protectedProcedure.query(async () => {
+      const materials = await db.getMaterials();
+      
+      // Get top 6 materials by quantity for the chart
+      const sortedMaterials = materials
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 6)
+        .map(m => ({
+          name: m.name,
+          quantity: m.quantity,
+          unit: m.unit,
+          minStock: m.minStock,
+        }));
+      
+      return sortedMaterials;
+    }),
   }),
 });
+
 
 export type AppRouter = typeof appRouter;

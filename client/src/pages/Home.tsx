@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
+import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
+import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
 import { FileText, Package, Truck, FlaskConical, Folder, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 
@@ -151,6 +153,12 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <DeliveryTrendsChart />
+          <MaterialConsumptionChart />
         </div>
       </div>
     </DashboardLayout>
