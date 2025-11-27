@@ -67,3 +67,6 @@
 - [x] Add logo to sidebar header
 - [x] Add logo to delivery note header
 - [x] Ensure logo displays correctly in print mode
+
+## Bug Fixes
+- [x] Fix Select.Item empty value error on Documents page

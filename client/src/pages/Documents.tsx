@@ -32,7 +32,7 @@ export default function Documents() {
 
   const { data: documents, isLoading, refetch } = trpc.documents.list.useQuery({
     search: searchTerm || undefined,
-    category: categoryFilter || undefined,
+    category: categoryFilter && categoryFilter !== "all" ? categoryFilter : undefined,
   });
 
   const uploadMutation = trpc.documents.upload.useMutation({
@@ -177,7 +177,7 @@ export default function Documents() {
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All categories</SelectItem>
+                <SelectItem value="all">All categories</SelectItem>
                 <SelectItem value="contract">Contract</SelectItem>
                 <SelectItem value="blueprint">Blueprint</SelectItem>
                 <SelectItem value="report">Report</SelectItem>
