@@ -80,3 +80,8 @@
 - [x] Build monthly delivery trends chart component
 - [x] Build material consumption graph component
 - [x] Integrate charts into dashboard homepage
+
+## Design Consistency
+- [x] Review and update DashboardLayout colors to match AzVirt brand
+- [x] Ensure consistent orange accent usage throughout the interface
+- [x] Verify background and text contrast for readability
