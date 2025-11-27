@@ -1,11 +1,17 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, like, and, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { 
+  InsertUser, users, 
+  documents, InsertDocument,
+  projects, InsertProject,
+  materials, InsertMaterial,
+  deliveries, InsertDelivery,
+  qualityTests, InsertQualityTest
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -89,4 +95,205 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// Documents
+export async function createDocument(doc: InsertDocument) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(documents).values(doc);
+  return result;
+}
+
+export async function getDocuments(filters?: { projectId?: number; category?: string; search?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let conditions: any[] = [];
+  
+  if (filters?.projectId) {
+    conditions.push(eq(documents.projectId, filters.projectId));
+  }
+  
+  if (filters?.category) {
+    conditions.push(eq(documents.category, filters.category as any));
+  }
+  
+  if (filters?.search) {
+    conditions.push(
+      or(
+        like(documents.name, `%${filters.search}%`),
+        like(documents.description, `%${filters.search}%`)
+      )
+    );
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  const result = await db
+    .select()
+    .from(documents)
+    .where(whereClause)
+    .orderBy(desc(documents.createdAt));
+    
+  return result;
+}
+
+export async function getDocumentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteDocument(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(documents).where(eq(documents.id, id));
+}
+
+// Projects
+export async function createProject(project: InsertProject) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(projects).values(project);
+  return result;
+}
+
+export async function getProjects() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select().from(projects).orderBy(desc(projects.createdAt));
+  return result;
+}
+
+export async function getProjectById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateProject(id: number, data: Partial<InsertProject>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(projects).set(data).where(eq(projects.id, id));
+}
+
+// Materials
+export async function createMaterial(material: InsertMaterial) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(materials).values(material);
+  return result;
+}
+
+export async function getMaterials() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const result = await db.select().from(materials).orderBy(materials.name);
+  return result;
+}
+
+export async function updateMaterial(id: number, data: Partial<InsertMaterial>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(materials).set(data).where(eq(materials.id, id));
+}
+
+export async function deleteMaterial(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(materials).where(eq(materials.id, id));
+}
+
+// Deliveries
+export async function createDelivery(delivery: InsertDelivery) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(deliveries).values(delivery);
+  return result;
+}
+
+export async function getDeliveries(filters?: { projectId?: number; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let conditions: any[] = [];
+  
+  if (filters?.projectId) {
+    conditions.push(eq(deliveries.projectId, filters.projectId));
+  }
+  
+  if (filters?.status) {
+    conditions.push(eq(deliveries.status, filters.status as any));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  const result = await db
+    .select()
+    .from(deliveries)
+    .where(whereClause)
+    .orderBy(desc(deliveries.scheduledTime));
+    
+  return result;
+}
+
+export async function updateDelivery(id: number, data: Partial<InsertDelivery>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(deliveries).set(data).where(eq(deliveries.id, id));
+}
+
+// Quality Tests
+export async function createQualityTest(test: InsertQualityTest) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(qualityTests).values(test);
+  return result;
+}
+
+export async function getQualityTests(filters?: { projectId?: number; deliveryId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let conditions: any[] = [];
+  
+  if (filters?.projectId) {
+    conditions.push(eq(qualityTests.projectId, filters.projectId));
+  }
+  
+  if (filters?.deliveryId) {
+    conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  const result = await db
+    .select()
+    .from(qualityTests)
+    .where(whereClause)
+    .orderBy(desc(qualityTests.createdAt));
+    
+  return result;
+}
+
+export async function updateQualityTest(id: number, data: Partial<InsertQualityTest>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
+}

@@ -1,0 +1,206 @@
+import { useState } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { trpc } from "@/lib/trpc";
+import { FlaskConical, Plus } from "lucide-react";
+import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+
+export default function QualityControl() {
+  const [createOpen, setCreateOpen] = useState(false);
+
+  const { data: tests, isLoading, refetch } = trpc.qualityTests.list.useQuery();
+
+  const createMutation = trpc.qualityTests.create.useMutation({
+    onSuccess: () => {
+      toast.success("Quality test recorded successfully");
+      setCreateOpen(false);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`Failed to record test: ${error.message}`);
+    },
+  });
+
+  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    createMutation.mutate({
+      testName: formData.get("testName") as string,
+      testType: formData.get("testType") as any,
+      result: formData.get("result") as string,
+      unit: formData.get("unit") as string,
+      status: formData.get("status") as any,
+      testedBy: formData.get("testedBy") as string,
+      notes: formData.get("notes") as string,
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pass":
+        return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "fail":
+        return "bg-red-500/20 text-red-400 border-red-500/30";
+      default:
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+    }
+  };
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Quality Control</h1>
+            <p className="text-white/70">Manage quality tests and results</p>
+          </div>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg">
+                <Plus className="mr-2 h-5 w-5" />
+                Record Test
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card/95 backdrop-blur">
+              <DialogHeader>
+                <DialogTitle>Record Quality Test</DialogTitle>
+                <DialogDescription>Add a new quality test result</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div>
+                  <Label htmlFor="testName">Test Name</Label>
+                  <Input id="testName" name="testName" required />
+                </div>
+                <div>
+                  <Label htmlFor="testType">Test Type</Label>
+                  <Select name="testType" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select test type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="slump">Slump Test</SelectItem>
+                      <SelectItem value="strength">Strength Test</SelectItem>
+                      <SelectItem value="air_content">Air Content</SelectItem>
+                      <SelectItem value="temperature">Temperature</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="result">Result</Label>
+                    <Input id="result" name="result" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="unit">Unit</Label>
+                    <Input id="unit" name="unit" placeholder="MPa, mm, °C" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="status">Status</Label>
+                  <Select name="status" defaultValue="pending">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pass">Pass</SelectItem>
+                      <SelectItem value="fail">Fail</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="testedBy">Tested By</Label>
+                  <Input id="testedBy" name="testedBy" />
+                </div>
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea id="notes" name="notes" rows={3} />
+                </div>
+                <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Recording..." : "Record Test"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <Card className="bg-card/90 backdrop-blur border-white/10">
+          <CardHeader>
+            <CardTitle>Test Results</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+            ) : tests && tests.length > 0 ? (
+              <div className="space-y-2">
+                {tests.map((test) => (
+                  <div
+                    key={test.id}
+                    className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      <FlaskConical className="h-8 w-8 text-primary" />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium">{test.testName}</h3>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                              test.status
+                            )}`}
+                          >
+                            {test.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Type: {test.testType} | Result: {test.result} {test.unit}
+                        </p>
+                        <div className="flex gap-4 mt-1">
+                          {test.testedBy && (
+                            <span className="text-xs text-muted-foreground">
+                              Tested by: {test.testedBy}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(test.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        {test.notes && (
+                          <p className="text-xs text-muted-foreground mt-2">{test.notes}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No test results found. Record your first test to get started.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+}
