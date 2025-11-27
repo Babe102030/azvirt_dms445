@@ -120,7 +120,7 @@ export default function Projects() {
           </Dialog>
         </div>
 
-        <Card className="bg-card/90 backdrop-blur border-white/10">
+        <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
             <CardTitle>All Projects</CardTitle>
           </CardHeader>
@@ -130,7 +130,7 @@ export default function Projects() {
             ) : projects && projects.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {projects.map((project) => (
-                  <Card key={project.id} className="bg-muted/50 border-white/10">
+                  <Card key={project.id} className="bg-muted/50 border-primary/20">
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <Folder className="h-8 w-8 text-primary" />

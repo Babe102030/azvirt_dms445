@@ -124,7 +124,7 @@ export default function Materials() {
           </Dialog>
         </div>
 
-        <Card className="bg-card/90 backdrop-blur border-white/10">
+        <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
             <CardTitle>Inventory</CardTitle>
           </CardHeader>

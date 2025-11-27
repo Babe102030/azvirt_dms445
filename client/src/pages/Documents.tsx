@@ -156,7 +156,7 @@ export default function Documents() {
           </Dialog>
         </div>
 
-        <Card className="bg-card/90 backdrop-blur border-white/10">
+        <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
             <CardTitle>Search & Filter</CardTitle>
           </CardHeader>
@@ -189,7 +189,7 @@ export default function Documents() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/90 backdrop-blur border-white/10">
+        <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
             <CardTitle>Document List</CardTitle>
           </CardHeader>

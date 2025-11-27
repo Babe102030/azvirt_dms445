@@ -48,10 +48,10 @@ export default function Home() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-              <Folder className="h-4 w-4 text-muted-foreground" />
+              <Folder className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.activeProjects ?? 0}</div>
@@ -61,10 +61,10 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Documents</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <FileText className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalDocuments ?? 0}</div>
@@ -72,10 +72,10 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's Deliveries</CardTitle>
-              <Truck className="h-4 w-4 text-muted-foreground" />
+              <Truck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.todayDeliveries ?? 0}</div>
@@ -83,10 +83,10 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.lowStockMaterials ?? 0}</div>
@@ -96,7 +96,7 @@ export default function Home() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader>
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
@@ -128,7 +128,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-white/10">
+          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader>
               <CardTitle>System Overview</CardTitle>
             </CardHeader>
