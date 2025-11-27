@@ -61,3 +61,9 @@
 - [x] Add signature sections for driver, receiver, and quality control
 - [x] Style print layout with AzVirt branding
 - [x] Add print-specific CSS for proper formatting
+
+## Logo Integration
+- [x] Extract AzVirt logo from background image
+- [x] Add logo to sidebar header
+- [x] Add logo to delivery note header
+- [x] Ensure logo displays correctly in print mode

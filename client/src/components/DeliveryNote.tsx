@@ -57,11 +57,12 @@ export function DeliveryNote({ delivery }: DeliveryNoteProps) {
       <div className="print-page bg-white text-black p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
         {/* Header */}
         <div className="border-b-4 border-primary pb-4 mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold text-primary" style={{ fontFamily: "'Rethink Sans', Arial, sans-serif" }}>
-              AZVIRT
-            </h1>
-            <p className="text-sm text-gray-600">Limited Liability Company</p>
+          <div className="flex items-center gap-4">
+            <img src="/azvirt-logo.png" alt="AzVirt" className="h-16 w-auto" />
+            <div>
+              <p className="text-sm text-gray-600">Limited Liability Company</p>
+              <p className="text-xs text-gray-500 mt-1">30 Years of Excellence</p>
+            </div>
           </div>
           <div className="text-right">
             <h2 className="text-3xl font-bold text-primary" style={{ fontFamily: "'Rethink Sans', Arial, sans-serif" }}>
