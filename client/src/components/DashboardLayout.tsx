@@ -259,7 +259,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
-        <main className="flex-1 p-4">{children}</main>
+        <main className="flex-1 p-4 bg-cover bg-center bg-fixed" style={{ backgroundImage: 'url(/azvirt-bg.png)' }}>{children}</main>
       </SidebarInset>
     </>
   );

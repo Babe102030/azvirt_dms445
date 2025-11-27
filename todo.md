@@ -70,3 +70,6 @@
 
 ## Bug Fixes
 - [x] Fix Select.Item empty value error on Documents page
+
+## UI Enhancements
+- [x] Add high-resolution background image to main content area
