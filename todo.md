@@ -53,3 +53,11 @@
 - [x] Update UI components with new color palette
 - [x] Add orange accent colors to buttons and highlights
 - [x] Update dashboard cards with new styling
+
+## Printable Delivery Notes (Otpremnica)
+- [x] Create delivery note print template component
+- [x] Add print button to delivery details
+- [x] Implement structured data tables for materials composition
+- [x] Add signature sections for driver, receiver, and quality control
+- [x] Style print layout with AzVirt branding
+- [x] Add print-specific CSS for proper formatting

@@ -20,12 +20,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Truck, Plus } from "lucide-react";
+import { Truck, Plus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { DeliveryNote } from "@/components/DeliveryNote";
 
 export default function Deliveries() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
 
   const { data: deliveries, isLoading, refetch } = trpc.deliveries.list.useQuery();
 
@@ -172,8 +174,38 @@ export default function Deliveries() {
                         </div>
                       </div>
                     </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDelivery(delivery.id)}
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Print Note
+                      </Button>
+                    </div>
                   </div>
                 ))}
+                
+                {/* Delivery Note Print View */}
+                {selectedDelivery && deliveries && (
+                  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-auto">
+                      <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+                        <h2 className="text-xl font-bold text-black">Delivery Note Preview</h2>
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedDelivery(null)}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                      <DeliveryNote
+                        delivery={deliveries.find(d => d.id === selectedDelivery)!}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
