@@ -10,6 +10,8 @@ import Projects from "./pages/Projects";
 import Materials from "./pages/Materials";
 import Deliveries from "./pages/Deliveries";
 import QualityControl from "./pages/QualityControl";
+import Employees from "./pages/Employees";
+import Machines from "./pages/Machines";
 
 function Router() {
   return (
@@ -20,6 +22,8 @@ function Router() {
       <Route path={"/materials"} component={Materials} />
       <Route path={"/deliveries"} component={Deliveries} />
       <Route path={"/quality"} component={QualityControl} />
+      <Route path={"/employees"} component={Employees} />
+      <Route path={"/machines"} component={Machines} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

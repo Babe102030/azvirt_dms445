@@ -6,7 +6,14 @@ import {
   projects, InsertProject,
   materials, InsertMaterial,
   deliveries, InsertDelivery,
-  qualityTests, InsertQualityTest
+  qualityTests, InsertQualityTest,
+  employees, InsertEmployee,
+  workHours, InsertWorkHour,
+  concreteBases, InsertConcreteBase,
+  machines, InsertMachine,
+  machineMaintenance, InsertMachineMaintenance,
+  machineWorkHours, InsertMachineWorkHour,
+  aggregateInputs, InsertAggregateInput
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -296,4 +303,260 @@ export async function updateQualityTest(id: number, data: Partial<InsertQualityT
   if (!db) throw new Error("Database not available");
   
   await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
+}
+
+// ============ Employees ============
+export async function createEmployee(employee: InsertEmployee) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(employees).values(employee);
+  return result;
+}
+
+export async function getEmployees(filters?: { department?: string; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.department) {
+    conditions.push(eq(employees.department, filters.department as any));
+  }
+  if (filters?.status) {
+    conditions.push(eq(employees.status, filters.status as any));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(employees).where(and(...conditions)).orderBy(desc(employees.createdAt))
+    : await db.select().from(employees).orderBy(desc(employees.createdAt));
+  
+  return result;
+}
+
+export async function getEmployeeById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateEmployee(id: number, data: Partial<InsertEmployee>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(employees).set(data).where(eq(employees.id, id));
+}
+
+export async function deleteEmployee(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(employees).where(eq(employees.id, id));
+}
+
+// ============ Work Hours ============
+export async function createWorkHour(workHour: InsertWorkHour) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(workHours).values(workHour);
+  return result;
+}
+
+export async function getWorkHours(filters?: { employeeId?: number; projectId?: number; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.employeeId) {
+    conditions.push(eq(workHours.employeeId, filters.employeeId));
+  }
+  if (filters?.projectId) {
+    conditions.push(eq(workHours.projectId, filters.projectId));
+  }
+  if (filters?.status) {
+    conditions.push(eq(workHours.status, filters.status as any));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(workHours).where(and(...conditions)).orderBy(desc(workHours.date))
+    : await db.select().from(workHours).orderBy(desc(workHours.date));
+  
+  return result;
+}
+
+export async function updateWorkHour(id: number, data: Partial<InsertWorkHour>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(workHours).set(data).where(eq(workHours.id, id));
+}
+
+// ============ Concrete Bases ============
+export async function createConcreteBase(base: InsertConcreteBase) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(concreteBases).values(base);
+  return result;
+}
+
+export async function getConcreteBases() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(concreteBases).orderBy(desc(concreteBases.createdAt));
+}
+
+export async function getConcreteBaseById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(concreteBases).where(eq(concreteBases.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateConcreteBase(id: number, data: Partial<InsertConcreteBase>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(concreteBases).set(data).where(eq(concreteBases.id, id));
+}
+
+// ============ Machines ============
+export async function createMachine(machine: InsertMachine) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(machines).values(machine);
+  return result;
+}
+
+export async function getMachines(filters?: { concreteBaseId?: number; type?: string; status?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.concreteBaseId) {
+    conditions.push(eq(machines.concreteBaseId, filters.concreteBaseId));
+  }
+  if (filters?.type) {
+    conditions.push(eq(machines.type, filters.type as any));
+  }
+  if (filters?.status) {
+    conditions.push(eq(machines.status, filters.status as any));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(machines).where(and(...conditions)).orderBy(desc(machines.createdAt))
+    : await db.select().from(machines).orderBy(desc(machines.createdAt));
+  
+  return result;
+}
+
+export async function getMachineById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(machines).where(eq(machines.id, id)).limit(1);
+  return result[0];
+}
+
+export async function updateMachine(id: number, data: Partial<InsertMachine>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(machines).set(data).where(eq(machines.id, id));
+}
+
+export async function deleteMachine(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.delete(machines).where(eq(machines.id, id));
+}
+
+// ============ Machine Maintenance ============
+export async function createMachineMaintenance(maintenance: InsertMachineMaintenance) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(machineMaintenance).values(maintenance);
+  return result;
+}
+
+export async function getMachineMaintenance(filters?: { machineId?: number; maintenanceType?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.machineId) {
+    conditions.push(eq(machineMaintenance.machineId, filters.machineId));
+  }
+  if (filters?.maintenanceType) {
+    conditions.push(eq(machineMaintenance.maintenanceType, filters.maintenanceType as any));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(machineMaintenance).where(and(...conditions)).orderBy(desc(machineMaintenance.date))
+    : await db.select().from(machineMaintenance).orderBy(desc(machineMaintenance.date));
+  
+  return result;
+}
+
+// ============ Machine Work Hours ============
+export async function createMachineWorkHour(workHour: InsertMachineWorkHour) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(machineWorkHours).values(workHour);
+  return result;
+}
+
+export async function getMachineWorkHours(filters?: { machineId?: number; projectId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.machineId) {
+    conditions.push(eq(machineWorkHours.machineId, filters.machineId));
+  }
+  if (filters?.projectId) {
+    conditions.push(eq(machineWorkHours.projectId, filters.projectId));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(machineWorkHours).where(and(...conditions)).orderBy(desc(machineWorkHours.date))
+    : await db.select().from(machineWorkHours).orderBy(desc(machineWorkHours.date));
+  
+  return result;
+}
+
+// ============ Aggregate Inputs ============
+export async function createAggregateInput(input: InsertAggregateInput) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(aggregateInputs).values(input);
+  return result;
+}
+
+export async function getAggregateInputs(filters?: { concreteBaseId?: number; materialType?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  if (filters?.concreteBaseId) {
+    conditions.push(eq(aggregateInputs.concreteBaseId, filters.concreteBaseId));
+  }
+  if (filters?.materialType) {
+    conditions.push(eq(aggregateInputs.materialType, filters.materialType as any));
+  }
+  
+  const result = conditions.length > 0
+    ? await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date))
+    : await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
+  
+  return result;
 }

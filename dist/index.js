@@ -97,6 +97,110 @@ var qualityTests = mysqlTable("qualityTests", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
 });
+var employees = mysqlTable("employees", {
+  id: int("id").autoincrement().primaryKey(),
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  employeeNumber: varchar("employeeNumber", { length: 50 }).notNull().unique(),
+  position: varchar("position", { length: 100 }).notNull(),
+  department: mysqlEnum("department", ["construction", "maintenance", "quality", "administration", "logistics"]).default("construction").notNull(),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  email: varchar("email", { length: 320 }),
+  hourlyRate: int("hourlyRate"),
+  status: mysqlEnum("status", ["active", "inactive", "on_leave"]).default("active").notNull(),
+  hireDate: timestamp("hireDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var workHours = mysqlTable("workHours", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  projectId: int("projectId"),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime"),
+  hoursWorked: int("hoursWorked"),
+  overtimeHours: int("overtimeHours").default(0),
+  workType: mysqlEnum("workType", ["regular", "overtime", "weekend", "holiday"]).default("regular").notNull(),
+  notes: text("notes"),
+  approvedBy: int("approvedBy"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var concreteBases = mysqlTable("concreteBases", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  location: varchar("location", { length: 500 }).notNull(),
+  capacity: int("capacity").notNull(),
+  status: mysqlEnum("status", ["operational", "maintenance", "inactive"]).default("operational").notNull(),
+  managerName: varchar("managerName", { length: 255 }),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var machines = mysqlTable("machines", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  machineNumber: varchar("machineNumber", { length: 100 }).notNull().unique(),
+  type: mysqlEnum("type", ["mixer", "pump", "truck", "excavator", "crane", "other"]).default("other").notNull(),
+  manufacturer: varchar("manufacturer", { length: 255 }),
+  model: varchar("model", { length: 255 }),
+  year: int("year"),
+  concreteBaseId: int("concreteBaseId"),
+  status: mysqlEnum("status", ["operational", "maintenance", "repair", "inactive"]).default("operational").notNull(),
+  totalWorkingHours: int("totalWorkingHours").default(0),
+  lastMaintenanceDate: timestamp("lastMaintenanceDate"),
+  nextMaintenanceDate: timestamp("nextMaintenanceDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var machineMaintenance = mysqlTable("machineMaintenance", {
+  id: int("id").autoincrement().primaryKey(),
+  machineId: int("machineId").notNull(),
+  date: timestamp("date").notNull(),
+  maintenanceType: mysqlEnum("maintenanceType", ["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]).default("other").notNull(),
+  description: text("description"),
+  lubricationType: varchar("lubricationType", { length: 100 }),
+  lubricationAmount: int("lubricationAmount"),
+  fuelType: varchar("fuelType", { length: 100 }),
+  fuelAmount: int("fuelAmount"),
+  cost: int("cost"),
+  performedBy: varchar("performedBy", { length: 255 }),
+  hoursAtMaintenance: int("hoursAtMaintenance"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var machineWorkHours = mysqlTable("machineWorkHours", {
+  id: int("id").autoincrement().primaryKey(),
+  machineId: int("machineId").notNull(),
+  projectId: int("projectId"),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime"),
+  hoursWorked: int("hoursWorked"),
+  operatorId: int("operatorId"),
+  operatorName: varchar("operatorName", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var aggregateInputs = mysqlTable("aggregateInputs", {
+  id: int("id").autoincrement().primaryKey(),
+  concreteBaseId: int("concreteBaseId").notNull(),
+  date: timestamp("date").notNull(),
+  materialType: mysqlEnum("materialType", ["cement", "sand", "gravel", "water", "admixture", "other"]).default("other").notNull(),
+  materialName: varchar("materialName", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  unit: varchar("unit", { length: 50 }).notNull(),
+  supplier: varchar("supplier", { length: 255 }),
+  batchNumber: varchar("batchNumber", { length: 100 }),
+  receivedBy: varchar("receivedBy", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
 
 // server/_core/env.ts
 var ENV = {
@@ -301,6 +405,167 @@ async function updateQualityTest(id, data) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
+}
+async function createEmployee(employee) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(employees).values(employee);
+  return result;
+}
+async function getEmployees(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.department) {
+    conditions.push(eq(employees.department, filters.department));
+  }
+  if (filters?.status) {
+    conditions.push(eq(employees.status, filters.status));
+  }
+  const result = conditions.length > 0 ? await db.select().from(employees).where(and(...conditions)).orderBy(desc(employees.createdAt)) : await db.select().from(employees).orderBy(desc(employees.createdAt));
+  return result;
+}
+async function updateEmployee(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(employees).set(data).where(eq(employees.id, id));
+}
+async function deleteEmployee(id) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(employees).where(eq(employees.id, id));
+}
+async function createWorkHour(workHour) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workHours).values(workHour);
+  return result;
+}
+async function getWorkHours(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.employeeId) {
+    conditions.push(eq(workHours.employeeId, filters.employeeId));
+  }
+  if (filters?.projectId) {
+    conditions.push(eq(workHours.projectId, filters.projectId));
+  }
+  if (filters?.status) {
+    conditions.push(eq(workHours.status, filters.status));
+  }
+  const result = conditions.length > 0 ? await db.select().from(workHours).where(and(...conditions)).orderBy(desc(workHours.date)) : await db.select().from(workHours).orderBy(desc(workHours.date));
+  return result;
+}
+async function updateWorkHour(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(workHours).set(data).where(eq(workHours.id, id));
+}
+async function createConcreteBase(base) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(concreteBases).values(base);
+  return result;
+}
+async function getConcreteBases() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(concreteBases).orderBy(desc(concreteBases.createdAt));
+}
+async function updateConcreteBase(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(concreteBases).set(data).where(eq(concreteBases.id, id));
+}
+async function createMachine(machine) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(machines).values(machine);
+  return result;
+}
+async function getMachines(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.concreteBaseId) {
+    conditions.push(eq(machines.concreteBaseId, filters.concreteBaseId));
+  }
+  if (filters?.type) {
+    conditions.push(eq(machines.type, filters.type));
+  }
+  if (filters?.status) {
+    conditions.push(eq(machines.status, filters.status));
+  }
+  const result = conditions.length > 0 ? await db.select().from(machines).where(and(...conditions)).orderBy(desc(machines.createdAt)) : await db.select().from(machines).orderBy(desc(machines.createdAt));
+  return result;
+}
+async function updateMachine(id, data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(machines).set(data).where(eq(machines.id, id));
+}
+async function deleteMachine(id) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(machines).where(eq(machines.id, id));
+}
+async function createMachineMaintenance(maintenance) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(machineMaintenance).values(maintenance);
+  return result;
+}
+async function getMachineMaintenance(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.machineId) {
+    conditions.push(eq(machineMaintenance.machineId, filters.machineId));
+  }
+  if (filters?.maintenanceType) {
+    conditions.push(eq(machineMaintenance.maintenanceType, filters.maintenanceType));
+  }
+  const result = conditions.length > 0 ? await db.select().from(machineMaintenance).where(and(...conditions)).orderBy(desc(machineMaintenance.date)) : await db.select().from(machineMaintenance).orderBy(desc(machineMaintenance.date));
+  return result;
+}
+async function createMachineWorkHour(workHour) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(machineWorkHours).values(workHour);
+  return result;
+}
+async function getMachineWorkHours(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.machineId) {
+    conditions.push(eq(machineWorkHours.machineId, filters.machineId));
+  }
+  if (filters?.projectId) {
+    conditions.push(eq(machineWorkHours.projectId, filters.projectId));
+  }
+  const result = conditions.length > 0 ? await db.select().from(machineWorkHours).where(and(...conditions)).orderBy(desc(machineWorkHours.date)) : await db.select().from(machineWorkHours).orderBy(desc(machineWorkHours.date));
+  return result;
+}
+async function createAggregateInput(input) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(aggregateInputs).values(input);
+  return result;
+}
+async function getAggregateInputs(filters) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [];
+  if (filters?.concreteBaseId) {
+    conditions.push(eq(aggregateInputs.concreteBaseId, filters.concreteBaseId));
+  }
+  if (filters?.materialType) {
+    conditions.push(eq(aggregateInputs.materialType, filters.materialType));
+  }
+  const result = conditions.length > 0 ? await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date)) : await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
+  return result;
 }
 
 // server/_core/cookies.ts
@@ -1042,6 +1307,222 @@ var appRouter = router({
         minStock: m.minStock
       }));
       return sortedMaterials;
+    })
+  }),
+  // Workforce Management
+  employees: router({
+    list: protectedProcedure.input(z2.object({
+      department: z2.string().optional(),
+      status: z2.string().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getEmployees(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      firstName: z2.string(),
+      lastName: z2.string(),
+      employeeNumber: z2.string(),
+      position: z2.string(),
+      department: z2.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
+      phoneNumber: z2.string().optional(),
+      email: z2.string().optional(),
+      hourlyRate: z2.number().optional(),
+      status: z2.enum(["active", "inactive", "on_leave"]).default("active"),
+      hireDate: z2.date().optional()
+    })).mutation(async ({ input }) => {
+      return await createEmployee(input);
+    }),
+    update: protectedProcedure.input(z2.object({
+      id: z2.number(),
+      data: z2.object({
+        firstName: z2.string().optional(),
+        lastName: z2.string().optional(),
+        position: z2.string().optional(),
+        department: z2.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
+        phoneNumber: z2.string().optional(),
+        email: z2.string().optional(),
+        hourlyRate: z2.number().optional(),
+        status: z2.enum(["active", "inactive", "on_leave"]).optional()
+      })
+    })).mutation(async ({ input }) => {
+      await updateEmployee(input.id, input.data);
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+      await deleteEmployee(input.id);
+      return { success: true };
+    })
+  }),
+  workHours: router({
+    list: protectedProcedure.input(z2.object({
+      employeeId: z2.number().optional(),
+      projectId: z2.number().optional(),
+      status: z2.string().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getWorkHours(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      employeeId: z2.number(),
+      projectId: z2.number().optional(),
+      date: z2.date(),
+      startTime: z2.date(),
+      endTime: z2.date().optional(),
+      hoursWorked: z2.number().optional(),
+      overtimeHours: z2.number().optional(),
+      workType: z2.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+      notes: z2.string().optional(),
+      status: z2.enum(["pending", "approved", "rejected"]).default("pending")
+    })).mutation(async ({ input, ctx }) => {
+      return await createWorkHour(input);
+    }),
+    update: protectedProcedure.input(z2.object({
+      id: z2.number(),
+      data: z2.object({
+        endTime: z2.date().optional(),
+        hoursWorked: z2.number().optional(),
+        overtimeHours: z2.number().optional(),
+        notes: z2.string().optional(),
+        status: z2.enum(["pending", "approved", "rejected"]).optional(),
+        approvedBy: z2.number().optional()
+      })
+    })).mutation(async ({ input }) => {
+      await updateWorkHour(input.id, input.data);
+      return { success: true };
+    })
+  }),
+  // Concrete Base Management
+  concreteBases: router({
+    list: protectedProcedure.query(async () => {
+      return await getConcreteBases();
+    }),
+    create: protectedProcedure.input(z2.object({
+      name: z2.string(),
+      location: z2.string(),
+      capacity: z2.number(),
+      status: z2.enum(["operational", "maintenance", "inactive"]).default("operational"),
+      managerName: z2.string().optional(),
+      phoneNumber: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      return await createConcreteBase(input);
+    }),
+    update: protectedProcedure.input(z2.object({
+      id: z2.number(),
+      data: z2.object({
+        name: z2.string().optional(),
+        location: z2.string().optional(),
+        capacity: z2.number().optional(),
+        status: z2.enum(["operational", "maintenance", "inactive"]).optional(),
+        managerName: z2.string().optional(),
+        phoneNumber: z2.string().optional()
+      })
+    })).mutation(async ({ input }) => {
+      await updateConcreteBase(input.id, input.data);
+      return { success: true };
+    })
+  }),
+  machines: router({
+    list: protectedProcedure.input(z2.object({
+      concreteBaseId: z2.number().optional(),
+      type: z2.string().optional(),
+      status: z2.string().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getMachines(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      name: z2.string(),
+      machineNumber: z2.string(),
+      type: z2.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
+      manufacturer: z2.string().optional(),
+      model: z2.string().optional(),
+      year: z2.number().optional(),
+      concreteBaseId: z2.number().optional(),
+      status: z2.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+    })).mutation(async ({ input }) => {
+      return await createMachine(input);
+    }),
+    update: protectedProcedure.input(z2.object({
+      id: z2.number(),
+      data: z2.object({
+        name: z2.string().optional(),
+        type: z2.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+        status: z2.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+        totalWorkingHours: z2.number().optional(),
+        lastMaintenanceDate: z2.date().optional(),
+        nextMaintenanceDate: z2.date().optional()
+      })
+    })).mutation(async ({ input }) => {
+      await updateMachine(input.id, input.data);
+      return { success: true };
+    }),
+    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+      await deleteMachine(input.id);
+      return { success: true };
+    })
+  }),
+  machineMaintenance: router({
+    list: protectedProcedure.input(z2.object({
+      machineId: z2.number().optional(),
+      maintenanceType: z2.string().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getMachineMaintenance(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      machineId: z2.number(),
+      date: z2.date(),
+      maintenanceType: z2.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
+      description: z2.string().optional(),
+      lubricationType: z2.string().optional(),
+      lubricationAmount: z2.number().optional(),
+      fuelType: z2.string().optional(),
+      fuelAmount: z2.number().optional(),
+      cost: z2.number().optional(),
+      performedBy: z2.string().optional(),
+      hoursAtMaintenance: z2.number().optional(),
+      notes: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      return await createMachineMaintenance(input);
+    })
+  }),
+  machineWorkHours: router({
+    list: protectedProcedure.input(z2.object({
+      machineId: z2.number().optional(),
+      projectId: z2.number().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getMachineWorkHours(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      machineId: z2.number(),
+      projectId: z2.number().optional(),
+      date: z2.date(),
+      startTime: z2.date(),
+      endTime: z2.date().optional(),
+      hoursWorked: z2.number().optional(),
+      operatorId: z2.number().optional(),
+      operatorName: z2.string().optional(),
+      notes: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      return await createMachineWorkHour(input);
+    })
+  }),
+  aggregateInputs: router({
+    list: protectedProcedure.input(z2.object({
+      concreteBaseId: z2.number().optional(),
+      materialType: z2.string().optional()
+    }).optional()).query(async ({ input }) => {
+      return await getAggregateInputs(input);
+    }),
+    create: protectedProcedure.input(z2.object({
+      concreteBaseId: z2.number(),
+      date: z2.date(),
+      materialType: z2.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
+      materialName: z2.string(),
+      quantity: z2.number(),
+      unit: z2.string(),
+      supplier: z2.string().optional(),
+      batchNumber: z2.string().optional(),
+      receivedBy: z2.string().optional(),
+      notes: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      return await createAggregateInput(input);
     })
   })
 });

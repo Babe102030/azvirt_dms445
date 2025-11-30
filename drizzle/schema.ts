@@ -120,3 +120,156 @@ export const qualityTests = mysqlTable("qualityTests", {
 
 export type QualityTest = typeof qualityTests.$inferSelect;
 export type InsertQualityTest = typeof qualityTests.$inferInsert;
+
+/**
+ * Employees table for workforce management
+ */
+export const employees = mysqlTable("employees", {
+  id: int("id").autoincrement().primaryKey(),
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  employeeNumber: varchar("employeeNumber", { length: 50 }).notNull().unique(),
+  position: varchar("position", { length: 100 }).notNull(),
+  department: mysqlEnum("department", ["construction", "maintenance", "quality", "administration", "logistics"]).default("construction").notNull(),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  email: varchar("email", { length: 320 }),
+  hourlyRate: int("hourlyRate"),
+  status: mysqlEnum("status", ["active", "inactive", "on_leave"]).default("active").notNull(),
+  hireDate: timestamp("hireDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = typeof employees.$inferInsert;
+
+/**
+ * Work hours table for tracking employee working hours
+ */
+export const workHours = mysqlTable("workHours", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  projectId: int("projectId"),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime"),
+  hoursWorked: int("hoursWorked"),
+  overtimeHours: int("overtimeHours").default(0),
+  workType: mysqlEnum("workType", ["regular", "overtime", "weekend", "holiday"]).default("regular").notNull(),
+  notes: text("notes"),
+  approvedBy: int("approvedBy"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkHour = typeof workHours.$inferSelect;
+export type InsertWorkHour = typeof workHours.$inferInsert;
+
+/**
+ * Concrete bases table for concrete mixing plant management
+ */
+export const concreteBases = mysqlTable("concreteBases", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  location: varchar("location", { length: 500 }).notNull(),
+  capacity: int("capacity").notNull(),
+  status: mysqlEnum("status", ["operational", "maintenance", "inactive"]).default("operational").notNull(),
+  managerName: varchar("managerName", { length: 255 }),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ConcreteBase = typeof concreteBases.$inferSelect;
+export type InsertConcreteBase = typeof concreteBases.$inferInsert;
+
+/**
+ * Machines table for equipment tracking
+ */
+export const machines = mysqlTable("machines", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  machineNumber: varchar("machineNumber", { length: 100 }).notNull().unique(),
+  type: mysqlEnum("type", ["mixer", "pump", "truck", "excavator", "crane", "other"]).default("other").notNull(),
+  manufacturer: varchar("manufacturer", { length: 255 }),
+  model: varchar("model", { length: 255 }),
+  year: int("year"),
+  concreteBaseId: int("concreteBaseId"),
+  status: mysqlEnum("status", ["operational", "maintenance", "repair", "inactive"]).default("operational").notNull(),
+  totalWorkingHours: int("totalWorkingHours").default(0),
+  lastMaintenanceDate: timestamp("lastMaintenanceDate"),
+  nextMaintenanceDate: timestamp("nextMaintenanceDate"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Machine = typeof machines.$inferSelect;
+export type InsertMachine = typeof machines.$inferInsert;
+
+/**
+ * Machine maintenance table for tracking lubrication, fuel, and maintenance
+ */
+export const machineMaintenance = mysqlTable("machineMaintenance", {
+  id: int("id").autoincrement().primaryKey(),
+  machineId: int("machineId").notNull(),
+  date: timestamp("date").notNull(),
+  maintenanceType: mysqlEnum("maintenanceType", ["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]).default("other").notNull(),
+  description: text("description"),
+  lubricationType: varchar("lubricationType", { length: 100 }),
+  lubricationAmount: int("lubricationAmount"),
+  fuelType: varchar("fuelType", { length: 100 }),
+  fuelAmount: int("fuelAmount"),
+  cost: int("cost"),
+  performedBy: varchar("performedBy", { length: 255 }),
+  hoursAtMaintenance: int("hoursAtMaintenance"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MachineMaintenance = typeof machineMaintenance.$inferSelect;
+export type InsertMachineMaintenance = typeof machineMaintenance.$inferInsert;
+
+/**
+ * Machine working hours table for tracking equipment usage
+ */
+export const machineWorkHours = mysqlTable("machineWorkHours", {
+  id: int("id").autoincrement().primaryKey(),
+  machineId: int("machineId").notNull(),
+  projectId: int("projectId"),
+  date: timestamp("date").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime"),
+  hoursWorked: int("hoursWorked"),
+  operatorId: int("operatorId"),
+  operatorName: varchar("operatorName", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MachineWorkHour = typeof machineWorkHours.$inferSelect;
+export type InsertMachineWorkHour = typeof machineWorkHours.$inferInsert;
+
+/**
+ * Aggregate input table for tracking raw material input at concrete bases
+ */
+export const aggregateInputs = mysqlTable("aggregateInputs", {
+  id: int("id").autoincrement().primaryKey(),
+  concreteBaseId: int("concreteBaseId").notNull(),
+  date: timestamp("date").notNull(),
+  materialType: mysqlEnum("materialType", ["cement", "sand", "gravel", "water", "admixture", "other"]).default("other").notNull(),
+  materialName: varchar("materialName", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  unit: varchar("unit", { length: 50 }).notNull(),
+  supplier: varchar("supplier", { length: 255 }),
+  batchNumber: varchar("batchNumber", { length: 100 }),
+  receivedBy: varchar("receivedBy", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AggregateInput = typeof aggregateInputs.$inferSelect;
+export type InsertAggregateInput = typeof aggregateInputs.$inferInsert;

@@ -85,3 +85,23 @@
 - [x] Review and update DashboardLayout colors to match AzVirt brand
 - [x] Ensure consistent orange accent usage throughout the interface
 - [x] Verify background and text contrast for readability
+
+## Workforce Management
+- [x] Create employees table in database schema
+- [x] Create work_hours table for tracking employee hours
+- [x] Build employee management interface (add, edit, list)
+- [ ] Create timesheet entry interface
+- [ ] Add employee work hours reporting
+- [ ] Create printable timesheet reports
+
+## Concrete Base Management
+- [x] Create concrete_bases table in database schema
+- [x] Create machines table for equipment tracking
+- [x] Create machine_maintenance table (lubrication, fuel, hours)
+- [x] Create aggregate_input table for material tracking
+- [ ] Build concrete base dashboard
+- [x] Create machine management interface
+- [x] Build maintenance logging interface (lubrication, fuel)
+- [ ] Create aggregate input tracking interface
+- [ ] Add machine working hours tracking
+- [ ] Create printable maintenance reports

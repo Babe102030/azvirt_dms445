@@ -329,6 +329,280 @@ export const appRouter = router({
       return sortedMaterials;
     }),
   }),
+
+  // Workforce Management
+  employees: router({
+    list: protectedProcedure
+      .input(z.object({
+        department: z.string().optional(),
+        status: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getEmployees(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        firstName: z.string(),
+        lastName: z.string(),
+        employeeNumber: z.string(),
+        position: z.string(),
+        department: z.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
+        phoneNumber: z.string().optional(),
+        email: z.string().optional(),
+        hourlyRate: z.number().optional(),
+        status: z.enum(["active", "inactive", "on_leave"]).default("active"),
+        hireDate: z.date().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createEmployee(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          firstName: z.string().optional(),
+          lastName: z.string().optional(),
+          position: z.string().optional(),
+          department: z.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
+          phoneNumber: z.string().optional(),
+          email: z.string().optional(),
+          hourlyRate: z.number().optional(),
+          status: z.enum(["active", "inactive", "on_leave"]).optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateEmployee(input.id, input.data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteEmployee(input.id);
+        return { success: true };
+      }),
+  }),
+
+  workHours: router({
+    list: protectedProcedure
+      .input(z.object({
+        employeeId: z.number().optional(),
+        projectId: z.number().optional(),
+        status: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getWorkHours(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        employeeId: z.number(),
+        projectId: z.number().optional(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date().optional(),
+        hoursWorked: z.number().optional(),
+        overtimeHours: z.number().optional(),
+        workType: z.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+        notes: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        return await db.createWorkHour(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          endTime: z.date().optional(),
+          hoursWorked: z.number().optional(),
+          overtimeHours: z.number().optional(),
+          notes: z.string().optional(),
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+          approvedBy: z.number().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateWorkHour(input.id, input.data);
+        return { success: true };
+      }),
+  }),
+
+  // Concrete Base Management
+  concreteBases: router({
+    list: protectedProcedure.query(async () => {
+      return await db.getConcreteBases();
+    }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        location: z.string(),
+        capacity: z.number(),
+        status: z.enum(["operational", "maintenance", "inactive"]).default("operational"),
+        managerName: z.string().optional(),
+        phoneNumber: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createConcreteBase(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          name: z.string().optional(),
+          location: z.string().optional(),
+          capacity: z.number().optional(),
+          status: z.enum(["operational", "maintenance", "inactive"]).optional(),
+          managerName: z.string().optional(),
+          phoneNumber: z.string().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateConcreteBase(input.id, input.data);
+        return { success: true };
+      }),
+  }),
+
+  machines: router({
+    list: protectedProcedure
+      .input(z.object({
+        concreteBaseId: z.number().optional(),
+        type: z.string().optional(),
+        status: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getMachines(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        machineNumber: z.string(),
+        type: z.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
+        manufacturer: z.string().optional(),
+        model: z.string().optional(),
+        year: z.number().optional(),
+        concreteBaseId: z.number().optional(),
+        status: z.enum(["operational", "maintenance", "repair", "inactive"]).default("operational"),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createMachine(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          name: z.string().optional(),
+          type: z.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+          status: z.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+          totalWorkingHours: z.number().optional(),
+          lastMaintenanceDate: z.date().optional(),
+          nextMaintenanceDate: z.date().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateMachine(input.id, input.data);
+        return { success: true };
+      }),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.deleteMachine(input.id);
+        return { success: true };
+      }),
+  }),
+
+  machineMaintenance: router({
+    list: protectedProcedure
+      .input(z.object({
+        machineId: z.number().optional(),
+        maintenanceType: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getMachineMaintenance(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        machineId: z.number(),
+        date: z.date(),
+        maintenanceType: z.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
+        description: z.string().optional(),
+        lubricationType: z.string().optional(),
+        lubricationAmount: z.number().optional(),
+        fuelType: z.string().optional(),
+        fuelAmount: z.number().optional(),
+        cost: z.number().optional(),
+        performedBy: z.string().optional(),
+        hoursAtMaintenance: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createMachineMaintenance(input);
+      }),
+  }),
+
+  machineWorkHours: router({
+    list: protectedProcedure
+      .input(z.object({
+        machineId: z.number().optional(),
+        projectId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getMachineWorkHours(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        machineId: z.number(),
+        projectId: z.number().optional(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date().optional(),
+        hoursWorked: z.number().optional(),
+        operatorId: z.number().optional(),
+        operatorName: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createMachineWorkHour(input);
+      }),
+  }),
+
+  aggregateInputs: router({
+    list: protectedProcedure
+      .input(z.object({
+        concreteBaseId: z.number().optional(),
+        materialType: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getAggregateInputs(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        concreteBaseId: z.number(),
+        date: z.date(),
+        materialType: z.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
+        materialName: z.string(),
+        quantity: z.number(),
+        unit: z.string(),
+        supplier: z.string().optional(),
+        batchNumber: z.string().optional(),
+        receivedBy: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createAggregateInput(input);
+      }),
+  }),
 });
 
 
