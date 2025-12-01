@@ -576,6 +576,111 @@ export const appRouter = router({
       }),
   }),
 
+  timesheets: router({
+    list: protectedProcedure
+      .input(z.object({
+        employeeId: z.number().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getWorkHours(input);
+      }),
+
+    clockIn: protectedProcedure
+      .input(z.object({
+        employeeId: z.number(),
+        projectId: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createWorkHour({
+          employeeId: input.employeeId,
+          date: new Date(),
+          startTime: new Date(),
+          projectId: input.projectId,
+          notes: input.notes,
+          status: "pending",
+        });
+      }),
+
+    clockOut: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const endTime = new Date();
+        await db.updateWorkHour(input.id, { endTime });
+        return { success: true };
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        employeeId: z.number(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date().optional(),
+        hoursWorked: z.number().optional(),
+        overtimeHours: z.number().optional(),
+        workType: z.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
+        projectId: z.number().optional(),
+        notes: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createWorkHour(input);
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          startTime: z.date().optional(),
+          endTime: z.date().optional(),
+          hoursWorked: z.number().optional(),
+          overtimeHours: z.number().optional(),
+          workType: z.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
+          projectId: z.number().optional(),
+          notes: z.string().optional(),
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+          approvedBy: z.number().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        await db.updateWorkHour(input.id, input.data);
+        return { success: true };
+      }),
+
+    approve: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateWorkHour(input.id, {
+          status: "approved",
+          approvedBy: ctx.user.id,
+          notes: input.notes,
+        });
+        return { success: true };
+      }),
+
+    reject: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.updateWorkHour(input.id, {
+          status: "rejected",
+          approvedBy: ctx.user.id,
+          notes: input.notes,
+        });
+        return { success: true };
+      }),
+  }),
+
   aggregateInputs: router({
     list: protectedProcedure
       .input(z.object({

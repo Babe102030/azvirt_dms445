@@ -105,3 +105,11 @@
 - [ ] Create aggregate input tracking interface
 - [ ] Add machine working hours tracking
 - [ ] Create printable maintenance reports
+
+## Timesheet Entry Interface
+- [x] Create timesheet entry form with clock in/out functionality
+- [x] Add work hours calculation and validation
+- [x] Build manager approval interface
+- [ ] Create weekly/monthly timesheet summaries
+- [ ] Add printable timesheet reports
+- [x] Implement timesheet status tracking (pending, approved, rejected)
