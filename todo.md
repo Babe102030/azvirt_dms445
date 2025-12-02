@@ -110,6 +110,9 @@
 - [x] Create timesheet entry form with clock in/out functionality
 - [x] Add work hours calculation and validation
 - [x] Build manager approval interface
-- [ ] Create weekly/monthly timesheet summaries
-- [ ] Add printable timesheet reports
+- [x] Create backend procedure for weekly timesheet summaries
+- [x] Create backend procedure for monthly timesheet summaries
+- [x] Build timesheet summary component with date range selector
+- [x] Add overtime hours calculation logic
+- [x] Implement PDF export functionality for timesheet reports
 - [x] Implement timesheet status tracking (pending, approved, rejected)

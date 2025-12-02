@@ -13,6 +13,7 @@ import QualityControl from "./pages/QualityControl";
 import Employees from "./pages/Employees";
 import Machines from "./pages/Machines";
 import Timesheets from "./pages/Timesheets";
+import TimesheetSummary from "./pages/TimesheetSummary";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path={"/employees"} component={Employees} />
       <Route path={"/machines"} component={Machines} />
       <Route path={"/timesheets"} component={Timesheets} />
+      <Route path={"/timesheet-summary"} component={TimesheetSummary} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

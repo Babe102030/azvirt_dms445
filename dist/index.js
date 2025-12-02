@@ -13,7 +13,7 @@ var UNAUTHED_ERR_MSG = "Please login (10001)";
 var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
 
 // server/db.ts
-import { eq, desc, like, and, or } from "drizzle-orm";
+import { eq, desc, like, and, or, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
 // drizzle/schema.ts
@@ -566,6 +566,58 @@ async function getAggregateInputs(filters) {
   }
   const result = conditions.length > 0 ? await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date)) : await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
   return result;
+}
+async function getWeeklyTimesheetSummary(employeeId, weekStart) {
+  const db = await getDb();
+  if (!db) return [];
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+  let query = db.select({
+    employeeId: workHours.employeeId,
+    employeeName: sql`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
+    employeeNumber: employees.employeeNumber,
+    totalHours: sql`SUM(${workHours.hoursWorked})`,
+    regularHours: sql`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    overtimeHours: sql`SUM(${workHours.overtimeHours})`,
+    weekendHours: sql`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    holidayHours: sql`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    daysWorked: sql`COUNT(DISTINCT DATE(${workHours.date}))`
+  }).from(workHours).innerJoin(employees, eq(workHours.employeeId, employees.id)).where(
+    and(
+      gte(workHours.date, weekStart),
+      lt(workHours.date, weekEnd),
+      eq(workHours.status, "approved"),
+      employeeId ? eq(workHours.employeeId, employeeId) : void 0
+    )
+  ).groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber);
+  return await query;
+}
+async function getMonthlyTimesheetSummary(employeeId, year, month) {
+  const db = await getDb();
+  if (!db) return [];
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 1);
+  let query = db.select({
+    employeeId: workHours.employeeId,
+    employeeName: sql`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
+    employeeNumber: employees.employeeNumber,
+    department: employees.department,
+    hourlyRate: employees.hourlyRate,
+    totalHours: sql`SUM(${workHours.hoursWorked})`,
+    regularHours: sql`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    overtimeHours: sql`SUM(${workHours.overtimeHours})`,
+    weekendHours: sql`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    holidayHours: sql`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+    daysWorked: sql`COUNT(DISTINCT DATE(${workHours.date}))`
+  }).from(workHours).innerJoin(employees, eq(workHours.employeeId, employees.id)).where(
+    and(
+      gte(workHours.date, monthStart),
+      lt(workHours.date, monthEnd),
+      eq(workHours.status, "approved"),
+      employeeId ? eq(workHours.employeeId, employeeId) : void 0
+    )
+  ).groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber, employees.department, employees.hourlyRate);
+  return await query;
 }
 
 // server/_core/cookies.ts
@@ -1585,6 +1637,19 @@ var appRouter = router({
         notes: input.notes
       });
       return { success: true };
+    }),
+    weeklySummary: protectedProcedure.input(z2.object({
+      employeeId: z2.number().optional(),
+      weekStart: z2.date()
+    })).query(async ({ input }) => {
+      return await getWeeklyTimesheetSummary(input.employeeId, input.weekStart);
+    }),
+    monthlySummary: protectedProcedure.input(z2.object({
+      employeeId: z2.number().optional(),
+      year: z2.number(),
+      month: z2.number()
+    })).query(async ({ input }) => {
+      return await getMonthlyTimesheetSummary(input.employeeId, input.year, input.month);
     })
   }),
   aggregateInputs: router({

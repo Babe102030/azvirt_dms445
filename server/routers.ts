@@ -679,6 +679,25 @@ export const appRouter = router({
         });
         return { success: true };
       }),
+
+    weeklySummary: protectedProcedure
+      .input(z.object({
+        employeeId: z.number().optional(),
+        weekStart: z.date(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getWeeklyTimesheetSummary(input.employeeId, input.weekStart);
+      }),
+
+    monthlySummary: protectedProcedure
+      .input(z.object({
+        employeeId: z.number().optional(),
+        year: z.number(),
+        month: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getMonthlyTimesheetSummary(input.employeeId, input.year, input.month);
+      }),
   }),
 
   aggregateInputs: router({

@@ -1,4 +1,4 @@
-import { eq, desc, like, and, or } from "drizzle-orm";
+import { eq, desc, like, and, or, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
@@ -559,4 +559,74 @@ export async function getAggregateInputs(filters?: { concreteBaseId?: number; ma
     : await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
   
   return result;
+}
+
+export async function getWeeklyTimesheetSummary(employeeId: number | undefined, weekStart: Date) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  let query = db
+    .select({
+      employeeId: workHours.employeeId,
+      employeeName: sql<string>`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
+      employeeNumber: employees.employeeNumber,
+      totalHours: sql<number>`SUM(${workHours.hoursWorked})`,
+      regularHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      overtimeHours: sql<number>`SUM(${workHours.overtimeHours})`,
+      weekendHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      holidayHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      daysWorked: sql<number>`COUNT(DISTINCT DATE(${workHours.date}))`,
+    })
+    .from(workHours)
+    .innerJoin(employees, eq(workHours.employeeId, employees.id))
+    .where(
+      and(
+        gte(workHours.date, weekStart),
+        lt(workHours.date, weekEnd),
+        eq(workHours.status, "approved"),
+        employeeId ? eq(workHours.employeeId, employeeId) : undefined
+      )
+    )
+    .groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber);
+
+  return await query;
+}
+
+export async function getMonthlyTimesheetSummary(employeeId: number | undefined, year: number, month: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const monthStart = new Date(year, month - 1, 1);
+  const monthEnd = new Date(year, month, 1);
+
+  let query = db
+    .select({
+      employeeId: workHours.employeeId,
+      employeeName: sql<string>`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
+      employeeNumber: employees.employeeNumber,
+      department: employees.department,
+      hourlyRate: employees.hourlyRate,
+      totalHours: sql<number>`SUM(${workHours.hoursWorked})`,
+      regularHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      overtimeHours: sql<number>`SUM(${workHours.overtimeHours})`,
+      weekendHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      holidayHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
+      daysWorked: sql<number>`COUNT(DISTINCT DATE(${workHours.date}))`,
+    })
+    .from(workHours)
+    .innerJoin(employees, eq(workHours.employeeId, employees.id))
+    .where(
+      and(
+        gte(workHours.date, monthStart),
+        lt(workHours.date, monthEnd),
+        eq(workHours.status, "approved"),
+        employeeId ? eq(workHours.employeeId, employeeId) : undefined
+      )
+    )
+    .groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber, employees.department, employees.hourlyRate);
+
+  return await query;
 }
