@@ -116,3 +116,11 @@
 - [x] Add overtime hours calculation logic
 - [x] Implement PDF export functionality for timesheet reports
 - [x] Implement timesheet status tracking (pending, approved, rejected)
+
+## Low-Stock Alert System
+- [x] Add minimumStock field to materials table schema (already exists as minStock)
+- [x] Create backend procedure to check low-stock materials
+- [x] Implement email notification using notifyOwner helper
+- [ ] Add scheduled job to check stock levels daily
+- [ ] Create settings interface for configuring minimum stock thresholds
+- [x] Add manual "Check Stock Now" button for immediate alerts

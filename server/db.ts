@@ -630,3 +630,13 @@ export async function getMonthlyTimesheetSummary(employeeId: number | undefined,
 
   return await query;
 }
+
+export async function getLowStockMaterials() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(materials)
+    .where(sql`${materials.quantity} <= ${materials.minStock}`);
+}

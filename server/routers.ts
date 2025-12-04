@@ -154,6 +154,40 @@ export const appRouter = router({
         await db.deleteMaterial(input.id);
         return { success: true };
       }),
+
+    checkLowStock: protectedProcedure
+      .query(async () => {
+        return await db.getLowStockMaterials();
+      }),
+
+    sendLowStockAlert: protectedProcedure
+      .mutation(async () => {
+        const lowStockMaterials = await db.getLowStockMaterials();
+        
+        if (lowStockMaterials.length === 0) {
+          return { success: true, message: "All materials are adequately stocked" };
+        }
+
+        const materialsList = lowStockMaterials
+          .map(m => `- ${m.name}: ${m.quantity} ${m.unit} (minimum: ${m.minStock} ${m.unit})`)
+          .join("\n");
+
+        const content = `Low Stock Alert\n\nThe following materials have fallen below minimum stock levels:\n\n${materialsList}\n\nPlease reorder these materials to avoid project delays.`;
+
+        const { notifyOwner } = await import("./_core/notification");
+        const notified = await notifyOwner({
+          title: `⚠️ Low Stock Alert: ${lowStockMaterials.length} Material(s)`,
+          content,
+        });
+
+        return { 
+          success: notified, 
+          materialsCount: lowStockMaterials.length,
+          message: notified 
+            ? `Alert sent for ${lowStockMaterials.length} low-stock material(s)` 
+            : "Failed to send notification"
+        };
+      }),
   }),
 
   deliveries: router({

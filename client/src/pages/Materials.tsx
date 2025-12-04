@@ -20,7 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Package, Plus, AlertTriangle } from "lucide-react";
+import { Package, Plus, AlertTriangle, Bell } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Materials() {
@@ -36,6 +36,19 @@ export default function Materials() {
     },
     onError: (error) => {
       toast.error(`Failed to add material: ${error.message}`);
+    },
+  });
+
+  const checkStockMutation = trpc.materials.sendLowStockAlert.useMutation({
+    onSuccess: (data) => {
+      if ((data.materialsCount ?? 0) > 0) {
+        toast.success(data.message);
+      } else {
+        toast.info(data.message);
+      }
+    },
+    onError: (error) => {
+      toast.error(`Failed to check stock: ${error.message}`);
     },
   });
 
@@ -62,7 +75,17 @@ export default function Materials() {
             <h1 className="text-3xl font-bold text-white">Materials</h1>
             <p className="text-white/70">Manage inventory and stock levels</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <div className="flex gap-3">
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => checkStockMutation.mutate()}
+              disabled={checkStockMutation.isPending}
+            >
+              <Bell className="mr-2 h-5 w-5" />
+              {checkStockMutation.isPending ? "Checking..." : "Check Stock Now"}
+            </Button>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="lg">
                 <Plus className="mr-2 h-5 w-5" />
@@ -122,6 +145,7 @@ export default function Materials() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
