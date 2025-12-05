@@ -124,3 +124,12 @@
 - [ ] Add scheduled job to check stock levels daily
 - [ ] Create settings interface for configuring minimum stock thresholds
 - [x] Add manual "Check Stock Now" button for immediate alerts
+
+## Maintenance Report Template
+- [x] Create MaintenanceReport component with print-optimized layout
+- [x] Add machine information section
+- [x] Add maintenance records table (lubrication, fuel, repairs)
+- [x] Include service intervals and next maintenance date
+- [x] Add cost summary section
+- [x] Implement print preview modal
+- [x] Add print button to Machines page

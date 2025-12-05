@@ -26,13 +26,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Cog, Plus, Trash2, Wrench, Fuel } from "lucide-react";
+import { Cog, Plus, Trash2, Wrench, Fuel, FileText } from "lucide-react";
 import { toast } from "sonner";
+import MaintenanceReport from "@/components/MaintenanceReport";
 
 export default function Machines() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [selectedMachineForReport, setSelectedMachineForReport] = useState<any>(null);
   
   const { data: machines, isLoading, refetch } = trpc.machines.list.useQuery();
   const { data: concreteBases } = trpc.concreteBases.list.useQuery();
@@ -334,6 +337,17 @@ export default function Machines() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        setSelectedMachineForReport(machine);
+                        setReportOpen(true);
+                      }}
+                      title="View Maintenance Report"
+                    >
+                      <FileText className="h-4 w-4 text-orange-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
                         setSelectedMachine(machine.id);
                         setIsMaintenanceDialogOpen(true);
                       }}
@@ -358,6 +372,15 @@ export default function Machines() {
           </TableBody>
         </Table>
       </Card>
+
+      {selectedMachineForReport && (
+        <MaintenanceReport
+          machine={selectedMachineForReport}
+          records={[]}
+          open={reportOpen}
+          onOpenChange={setReportOpen}
+        />
+      )}
     </div>
   );
 }
