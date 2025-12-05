@@ -133,3 +133,9 @@
 - [x] Add cost summary section
 - [x] Implement print preview modal
 - [x] Add print button to Machines page
+
+## Automated Daily Stock Check
+- [x] Create scheduled task for 8 AM stock check
+- [x] Implement email notification for low stock materials (via notifyOwner)
+- [x] Add configuration for stock check timezone (UTC 8 AM)
+- [x] Test the automated task
