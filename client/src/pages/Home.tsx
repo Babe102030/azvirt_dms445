@@ -25,15 +25,18 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="text-center max-w-2xl">
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 drop-shadow-lg">
+      <div 
+        className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/azvirt-35years-bg.png)' }}
+      >
+        <div className="text-center max-w-2xl bg-black/40 backdrop-blur-sm p-12 rounded-2xl">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 drop-shadow-2xl">
             AzVirt DMS
           </h1>
-          <p className="text-xl md:text-2xl text-white/90 mb-8 drop-shadow">
+          <p className="text-xl md:text-2xl text-white mb-8 drop-shadow-lg">
             Sistem za upravljanje dokumentima za izvrsnost u građevinarstvu
           </p>
-          <Button asChild size="lg" className="text-lg px-8 py-6">
+          <Button asChild size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
             <a href={getLoginUrl()}>Prijavite se za nastavak</a>
           </Button>
         </div>
