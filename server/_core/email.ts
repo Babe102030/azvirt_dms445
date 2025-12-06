@@ -1,4 +1,3 @@
-import { ENV } from './env';
 
 interface EmailOptions {
   to: string;
@@ -48,16 +47,15 @@ export function generateLowStockEmailHTML(materials: Array<{
   name: string;
   quantity: number;
   unit: string;
-  criticalThreshold: number;
-  supplier?: string;
-  supplierEmail?: string;
+  reorderLevel: number;
 }>): string {
   const materialRows = materials.map(m => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; color: #dc2626; font-weight: bold;">${m.quantity} ${m.unit}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${m.criticalThreshold} ${m.unit}</td>
-      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${m.supplier || 'N/A'}</td>
+      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">
+        <span style="color: #dc2626; font-weight: bold;">${m.quantity} ${m.unit}</span>
+      </td>
+      <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${m.reorderLevel} ${m.unit}</td>
     </tr>
   `).join('');
 
@@ -68,28 +66,24 @@ export function generateLowStockEmailHTML(materials: Array<{
   <meta charset="utf-8">
   <title>Low Stock Alert - AzVirt DMS</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">⚠️ Low Stock Alert</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">AzVirt Document Management System</p>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">⚠️ Low Stock Alert</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Upozorenje o niskim zalihama</p>
   </div>
   
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
-      <strong>Upozorenje:</strong> Sljedeći materijali su ispod kritičnog nivoa zaliha i zahtijevaju hitnu narudžbu.
+      The following materials are running low and need to be reordered:<br>
+      <em>Sljedeći materijali su pri kraju i potrebno ih je naručiti:</em>
     </p>
     
-    <p style="font-size: 16px; margin-bottom: 20px;">
-      <strong>Warning:</strong> The following materials are below critical stock levels and require urgent ordering.
-    </p>
-    
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
       <thead>
         <tr style="background-color: #f3f4f6;">
           <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Material / Materijal</th>
-          <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Current / Trenutno</th>
-          <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Threshold / Prag</th>
-          <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Supplier / Dobavljač</th>
+          <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Current Stock / Trenutna zaliha</th>
+          <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Reorder Level / Nivo ponovne narudžbe</th>
         </tr>
       </thead>
       <tbody>
@@ -97,17 +91,17 @@ export function generateLowStockEmailHTML(materials: Array<{
       </tbody>
     </table>
     
-    <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
-      <p style="margin: 0; font-size: 14px;">
-        <strong>Preporučena akcija / Recommended Action:</strong><br>
-        Kreirajte narudžbenicu odmah kako biste izbjegli zastoje u proizvodnji.<br>
-        Create purchase orders immediately to avoid production delays.
+    <div style="margin-top: 30px; padding: 20px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
+      <p style="margin: 0; font-weight: bold; color: #991b1b;">Action Required / Potrebna akcija:</p>
+      <p style="margin: 10px 0 0 0; color: #7f1d1d;">
+        Please create purchase orders for these materials to avoid production delays.<br>
+        <em>Molimo kreirajte narudžbenice za ove materijale kako biste izbjegli kašnjenja u proizvodnji.</em>
       </p>
     </div>
     
-    <p style="font-size: 14px; color: #6b7280; margin-top: 30px;">
-      Ova automatska poruka je generisana od strane AzVirt DMS sistema.<br>
-      This is an automated message generated by AzVirt DMS.
+    <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+      This automated alert is generated by AzVirt DMS.<br>
+      Ovo automatsko upozorenje je generirano od strane AzVirt DMS sistema.
     </p>
   </div>
 </body>
@@ -118,71 +112,83 @@ export function generateLowStockEmailHTML(materials: Array<{
 /**
  * Generate purchase order email HTML
  */
-export function generatePurchaseOrderEmailHTML(order: {
+export function generatePurchaseOrderEmailHTML(po: {
   id: number;
   materialName: string;
   quantity: number;
+  unit: string;
   supplier: string;
-  expectedDelivery?: Date;
-  notes?: string;
+  orderDate: string;
+  expectedDelivery: string | null;
+  notes: string | null;
 }): string {
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Purchase Order - AzVirt DMS</title>
+  <title>Purchase Order #${po.id} - AzVirt DMS</title>
 </head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 24px;">📦 Purchase Order</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Narudžbenica / Order #${order.id}</p>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">📦 Purchase Order</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">PO #${po.id}</p>
   </div>
   
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
-      Poštovani <strong>${order.supplier}</strong>,
+      Dear ${po.supplier},<br>
+      <em>Poštovani ${po.supplier},</em>
     </p>
     
-    <p style="font-size: 16px; margin-bottom: 20px;">
-      Molimo vas da obradite sljedeću narudžbu:<br>
-      Please process the following order:
+    <p>
+      We would like to place the following order:<br>
+      <em>Želimo da naručimo sljedeće:</em>
     </p>
     
     <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <table style="width: 100%;">
         <tr>
-          <td style="padding: 8px 0;"><strong>Material / Materijal:</strong></td>
-          <td style="padding: 8px 0;">${order.materialName}</td>
+          <td style="padding: 8px 0; font-weight: bold;">Material / Materijal:</td>
+          <td style="padding: 8px 0; text-align: right;">${po.materialName}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0;"><strong>Quantity / Količina:</strong></td>
-          <td style="padding: 8px 0; font-size: 18px; color: #f97316; font-weight: bold;">${order.quantity}</td>
+          <td style="padding: 8px 0; font-weight: bold;">Quantity / Količina:</td>
+          <td style="padding: 8px 0; text-align: right; font-size: 20px; color: #2563eb;">${po.quantity} ${po.unit}</td>
         </tr>
-        ${order.expectedDelivery ? `
         <tr>
-          <td style="padding: 8px 0;"><strong>Expected Delivery / Očekivana isporuka:</strong></td>
-          <td style="padding: 8px 0;">${new Date(order.expectedDelivery).toLocaleDateString()}</td>
+          <td style="padding: 8px 0; font-weight: bold;">Order Date / Datum narudžbe:</td>
+          <td style="padding: 8px 0; text-align: right;">${po.orderDate}</td>
         </tr>
-        ` : ''}
-        ${order.notes ? `
+        ${po.expectedDelivery ? `
         <tr>
-          <td style="padding: 8px 0; vertical-align: top;"><strong>Notes / Napomene:</strong></td>
-          <td style="padding: 8px 0;">${order.notes}</td>
+          <td style="padding: 8px 0; font-weight: bold;">Expected Delivery / Očekivana isporuka:</td>
+          <td style="padding: 8px 0; text-align: right;">${po.expectedDelivery}</td>
         </tr>
         ` : ''}
       </table>
     </div>
     
-    <p style="font-size: 16px; margin-top: 20px;">
-      Molimo vas da potvrdite prijem ove narudžbe i datum isporuke.<br>
-      Please confirm receipt of this order and delivery date.
+    ${po.notes ? `
+    <div style="margin: 20px 0;">
+      <p style="font-weight: bold; margin-bottom: 10px;">Additional Notes / Dodatne napomene:</p>
+      <p style="background: #fef3c7; padding: 15px; border-radius: 4px; margin: 0;">${po.notes}</p>
+    </div>
+    ` : ''}
+    
+    <p style="margin-top: 30px;">
+      Please confirm receipt of this order and provide delivery timeline.<br>
+      <em>Molimo potvrdite prijem ove narudžbe i dostavite rok isporuke.</em>
+    </p>
+    
+    <p style="margin-top: 20px;">
+      Best regards,<br>
+      <strong>AzVirt Team</strong>
     </p>
     
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-      S poštovanjem / Best regards,<br>
-      <strong>AzVirt Team</strong><br>
-      <a href="mailto:info@azvirt.com" style="color: #f97316;">info@azvirt.com</a>
+      This purchase order is generated by AzVirt DMS.<br>
+      Ova narudžbenica je generirana od strane AzVirt DMS sistema.
     </p>
   </div>
 </body>
@@ -199,7 +205,20 @@ export function generateDailyProductionReportHTML(report: {
   deliveriesCompleted: number;
   materialConsumption: Array<{ name: string; quantity: number; unit: string }>;
   qualityTests: { total: number; passed: number; failed: number };
+}, settings?: {
+  includeProduction?: boolean;
+  includeDeliveries?: boolean;
+  includeMaterials?: boolean;
+  includeQualityControl?: boolean;
 }): string {
+  // Default to include all sections if no settings provided
+  const include = {
+    production: settings?.includeProduction ?? true,
+    deliveries: settings?.includeDeliveries ?? true,
+    materials: settings?.includeMaterials ?? true,
+    qualityControl: settings?.includeQualityControl ?? true,
+  };
+
   const materialRows = report.materialConsumption.map(m => `
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
@@ -211,38 +230,32 @@ export function generateDailyProductionReportHTML(report: {
     ? ((report.qualityTests.passed / report.qualityTests.total) * 100).toFixed(1)
     : '0';
 
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Daily Production Report - AzVirt DMS</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
-  <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
-    <h1 style="color: white; margin: 0; font-size: 28px;">📊 Daily Production Report</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">${report.date}</p>
-  </div>
-  
-  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-    
-    <!-- Key Metrics -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px;">
+  // Build metrics cards
+  let metricsHTML = '';
+  if (include.production) {
+    metricsHTML += `
       <div style="background: #fef3c7; padding: 20px; border-radius: 8px; text-align: center;">
         <div style="font-size: 32px; font-weight: bold; color: #f97316;">${report.totalConcreteProduced}</div>
         <div style="font-size: 14px; color: #78350f; margin-top: 5px;">m³ Concrete<br>Betona</div>
-      </div>
+      </div>`;
+  }
+  if (include.deliveries) {
+    metricsHTML += `
       <div style="background: #dbeafe; padding: 20px; border-radius: 8px; text-align: center;">
         <div style="font-size: 32px; font-weight: bold; color: #2563eb;">${report.deliveriesCompleted}</div>
         <div style="font-size: 14px; color: #1e3a8a; margin-top: 5px;">Deliveries<br>Isporuka</div>
-      </div>
+      </div>`;
+  }
+  if (include.qualityControl) {
+    metricsHTML += `
       <div style="background: #dcfce7; padding: 20px; border-radius: 8px; text-align: center;">
         <div style="font-size: 32px; font-weight: bold; color: #16a34a;">${passRate}%</div>
         <div style="font-size: 14px; color: #14532d; margin-top: 5px;">QC Pass Rate<br>Prolaznost</div>
-      </div>
-    </div>
-    
-    <!-- Material Consumption -->
+      </div>`;
+  }
+
+  // Build material consumption section
+  const materialsHTML = include.materials ? `
     <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
       Material Consumption / Potrošnja materijala
     </h2>
@@ -257,8 +270,10 @@ export function generateDailyProductionReportHTML(report: {
         ${materialRows}
       </tbody>
     </table>
-    
-    <!-- Quality Control Summary -->
+  ` : '';
+
+  // Build quality control section
+  const qcHTML = include.qualityControl ? `
     <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
       Quality Control / Kontrola kvaliteta
     </h2>
@@ -276,6 +291,30 @@ export function generateDailyProductionReportHTML(report: {
         <strong style="color: #dc2626;">${report.qualityTests.failed}</strong>
       </div>
     </div>
+  ` : '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Daily Production Report - AzVirt DMS</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 28px;">📊 Daily Production Report</h1>
+    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">${report.date}</p>
+  </div>
+  
+  <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+    
+    <!-- Key Metrics -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
+      ${metricsHTML}
+    </div>
+    
+    ${materialsHTML}
+    ${qcHTML}
     
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This automated report is generated daily by AzVirt DMS.<br>

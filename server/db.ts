@@ -897,3 +897,87 @@ export async function updatePurchaseOrder(id: number, data: Partial<InsertPurcha
   
   await db.update(purchaseOrders).set(data).where(eq(purchaseOrders.id, id));
 }
+
+
+// Report Settings
+export async function getReportSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const results = await db.select().from(reportSettings).where(eq(reportSettings.userId, userId)).limit(1);
+  return results[0] || null;
+}
+
+export async function upsertReportSettings(data: {
+  userId: number;
+  includeProduction?: boolean;
+  includeDeliveries?: boolean;
+  includeMaterials?: boolean;
+  includeQualityControl?: boolean;
+  reportTime?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await getReportSettings(data.userId);
+  
+  if (existing) {
+    await db.update(reportSettings)
+      .set({
+        includeProduction: data.includeProduction ?? existing.includeProduction,
+        includeDeliveries: data.includeDeliveries ?? existing.includeDeliveries,
+        includeMaterials: data.includeMaterials ?? existing.includeMaterials,
+        includeQualityControl: data.includeQualityControl ?? existing.includeQualityControl,
+        reportTime: data.reportTime ?? existing.reportTime,
+        updatedAt: new Date(),
+      })
+      .where(eq(reportSettings.id, existing.id));
+    return existing.id;
+  } else {
+    await db.insert(reportSettings).values({
+      userId: data.userId,
+      includeProduction: data.includeProduction ?? true,
+      includeDeliveries: data.includeDeliveries ?? true,
+      includeMaterials: data.includeMaterials ?? true,
+      includeQualityControl: data.includeQualityControl ?? true,
+      reportTime: data.reportTime ?? '18:00',
+    });
+    return 0; // MySQL doesn't support returning()
+  }
+}
+
+// Report Recipients
+export async function getReportRecipients() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(reportRecipients).where(eq(reportRecipients.active, true));
+}
+
+export async function getAllReportRecipients() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(reportRecipients).orderBy(desc(reportRecipients.createdAt));
+}
+
+export async function addReportRecipient(email: string, name?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(reportRecipients).values({
+    email,
+    name: name || null,
+    active: true,
+  });
+  return 0;
+}
+
+export async function removeReportRecipient(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(reportRecipients)
+    .set({ active: false })
+    .where(eq(reportRecipients.id, id));
+}

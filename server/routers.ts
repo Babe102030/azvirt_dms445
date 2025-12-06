@@ -1207,6 +1207,9 @@ export const appRouter = router({
           failed: dayTests.filter(t => t.status === 'fail').length,
         };
 
+        // Get user's report settings
+        const settings = await db.getReportSettings(1); // Default to user ID 1 for now
+        
         const { sendEmail, generateDailyProductionReportHTML } = await import('./_core/email');
         const emailHTML = generateDailyProductionReportHTML({
           date: input.date,
@@ -1214,7 +1217,12 @@ export const appRouter = router({
           deliveriesCompleted: completedDeliveries.length,
           materialConsumption,
           qualityTests,
-        });
+        }, settings ? {
+          includeProduction: settings.includeProduction,
+          includeDeliveries: settings.includeDeliveries,
+          includeMaterials: settings.includeMaterials,
+          includeQualityControl: settings.includeQualityControl,
+        } : undefined);
 
         const sent = await sendEmail({
           to: input.recipientEmail,
