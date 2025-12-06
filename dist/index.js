@@ -766,7 +766,7 @@ var forecastPredictions = mysqlTable("forecast_predictions", {
   confidence: int("confidence"),
   calculatedAt: timestamp("calculatedAt").defaultNow().notNull()
 });
-var reportSettings2 = mysqlTable("report_settings", {
+var reportSettings = mysqlTable("report_settings", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().unique(),
   includeProduction: boolean("includeProduction").default(true).notNull(),
@@ -777,7 +777,7 @@ var reportSettings2 = mysqlTable("report_settings", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
 });
-var reportRecipients2 = mysqlTable("report_recipients", {
+var reportRecipients = mysqlTable("report_recipients", {
   id: int("id").autoincrement().primaryKey(),
   email: varchar("email", { length: 320 }).notNull(),
   name: varchar("name", { length: 255 }),
@@ -796,7 +796,7 @@ var emailTemplates2 = mysqlTable("email_templates", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
 });
-var emailBranding2 = mysqlTable("email_branding", {
+var emailBranding = mysqlTable("email_branding", {
   id: int("id").autoincrement().primaryKey(),
   logoUrl: varchar("logoUrl", { length: 500 }),
   primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
@@ -833,7 +833,7 @@ var aiModels = mysqlTable("ai_models", {
   displayName: varchar("displayName", { length: 255 }).notNull(),
   type: mysqlEnum("type", ["text", "vision", "code"]).notNull(),
   size: varchar("size", { length: 20 }),
-  isInstalled: boolean("isInstalled").default(false),
+  isAvailable: boolean("isAvailable").default(false),
   lastUsed: timestamp("lastUsed"),
   description: text("description"),
   createdAt: timestamp("createdAt").defaultNow().notNull()
@@ -2707,8 +2707,8 @@ Please reorder these materials to avoid project delays.`;
         materialName: order.materialName,
         quantity: order.quantity,
         supplier: order.supplier || "Supplier",
-        expectedDelivery: order.expectedDelivery || void 0,
-        notes: order.notes || void 0
+        expectedDelivery: order.expectedDelivery || null,
+        notes: order.notes || null
       });
       const sent = await sendEmail2({
         to: order.supplierEmail,

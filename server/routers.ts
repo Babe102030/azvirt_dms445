@@ -1082,8 +1082,8 @@ export const appRouter = router({
           materialName: order.materialName,
           quantity: order.quantity,
           supplier: order.supplier || 'Supplier',
-          expectedDelivery: order.expectedDelivery || undefined,
-          notes: order.notes || undefined,
+          expectedDelivery: order.expectedDelivery || null,
+          notes: order.notes || null,
         });
 
         const sent = await sendEmail({

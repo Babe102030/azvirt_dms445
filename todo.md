@@ -595,3 +595,46 @@
 - [ ] Test model switching
 - [ ] Test conversation persistence
 - [ ] End-to-end integration testing
+
+
+## AI Assistant Chat Interface Implementation
+### Backend - tRPC Procedures
+- [ ] Create ai.chat procedure with streaming support
+- [ ] Create ai.getConversations procedure
+- [ ] Create ai.getMessages procedure
+- [ ] Create ai.createConversation procedure
+- [ ] Create ai.transcribeVoice procedure (Whisper integration)
+- [ ] Create ai.listModels procedure
+- [ ] Create ai.switchModel procedure
+- [ ] Add conversation history management
+
+### Frontend - Voice Recorder
+- [ ] Create VoiceRecorder component
+- [ ] Implement browser audio recording
+- [ ] Add recording visualization (waveform)
+- [ ] Integrate Whisper transcription
+- [ ] Add recording controls (start/stop/cancel)
+- [ ] Handle audio file upload
+
+### Frontend - Chat Interface
+- [ ] Create AIAssistant page component
+- [ ] Build streaming message display
+- [ ] Add message history with scrolling
+- [ ] Create thinking/tool use indicators
+- [ ] Add markdown rendering for responses
+- [ ] Implement auto-scroll to latest message
+- [ ] Add loading states and error handling
+
+### Frontend - Model Management
+- [ ] Create model switcher dropdown
+- [ ] Display available Ollama models
+- [ ] Add model download progress indicator
+- [ ] Create model settings panel
+- [ ] Add temperature/context controls
+
+### Integration
+- [ ] Add AI Assistant to navigation menu
+- [ ] Create floating AI assistant button
+- [ ] Add keyboard shortcuts (Ctrl+K)
+- [ ] Test with all DMS tools
+- [ ] Add conversation persistence

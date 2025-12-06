@@ -16,7 +16,13 @@ import {
   aggregateInputs, InsertAggregateInput,
   materialConsumptionLog, InsertMaterialConsumptionLog,
   purchaseOrders, InsertPurchaseOrder,
-  forecastPredictions, InsertForecastPrediction
+  forecastPredictions, InsertForecastPrediction,
+  aiConversations,
+  aiMessages,
+  aiModels,
+  reportSettings,
+  reportRecipients,
+  emailBranding
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1077,5 +1083,114 @@ export async function upsertEmailBranding(data: {
       footerText: data.footerText || null,
     });
     return 0;
+  }
+}
+
+
+// ============ AI Conversations ============
+export async function createConversation(userId: number, title: string, modelName: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(aiConversations).values({
+    userId,
+    title,
+    modelName,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+  return result;
+}
+
+export async function getConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(aiConversations)
+    .where(eq(aiConversations.userId, userId))
+    .orderBy(desc(aiConversations.updatedAt));
+}
+
+export async function getConversation(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const results = await db.select().from(aiConversations)
+    .where(eq(aiConversations.id, id));
+  return results[0];
+}
+
+export async function updateConversationTitle(id: number, title: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(aiConversations)
+    .set({ title, updatedAt: new Date() })
+    .where(eq(aiConversations.id, id));
+}
+
+export async function addMessage(
+  conversationId: number,
+  role: 'user' | 'assistant' | 'system',
+  content: string,
+  metadata?: any
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(aiMessages).values({
+    conversationId,
+    role,
+    content,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+    createdAt: new Date(),
+  });
+  
+  // Update conversation timestamp
+  await db.update(aiConversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(aiConversations.id, conversationId));
+    
+  return result;
+}
+
+export async function getMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(aiMessages)
+    .where(eq(aiMessages.conversationId, conversationId))
+    .orderBy(aiMessages.createdAt);
+}
+
+export async function getAvailableModels() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(aiModels)
+    .where(eq(aiModels.isAvailable, true))
+    .orderBy(aiModels.name);
+}
+
+export async function upsertModel(name: string, displayName: string, type: "text" | "vision" | "code", size?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select().from(aiModels)
+    .where(eq(aiModels.name, name));
+    
+  if (existing.length > 0) {
+    await db.update(aiModels)
+      .set({ isAvailable: true, lastUsed: new Date() })
+      .where(eq(aiModels.name, name));
+  } else {
+    await db.insert(aiModels).values({
+      name,
+      displayName,
+      type,
+      size: size || undefined,
+      isAvailable: true,
+      lastUsed: new Date(),
+    });
   }
 }

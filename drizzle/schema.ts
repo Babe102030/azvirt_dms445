@@ -459,7 +459,7 @@ export const aiModels = mysqlTable("ai_models", {
   displayName: varchar("displayName", { length: 255 }).notNull(),
   type: mysqlEnum("type", ["text", "vision", "code"]).notNull(),
   size: varchar("size", { length: 20 }),
-  isInstalled: boolean("isInstalled").default(false),
+  isAvailable: boolean("isAvailable").default(false),
   lastUsed: timestamp("lastUsed"),
   description: text("description"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
