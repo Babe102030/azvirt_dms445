@@ -455,3 +455,33 @@
 - [ ] Write vitest tests for template management
 - [ ] Test template rendering with custom branding
 - [ ] Test logo upload and display
+
+
+## Logo Upload & Email Branding Management
+### Backend
+- [x] Create uploadLogo tRPC procedure with S3 integration
+- [x] Create getBranding tRPC procedure
+- [x] Create updateBranding tRPC procedure
+- [x] Add logo file validation (size, format)
+
+### Frontend
+- [x] Create EmailBrandingSettings page
+- [x] Add logo upload component with drag-and-drop
+- [x] Add logo preview with delete option
+- [x] Add color picker for primary color
+- [x] Add color picker for secondary color
+- [x] Add company name input field
+- [x] Add footer text textarea
+- [x] Create live email preview component
+- [x] Add save/reset buttons
+
+### Email Template Updates
+- [x] Update daily production report to use custom branding
+- [x] Update low stock alert to use custom branding
+- [x] Update purchase order email to use custom branding
+- [x] Add default fallback branding
+
+### Testing
+- [x] Test logo upload with various image formats
+- [x] Test email rendering with custom branding
+- [x] Test branding persistence across sessions

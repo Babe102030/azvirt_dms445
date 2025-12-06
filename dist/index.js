@@ -1394,6 +1394,37 @@ async function getReportSettings(userId) {
   const results = await db.select().from(reportSettings).where(eq(reportSettings.userId, userId)).limit(1);
   return results[0] || null;
 }
+async function getEmailBranding() {
+  const db = await getDb();
+  if (!db) return null;
+  const results = await db.select().from(emailBranding).limit(1);
+  return results[0] || null;
+}
+async function upsertEmailBranding(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const existing = await getEmailBranding();
+  if (existing) {
+    await db.update(emailBranding).set({
+      logoUrl: data.logoUrl ?? existing.logoUrl,
+      primaryColor: data.primaryColor ?? existing.primaryColor,
+      secondaryColor: data.secondaryColor ?? existing.secondaryColor,
+      companyName: data.companyName ?? existing.companyName,
+      footerText: data.footerText ?? existing.footerText,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(emailBranding.id, existing.id));
+    return existing.id;
+  } else {
+    await db.insert(emailBranding).values({
+      logoUrl: data.logoUrl || null,
+      primaryColor: data.primaryColor || "#f97316",
+      secondaryColor: data.secondaryColor || "#ea580c",
+      companyName: data.companyName || "AzVirt",
+      footerText: data.footerText || null
+    });
+    return 0;
+  }
+}
 
 // server/_core/cookies.ts
 function isSecureRequest(req) {
@@ -2763,6 +2794,40 @@ Please reorder these materials to avoid project delays.`;
         html: emailHTML
       });
       return { success: sent };
+    })
+  }),
+  branding: router({
+    get: protectedProcedure.query(async () => {
+      return await getEmailBranding();
+    }),
+    update: protectedProcedure.input(z2.object({
+      logoUrl: z2.string().optional(),
+      primaryColor: z2.string().optional(),
+      secondaryColor: z2.string().optional(),
+      companyName: z2.string().optional(),
+      footerText: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      await upsertEmailBranding(input);
+      return { success: true };
+    }),
+    uploadLogo: protectedProcedure.input(z2.object({
+      fileData: z2.string(),
+      // base64 encoded image
+      fileName: z2.string(),
+      mimeType: z2.string()
+    })).mutation(async ({ input }) => {
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+      if (!allowedTypes.includes(input.mimeType)) {
+        throw new Error("Invalid file type. Only PNG, JPG, and SVG are allowed.");
+      }
+      const buffer = Buffer.from(input.fileData, "base64");
+      if (buffer.length > 2 * 1024 * 1024) {
+        throw new Error("File size must be less than 2MB");
+      }
+      const fileKey = `branding/logo-${nanoid()}-${input.fileName}`;
+      const { url } = await storagePut(fileKey, buffer, input.mimeType);
+      await upsertEmailBranding({ logoUrl: url });
+      return { url };
     })
   })
 });
