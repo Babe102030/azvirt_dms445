@@ -30,12 +30,12 @@ export default function Materials() {
 
   const createMutation = trpc.materials.create.useMutation({
     onSuccess: () => {
-      toast.success("Material added successfully");
+      toast.success("Materijal uspješno dodan");
       setCreateOpen(false);
       refetch();
     },
     onError: (error) => {
-      toast.error(`Failed to add material: ${error.message}`);
+      toast.error(`Neuspjelo dodavanje materijala: ${error.message}`);
     },
   });
 
@@ -48,7 +48,7 @@ export default function Materials() {
       }
     },
     onError: (error) => {
-      toast.error(`Failed to check stock: ${error.message}`);
+      toast.error(`Neuspjela provjera zaliha: ${error.message}`);
     },
   });
 
@@ -73,8 +73,8 @@ export default function Materials() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white">Materials</h1>
-            <p className="text-white/70">Manage inventory and stock levels</p>
+            <h1 className="text-3xl font-bold text-white">Materijali</h1>
+            <p className="text-white/70">Upravljajte zalihama i nivoima zaliha</p>
           </div>
           <div className="flex gap-3">
             <Button 
@@ -84,69 +84,69 @@ export default function Materials() {
               disabled={checkStockMutation.isPending}
             >
               <Bell className="mr-2 h-5 w-5" />
-              {checkStockMutation.isPending ? "Checking..." : "Check Stock Now"}
+              {checkStockMutation.isPending ? "Provjeravam..." : "Provjeri zalihe odmah"}
             </Button>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
               <Button size="lg">
                 <Plus className="mr-2 h-5 w-5" />
-                Add Material
+                Dodaj materijal
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-card/95 backdrop-blur">
               <DialogHeader>
-                <DialogTitle>Add New Material</DialogTitle>
-                <DialogDescription>Add a new material to inventory</DialogDescription>
+                <DialogTitle>Dodaj novi materijal</DialogTitle>
+                <DialogDescription>Dodajte novi materijal u inventar</DialogDescription>
               </DialogHeader>
               <form onSubmit={handleCreate} className="space-y-4">
                 <div>
-                  <Label htmlFor="name">Material Name</Label>
+                  <Label htmlFor="name">Naziv materijala</Label>
                   <Input id="name" name="name" required />
                 </div>
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">Kategorija</Label>
                   <Select name="category" required>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
+                      <SelectValue placeholder="Izaberite kategoriju" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cement">Cement</SelectItem>
-                      <SelectItem value="aggregate">Aggregate</SelectItem>
-                      <SelectItem value="admixture">Admixture</SelectItem>
-                      <SelectItem value="water">Water</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="aggregate">Agregat</SelectItem>
+                      <SelectItem value="admixture">Dodatak</SelectItem>
+                      <SelectItem value="water">Voda</SelectItem>
+                      <SelectItem value="other">Ostalo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="quantity">Quantity</Label>
+                    <Label htmlFor="quantity">Količina</Label>
                     <Input id="quantity" name="quantity" type="number" defaultValue="0" />
                   </div>
                   <div>
-                    <Label htmlFor="unit">Unit</Label>
+                    <Label htmlFor="unit">Jedinica</Label>
                     <Input id="unit" name="unit" placeholder="kg, m³, L" required />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="minStock">Minimum Stock Level</Label>
+                  <Label htmlFor="minStock">Minimalni nivo zaliha</Label>
                   <Input id="minStock" name="minStock" type="number" defaultValue="0" />
                 </div>
                 <div>
-                  <Label htmlFor="criticalThreshold">Critical Threshold (SMS Alert Level)</Label>
+                  <Label htmlFor="criticalThreshold">Kritični prag (nivo SMS upozorenja)</Label>
                   <Input id="criticalThreshold" name="criticalThreshold" type="number" defaultValue="0" />
-                  <p className="text-xs text-muted-foreground mt-1">SMS alerts will be sent when stock falls below this level</p>
+                  <p className="text-xs text-muted-foreground mt-1">SMS upozorenja će biti poslana kada zalihe padnu ispod ovog nivoa</p>
                 </div>
                 <div>
-                  <Label htmlFor="supplier">Supplier</Label>
+                  <Label htmlFor="supplier">Dobavljač</Label>
                   <Input id="supplier" name="supplier" />
                 </div>
                 <div>
-                  <Label htmlFor="unitPrice">Unit Price</Label>
+                  <Label htmlFor="unitPrice">Jedinična cijena</Label>
                   <Input id="unitPrice" name="unitPrice" type="number" />
                 </div>
                 <Button type="submit" className="w-full" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Adding..." : "Add Material"}
+                  {createMutation.isPending ? "Dodajem..." : "Dodaj materijal"}
                 </Button>
               </form>
             </DialogContent>
@@ -156,11 +156,11 @@ export default function Materials() {
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
-            <CardTitle>Inventory</CardTitle>
+            <CardTitle>Inventar</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <div className="text-center py-8 text-muted-foreground">Učitavanje...</div>
             ) : materials && materials.length > 0 ? (
               <div className="space-y-2">
                 {materials.map((material) => {
@@ -184,23 +184,23 @@ export default function Materials() {
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Category: {material.category}
+                            Kategorija: {material.category}
                           </p>
                           <div className="flex gap-4 mt-1">
                             <span className="text-xs text-muted-foreground">
-                              Stock: {material.quantity} {material.unit}
+                              Zaliha: {material.quantity} {material.unit}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               Min: {material.minStock} {material.unit}
                             </span>
                             {material.criticalThreshold > 0 && (
                               <span className="text-xs text-red-400">
-                                Critical: {material.criticalThreshold} {material.unit}
+                                Kritično: {material.criticalThreshold} {material.unit}
                               </span>
                             )}
                             {material.supplier && (
                               <span className="text-xs text-muted-foreground">
-                                Supplier: {material.supplier}
+                                Dobavljač: {material.supplier}
                               </span>
                             )}
                           </div>
@@ -211,7 +211,7 @@ export default function Materials() {
                           <p className="font-medium">${material.unitPrice}/{material.unit}</p>
                         )}
                         {isLowStock && (
-                          <p className="text-xs text-yellow-500 mt-1">Low Stock</p>
+                          <p className="text-xs text-yellow-500 mt-1">Niske zalihe</p>
                         )}
                       </div>
                     </div>
@@ -220,7 +220,7 @@ export default function Materials() {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                No materials found. Add your first material to get started.
+                Nisu pronađeni materijali. Dodajte svoj prvi materijal za početak.
               </div>
             )}
           </CardContent>

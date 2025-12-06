@@ -17,11 +17,11 @@ export default function Settings() {
 
   const updateSMSMutation = trpc.auth.updateSMSSettings.useMutation({
     onSuccess: () => {
-      toast.success("SMS settings updated successfully");
+      toast.success("SMS podešavanja uspješno ažurirana");
       setIsSaving(false);
     },
     onError: (error: any) => {
-      toast.error(`Failed to update SMS settings: ${error.message}`);
+      toast.error(`Neuspjelo ažuriranje SMS podešavanja: ${error.message}`);
       setIsSaving(false);
     },
   });
@@ -30,7 +30,7 @@ export default function Settings() {
     e.preventDefault();
     
     if (!phoneNumber.trim()) {
-      toast.error("Please enter a phone number");
+      toast.error("Molimo unesite broj telefona");
       return;
     }
 
@@ -45,8 +45,8 @@ export default function Settings() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Settings</h1>
-          <p className="text-white/70">Manage your notification preferences</p>
+          <h1 className="text-3xl font-bold text-white">Podešavanja</h1>
+          <p className="text-white/70">Upravljajte svojim preferencijama obavještenja</p>
         </div>
 
         <div className="grid gap-6 max-w-2xl">
@@ -54,16 +54,16 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Phone className="h-5 w-5 text-primary" />
-                SMS Notifications
+                SMS obavještenja
               </CardTitle>
               <CardDescription>
-                Receive critical stock alerts via SMS when materials fall below critical thresholds
+                Primajte kritična upozorenja o zalihama putem SMS-a kada materijali padnu ispod kritičnih pragova
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 <div>
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <Label htmlFor="phoneNumber">Broj telefona</Label>
                   <Input
                     id="phoneNumber"
                     type="tel"
@@ -73,7 +73,7 @@ export default function Settings() {
                     disabled={isSaving}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Enter your phone number in international format (e.g., +1234567890)
+                    Unesite svoj broj telefona u međunarodnom formatu (npr. +1234567890)
                   </p>
                 </div>
 
@@ -87,9 +87,9 @@ export default function Settings() {
                     className="h-4 w-4 rounded border-primary cursor-pointer"
                   />
                   <Label htmlFor="smsEnabled" className="cursor-pointer flex-1 m-0">
-                    <span className="font-medium">Enable SMS Alerts</span>
+                    <span className="font-medium">Omogući SMS upozorenja</span>
                     <p className="text-xs text-muted-foreground mt-1">
-                      You will receive SMS notifications for critical stock levels
+                      Primaćete SMS obavještenja za kritične nivoe zaliha
                     </p>
                   </Label>
                 </div>
@@ -100,7 +100,7 @@ export default function Settings() {
                   disabled={isSaving}
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? "Saving..." : "Save Settings"}
+                  {isSaving ? "Čuvam..." : "Sačuvaj podešavanja"}
                 </Button>
               </form>
             </CardContent>
@@ -110,41 +110,41 @@ export default function Settings() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5 text-primary" />
-                Critical Stock Threshold
+                Kritični prag zaliha
               </CardTitle>
               <CardDescription>
-                How SMS alerts work
+                Kako SMS upozorenja funkcioniraju
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <h4 className="font-medium text-white mb-2">Alert Levels</h4>
+                <h4 className="font-medium text-white mb-2">Nivoi upozorenja</h4>
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-yellow-500 font-bold">⚠️</span>
-                    <span><strong>Low Stock:</strong> Material quantity falls below minimum stock level</span>
+                    <span><strong>Niske zalihe:</strong> Količina materijala pada ispod minimalnog nivoa zaliha</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-red-500 font-bold">🚨</span>
-                    <span><strong>Critical Stock:</strong> Material quantity falls below critical threshold (triggers SMS)</span>
+                    <span><strong>Kritične zalihe:</strong> Količina materijala pada ispod kritičnog praga (aktivira SMS)</span>
                   </li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-medium text-white mb-2">Setting Critical Thresholds</h4>
+                <h4 className="font-medium text-white mb-2">Podešavanje kritičnih pragova</h4>
                 <p className="text-muted-foreground">
-                  Go to Materials page and set the "Critical Threshold" for each material. When stock falls below this level, SMS alerts will be sent to all managers with SMS notifications enabled.
+                  Idite na stranicu Materijali i postavite "Kritični prag" za svaki materijal. Kada zalihe padnu ispod ovog nivoa, SMS upozorenja će biti poslana svim menedžerima sa omogućenim SMS obavještenjima.
                 </p>
               </div>
 
               <div>
-                <h4 className="font-medium text-white mb-2">Requirements</h4>
+                <h4 className="font-medium text-white mb-2">Zahtjevi</h4>
                 <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                  <li>You must be an admin user to receive SMS alerts</li>
-                  <li>Phone number must be valid and in international format</li>
-                  <li>SMS notifications must be enabled in these settings</li>
-                  <li>Material must have a critical threshold value set</li>
+                  <li>Morate biti admin korisnik da biste primali SMS upozorenja</li>
+                  <li>Broj telefona mora biti validan i u međunarodnom formatu</li>
+                  <li>SMS obavještenja moraju biti omogućena u ovim podešavanjima</li>
+                  <li>Materijal mora imati postavljenu vrijednost kritičnog praga</li>
                 </ul>
               </div>
             </CardContent>

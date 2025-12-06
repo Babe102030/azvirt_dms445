@@ -159,3 +159,16 @@
 - [x] Add Settings menu item to dashboard sidebar
 - [x] Add Settings route to App.tsx
 - [x] Write comprehensive vitest tests for SMS service (10 tests, all passing)
+
+
+## Bosnian/Serbian Translation (NEW)
+- [x] Translate DashboardLayout navigation menu items
+- [x] Translate all page titles and descriptions
+- [x] Translate all form labels and placeholders
+- [x] Translate all buttons and actions
+- [x] Translate all toast notifications and error messages
+- [x] Translate dashboard cards and statistics
+- [x] Translate table headers and data labels
+- [x] Translate dialog and modal content
+- [x] Translate backend validation messages
+- [x] Test all translations for consistency

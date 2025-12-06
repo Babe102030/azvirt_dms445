@@ -28,17 +28,17 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: FileText, label: "Documents", path: "/documents" },
-  { icon: Folder, label: "Projects", path: "/projects" },
-  { icon: Package, label: "Materials", path: "/materials" },
-  { icon: Truck, label: "Deliveries", path: "/deliveries" },
-  { icon: FlaskConical, label: "Quality Control", path: "/quality" },
-  { icon: Users, label: "Workforce", path: "/employees" },
-  { icon: Cog, label: "Machines", path: "/machines" },
-  { icon: Clock, label: "Timesheets", path: "/timesheets" },
-  { icon: TrendingUp, label: "Reports", path: "/timesheet-summary" },
-  { icon: Settings, label: "Settings", path: "/settings" },
+  { icon: LayoutDashboard, label: "Kontrolna tabla", path: "/" },
+  { icon: FileText, label: "Dokumenti", path: "/documents" },
+  { icon: Folder, label: "Projekti", path: "/projects" },
+  { icon: Package, label: "Materijali", path: "/materials" },
+  { icon: Truck, label: "Isporuke", path: "/deliveries" },
+  { icon: FlaskConical, label: "Kontrola kvaliteta", path: "/quality" },
+  { icon: Users, label: "Radna snaga", path: "/employees" },
+  { icon: Cog, label: "Mašine", path: "/machines" },
+  { icon: Clock, label: "Evidencija rada", path: "/timesheets" },
+  { icon: TrendingUp, label: "Izvještaji", path: "/timesheet-summary" },
+  { icon: Settings, label: "Podešavanja", path: "/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -71,10 +71,10 @@ export default function DashboardLayout({
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-6">
             <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Sign in to continue
+              Prijavite se za nastavak
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Access to this dashboard requires authentication. Continue to launch the login flow.
+              Pristup kontrolnoj tabli zahtijeva autentifikaciju. Nastavite za pokretanje prijave.
             </p>
           </div>
           <Button
@@ -84,7 +84,7 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in
+            Prijavi se
           </Button>
         </div>
       </div>
@@ -233,7 +233,7 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
+                  <span>Odjavi se</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
