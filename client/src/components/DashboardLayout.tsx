@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -42,6 +42,7 @@ const menuItems = [
   { icon: Cog, label: "Mašine", path: "/machines" },
   { icon: Clock, label: "Evidencija rada", path: "/timesheets" },
   { icon: TrendingUp, label: "Izvještaji", path: "/timesheet-summary" },
+  { icon: Mail, label: "Postavke izvještaja", path: "/report-settings" },
   { icon: Settings, label: "Podešavanja", path: "/settings" },
 ];
 

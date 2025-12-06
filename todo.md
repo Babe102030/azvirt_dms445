@@ -402,3 +402,11 @@
 - [x] Write vitest tests for consumption tracking
 - [x] Write vitest tests for email sending
 - [x] Test daily report generation
+
+
+## Scheduled Daily Production Reports
+- [x] Add email configuration settings page for report recipients
+- [x] Create scheduled task for 6 PM daily production reports
+- [x] Add settings to configure report time and recipients
+- [x] Test scheduled report generation
+- [x] Add manual "Send Now" button for testing
