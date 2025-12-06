@@ -24,10 +24,12 @@ import { Truck, Plus, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { DeliveryNote } from "@/components/DeliveryNote";
+import { LiveDeliveryMap } from "@/components/LiveDeliveryMap";
 
 export default function Deliveries() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
+  const [showLiveTracking, setShowLiveTracking] = useState(true);
 
   const { data: deliveries, isLoading, refetch } = trpc.deliveries.list.useQuery();
 
@@ -126,6 +128,9 @@ export default function Deliveries() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Live Delivery Tracking */}
+        <LiveDeliveryMap />
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>

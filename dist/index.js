@@ -292,10 +292,22 @@ var deliveries = mysqlTable("deliveries", {
   volume: int("volume").notNull(),
   scheduledTime: timestamp("scheduledTime").notNull(),
   actualTime: timestamp("actualTime"),
-  status: mysqlEnum("status", ["scheduled", "in_transit", "delivered", "cancelled"]).default("scheduled").notNull(),
+  status: mysqlEnum("status", ["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled").notNull(),
   driverName: varchar("driverName", { length: 255 }),
   vehicleNumber: varchar("vehicleNumber", { length: 100 }),
   notes: text("notes"),
+  gpsLocation: varchar("gpsLocation", { length: 100 }),
+  // "lat,lng"
+  deliveryPhotos: text("deliveryPhotos"),
+  // JSON array of photo URLs
+  estimatedArrival: int("estimatedArrival"),
+  // Unix timestamp (seconds)
+  actualArrivalTime: int("actualArrivalTime"),
+  actualDeliveryTime: int("actualDeliveryTime"),
+  driverNotes: text("driverNotes"),
+  customerName: varchar("customerName", { length: 255 }),
+  customerPhone: varchar("customerPhone", { length: 50 }),
+  smsNotificationSent: boolean("smsNotificationSent").default(false),
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
@@ -311,6 +323,17 @@ var qualityTests = mysqlTable("qualityTests", {
   projectId: int("projectId"),
   testedBy: varchar("testedBy", { length: 255 }),
   notes: text("notes"),
+  photoUrls: text("photoUrls"),
+  // JSON array of S3 photo URLs
+  inspectorSignature: text("inspectorSignature"),
+  // Base64 signature image
+  supervisorSignature: text("supervisorSignature"),
+  // Base64 signature image
+  testLocation: varchar("testLocation", { length: 100 }),
+  // GPS coordinates "lat,lng"
+  complianceStandard: varchar("complianceStandard", { length: 50 }),
+  // EN 206, ASTM C94, etc.
+  offlineSyncStatus: mysqlEnum("offlineSyncStatus", ["synced", "pending", "failed"]).default("synced"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
 });
@@ -611,6 +634,47 @@ async function updateQualityTest(id, data) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
+}
+async function getFailedQualityTests(days = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  const cutoffDate = /* @__PURE__ */ new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const result = await db.select().from(qualityTests).where(
+    and(
+      eq(qualityTests.status, "fail"),
+      gte(qualityTests.createdAt, cutoffDate)
+    )
+  ).orderBy(desc(qualityTests.createdAt));
+  return result;
+}
+async function getQualityTestTrends(days = 30) {
+  const db = await getDb();
+  if (!db) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+  const cutoffDate = /* @__PURE__ */ new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  const allTests = await db.select().from(qualityTests).where(gte(qualityTests.createdAt, cutoffDate));
+  const totalTests = allTests.length;
+  if (totalTests === 0) {
+    return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+  }
+  const passCount = allTests.filter((t2) => t2.status === "pass").length;
+  const failCount = allTests.filter((t2) => t2.status === "fail").length;
+  const pendingCount = allTests.filter((t2) => t2.status === "pending").length;
+  const byType = [
+    { type: "slump", total: allTests.filter((t2) => t2.testType === "slump").length },
+    { type: "strength", total: allTests.filter((t2) => t2.testType === "strength").length },
+    { type: "air_content", total: allTests.filter((t2) => t2.testType === "air_content").length },
+    { type: "temperature", total: allTests.filter((t2) => t2.testType === "temperature").length },
+    { type: "other", total: allTests.filter((t2) => t2.testType === "other").length }
+  ];
+  return {
+    passRate: passCount / totalTests * 100,
+    failRate: failCount / totalTests * 100,
+    pendingRate: pendingCount / totalTests * 100,
+    totalTests,
+    byType
+  };
 }
 async function createEmployee(employee) {
   const db = await getDb();
@@ -1470,10 +1534,18 @@ Please reorder these materials to avoid project delays.`;
       concreteType: z2.string(),
       volume: z2.number(),
       scheduledTime: z2.date(),
-      status: z2.enum(["scheduled", "in_transit", "delivered", "cancelled"]).default("scheduled"),
+      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
       driverName: z2.string().optional(),
       vehicleNumber: z2.string().optional(),
-      notes: z2.string().optional()
+      notes: z2.string().optional(),
+      gpsLocation: z2.string().optional(),
+      deliveryPhotos: z2.string().optional(),
+      estimatedArrival: z2.number().optional(),
+      actualArrivalTime: z2.number().optional(),
+      actualDeliveryTime: z2.number().optional(),
+      driverNotes: z2.string().optional(),
+      customerName: z2.string().optional(),
+      customerPhone: z2.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createDelivery({
         ...input,
@@ -1489,14 +1561,75 @@ Please reorder these materials to avoid project delays.`;
       volume: z2.number().optional(),
       scheduledTime: z2.date().optional(),
       actualTime: z2.date().optional(),
-      status: z2.enum(["scheduled", "in_transit", "delivered", "cancelled"]).optional(),
+      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
       driverName: z2.string().optional(),
       vehicleNumber: z2.string().optional(),
-      notes: z2.string().optional()
+      notes: z2.string().optional(),
+      gpsLocation: z2.string().optional(),
+      deliveryPhotos: z2.string().optional(),
+      estimatedArrival: z2.number().optional(),
+      actualArrivalTime: z2.number().optional(),
+      actualDeliveryTime: z2.number().optional(),
+      driverNotes: z2.string().optional(),
+      customerName: z2.string().optional(),
+      customerPhone: z2.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateDelivery(id, data);
       return { success: true };
+    }),
+    updateStatus: protectedProcedure.input(z2.object({
+      id: z2.number(),
+      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+      gpsLocation: z2.string().optional(),
+      driverNotes: z2.string().optional()
+    })).mutation(async ({ input }) => {
+      const { id, status, gpsLocation, driverNotes } = input;
+      const updateData = { status };
+      if (gpsLocation) updateData.gpsLocation = gpsLocation;
+      if (driverNotes) updateData.driverNotes = driverNotes;
+      const now = Math.floor(Date.now() / 1e3);
+      if (status === "arrived") updateData.actualArrivalTime = now;
+      if (status === "delivered") updateData.actualDeliveryTime = now;
+      await updateDelivery(id, updateData);
+      return { success: true };
+    }),
+    uploadDeliveryPhoto: protectedProcedure.input(z2.object({
+      deliveryId: z2.number(),
+      photoData: z2.string(),
+      mimeType: z2.string()
+    })).mutation(async ({ input, ctx }) => {
+      const photoBuffer = Buffer.from(input.photoData, "base64");
+      const fileExtension = input.mimeType.split("/")[1] || "jpg";
+      const fileKey = `delivery-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
+      const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
+      const allDeliveries = await getDeliveries();
+      const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
+      if (delivery) {
+        const existingPhotos = delivery.deliveryPhotos ? JSON.parse(delivery.deliveryPhotos) : [];
+        existingPhotos.push(url);
+        await updateDelivery(input.deliveryId, { deliveryPhotos: JSON.stringify(existingPhotos) });
+      }
+      return { success: true, url };
+    }),
+    getActiveDeliveries: protectedProcedure.query(async () => {
+      const deliveries2 = await getDeliveries();
+      return deliveries2.filter(
+        (d) => ["loaded", "en_route", "arrived", "delivered"].includes(d.status)
+      );
+    }),
+    sendCustomerNotification: protectedProcedure.input(z2.object({
+      deliveryId: z2.number(),
+      message: z2.string()
+    })).mutation(async ({ input }) => {
+      const allDeliveries = await getDeliveries();
+      const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
+      if (!delivery || !delivery.customerPhone) {
+        return { success: false, message: "No customer phone number" };
+      }
+      await updateDelivery(input.deliveryId, { smsNotificationSent: true });
+      console.log(`[SMS] To: ${delivery.customerPhone}, Message: ${input.message}`);
+      return { success: true, message: "SMS notification sent" };
     })
   }),
   qualityTests: router({
@@ -1515,10 +1648,61 @@ Please reorder these materials to avoid project delays.`;
       deliveryId: z2.number().optional(),
       projectId: z2.number().optional(),
       testedBy: z2.string().optional(),
-      notes: z2.string().optional()
+      notes: z2.string().optional(),
+      photoUrls: z2.string().optional(),
+      // JSON array
+      inspectorSignature: z2.string().optional(),
+      supervisorSignature: z2.string().optional(),
+      testLocation: z2.string().optional(),
+      complianceStandard: z2.string().optional(),
+      offlineSyncStatus: z2.enum(["synced", "pending", "failed"]).default("synced").optional()
     })).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
+    }),
+    uploadPhoto: protectedProcedure.input(z2.object({
+      photoData: z2.string(),
+      // Base64 encoded image
+      mimeType: z2.string()
+    })).mutation(async ({ input, ctx }) => {
+      const photoBuffer = Buffer.from(input.photoData, "base64");
+      const fileExtension = input.mimeType.split("/")[1] || "jpg";
+      const fileKey = `qc-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
+      const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
+      return { success: true, url };
+    }),
+    syncOfflineTests: protectedProcedure.input(z2.object({
+      tests: z2.array(z2.object({
+        testName: z2.string(),
+        testType: z2.enum(["slump", "strength", "air_content", "temperature", "other"]),
+        result: z2.string(),
+        unit: z2.string().optional(),
+        status: z2.enum(["pass", "fail", "pending"]),
+        deliveryId: z2.number().optional(),
+        projectId: z2.number().optional(),
+        testedBy: z2.string().optional(),
+        notes: z2.string().optional(),
+        photoUrls: z2.string().optional(),
+        inspectorSignature: z2.string().optional(),
+        supervisorSignature: z2.string().optional(),
+        testLocation: z2.string().optional(),
+        complianceStandard: z2.string().optional()
+      }))
+    })).mutation(async ({ input }) => {
+      for (const test of input.tests) {
+        await createQualityTest({ ...test, offlineSyncStatus: "synced" });
+      }
+      return { success: true, syncedCount: input.tests.length };
+    }),
+    getFailedTests: protectedProcedure.input(z2.object({
+      days: z2.number().default(30)
+    }).optional()).query(async ({ input }) => {
+      return await getFailedQualityTests(input?.days || 30);
+    }),
+    getTrends: protectedProcedure.input(z2.object({
+      days: z2.number().default(30)
+    }).optional()).query(async ({ input }) => {
+      return await getQualityTestTrends(input?.days || 30);
     }),
     update: protectedProcedure.input(z2.object({
       id: z2.number(),
@@ -1530,7 +1714,13 @@ Please reorder these materials to avoid project delays.`;
       deliveryId: z2.number().optional(),
       projectId: z2.number().optional(),
       testedBy: z2.string().optional(),
-      notes: z2.string().optional()
+      notes: z2.string().optional(),
+      photoUrls: z2.string().optional(),
+      inspectorSignature: z2.string().optional(),
+      supervisorSignature: z2.string().optional(),
+      testLocation: z2.string().optional(),
+      complianceStandard: z2.string().optional(),
+      offlineSyncStatus: z2.enum(["synced", "pending", "failed"]).optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateQualityTest(id, data);

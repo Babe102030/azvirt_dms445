@@ -91,10 +91,19 @@ export const deliveries = mysqlTable("deliveries", {
   volume: int("volume").notNull(),
   scheduledTime: timestamp("scheduledTime").notNull(),
   actualTime: timestamp("actualTime"),
-  status: mysqlEnum("status", ["scheduled", "in_transit", "delivered", "cancelled"]).default("scheduled").notNull(),
+  status: mysqlEnum("status", ["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled").notNull(),
   driverName: varchar("driverName", { length: 255 }),
   vehicleNumber: varchar("vehicleNumber", { length: 100 }),
   notes: text("notes"),
+  gpsLocation: varchar("gpsLocation", { length: 100 }), // "lat,lng"
+  deliveryPhotos: text("deliveryPhotos"), // JSON array of photo URLs
+  estimatedArrival: int("estimatedArrival"), // Unix timestamp (seconds)
+  actualArrivalTime: int("actualArrivalTime"),
+  actualDeliveryTime: int("actualDeliveryTime"),
+  driverNotes: text("driverNotes"),
+  customerName: varchar("customerName", { length: 255 }),
+  customerPhone: varchar("customerPhone", { length: 50 }),
+  smsNotificationSent: boolean("smsNotificationSent").default(false),
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -117,6 +126,12 @@ export const qualityTests = mysqlTable("qualityTests", {
   projectId: int("projectId"),
   testedBy: varchar("testedBy", { length: 255 }),
   notes: text("notes"),
+  photoUrls: text("photoUrls"), // JSON array of S3 photo URLs
+  inspectorSignature: text("inspectorSignature"), // Base64 signature image
+  supervisorSignature: text("supervisorSignature"), // Base64 signature image
+  testLocation: varchar("testLocation", { length: 100 }), // GPS coordinates "lat,lng"
+  complianceStandard: varchar("complianceStandard", { length: 50 }), // EN 206, ASTM C94, etc.
+  offlineSyncStatus: mysqlEnum("offlineSyncStatus", ["synced", "pending", "failed"]).default("synced"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

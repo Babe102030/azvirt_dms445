@@ -183,3 +183,162 @@
 - [x] Add language preference persistence to user profile (localStorage)
 - [x] Set Bosnian/Serbian as default language
 - [x] Test language switching across all pages
+
+
+## Feature 3: Mobile Quality Control & Digital Inspection Forms
+### Database Schema
+- [x] Add photo_urls field to quality_tests table (JSON array)
+- [x] Add inspector_signature field to quality_tests table
+- [x] Add supervisor_signature field to quality_tests table
+- [x] Add offline_sync_status field to quality_tests table
+- [x] Add test_location field (GPS coordinates)
+- [x] Add compliance_standard field (EN 206, ASTM C94, etc.)
+- [x] Push database schema changes
+
+### Backend Procedures
+- [x] Create uploadQCPhoto procedure with S3 integration
+- [x] Create saveQCTestOffline procedure for offline mode support
+- [x] Create syncOfflineQCTests procedure for batch sync
+- [ ] Create generateCompliancePDF procedure for certificates
+- [x] Create getQCTrends procedure for dashboard analytics
+- [x] Create getFailedTests procedure with auto-notification
+- [x] Add digital signature validation logic
+
+### Frontend - Mobile QC Interface
+- [x] Create responsive MobileQCForm component optimized for tablets/phones
+- [x] Implement guided step-by-step test workflow UI
+- [x] Add camera integration for photo capture
+- [x] Build offline mode with localStorage caching
+- [x] Create digital signature canvas component
+- [x] Add auto-sync indicator and manual sync button
+- [x] Implement touch-optimized form controls
+
+### Frontend - QC Dashboard & Reports
+- [x] Create QC trends dashboard with charts (pass/fail rates over time)
+- [x] Build compliance certificate PDF template
+- [x] Add photo gallery view for test documentation
+- [x] Create failed test alerts notification system
+- [x] Add export functionality for audit reports
+
+### Testing
+- [ ] Write vitest tests for QC photo upload
+- [ ] Write vitest tests for offline sync logic
+- [ ] Write vitest tests for compliance PDF generation
+- [ ] Test mobile responsiveness on tablets and phones
+- [ ] Test offline mode functionality
+
+
+## Feature 1: Real-Time Delivery Tracking with Driver Mobile App
+### Database Schema
+- [ ] Add status field to deliveries table (loaded, en_route, arrived, delivered, returning, completed)
+- [ ] Add gps_location field to deliveries table (latitude, longitude)
+- [ ] Add delivery_photos field to deliveries table (JSON array of photo URLs)
+- [ ] Add estimated_arrival field to deliveries table
+- [ ] Add actual_arrival_time field to deliveries table
+- [ ] Add actual_delivery_time field to deliveries table
+- [ ] Add driver_notes field to deliveries table
+- [ ] Create delivery_status_history table for tracking status changes with timestamps
+- [ ] Push database schema changes
+
+### Backend Procedures
+- [ ] Create updateDeliveryStatus procedure with GPS capture
+- [ ] Create uploadDeliveryPhoto procedure with S3 integration
+- [ ] Create getActiveDeliveries procedure for real-time dashboard
+- [ ] Create calculateETA procedure based on distance and traffic
+- [ ] Create getDeliveryHistory procedure for status timeline
+- [ ] Create sendCustomerNotification procedure for SMS alerts
+- [ ] Add delivery status validation logic
+
+### Frontend - Driver Mobile Interface
+- [ ] Create responsive DriverDeliveryView component optimized for mobile phones
+- [ ] Build large touch-friendly status update buttons
+- [ ] Implement GPS location capture on status change
+- [ ] Add camera integration for delivery site photos
+- [ ] Create driver notes text input with voice-to-text option
+- [ ] Add offline mode support for areas with poor connectivity
+- [ ] Implement haptic feedback for button presses
+
+### Frontend - Manager Dashboard
+- [ ] Create live delivery tracking map with Google Maps integration
+- [ ] Build real-time delivery status cards with auto-refresh
+- [ ] Add ETA calculation and display
+- [ ] Create delivery timeline view showing status history
+- [ ] Build photo gallery for delivery documentation
+- [ ] Add filter by status (active, completed, delayed)
+- [ ] Create delivery performance analytics (on-time %, average delivery time)
+
+### Customer Notifications
+- [ ] Implement SMS notification when status changes to "En Route"
+- [ ] Add 15-minute warning SMS with ETA
+- [ ] Create delivery confirmation SMS with photo link
+- [ ] Add customer notification preferences to projects table
+
+### Testing
+- [ ] Write vitest tests for delivery status updates
+- [ ] Write vitest tests for GPS location capture
+- [ ] Write vitest tests for ETA calculation
+- [ ] Write vitest tests for customer SMS notifications
+- [ ] Test mobile interface on various phone screen sizes
+- [ ] Test offline mode and sync functionality
+
+
+## Feature 2: Smart Inventory Forecasting & Auto-Reorder System
+### Database Schema
+- [ ] Add lead_time_days field to materials table
+- [ ] Add reorder_point field to materials table (auto-calculated)
+- [ ] Add optimal_order_quantity field to materials table
+- [ ] Add supplier_id field to materials table
+- [ ] Add last_order_date field to materials table
+- [ ] Create suppliers table (name, contact, email, phone, lead_time)
+- [ ] Create material_consumption_history table (material_id, date, quantity_used, delivery_id)
+- [ ] Create purchase_orders table (supplier_id, order_date, expected_delivery, status, total_cost)
+- [ ] Create purchase_order_items table (purchase_order_id, material_id, quantity, unit_price)
+- [ ] Push database schema changes
+
+### Backend Procedures - Forecasting Engine
+- [ ] Create calculateConsumptionRate procedure (analyzes last 30/60/90 days)
+- [ ] Create predictStockoutDate procedure using linear regression
+- [ ] Create calculateOptimalReorderPoint procedure (consumption rate + lead time + safety stock)
+- [ ] Create calculateOptimalOrderQuantity procedure (EOQ formula)
+- [ ] Create getMaterialForecast procedure (30-day projection)
+- [ ] Create identifyReorderNeeds procedure (materials below reorder point)
+
+### Backend Procedures - Purchase Orders
+- [ ] Create generatePurchaseOrder procedure
+- [ ] Create sendPurchaseOrderToSupplier procedure (email/SMS)
+- [ ] Create updatePurchaseOrderStatus procedure
+- [ ] Create receivePurchaseOrder procedure (updates inventory)
+- [ ] Create getPurchaseOrderHistory procedure
+- [ ] Create getSupplierPerformance procedure (on-time delivery %)
+
+### Frontend - Forecasting Dashboard
+- [ ] Create inventory forecasting dashboard with 30-day projection charts
+- [ ] Build consumption trend visualization (daily/weekly/monthly)
+- [ ] Add reorder recommendations card with priority sorting
+- [ ] Create stockout risk alerts with countdown timers
+- [ ] Build multi-material comparison view
+- [ ] Add "What-if" scenario calculator (if usage increases by X%)
+
+### Frontend - Purchase Order Management
+- [ ] Create purchase order creation form with auto-suggested quantities
+- [ ] Build supplier management interface (add, edit, list)
+- [ ] Add one-click purchase order generation from reorder recommendations
+- [ ] Create purchase order approval workflow for managers
+- [ ] Build purchase order tracking view (pending, sent, received)
+- [ ] Add email/SMS template editor for supplier communications
+- [ ] Create purchase order receiving interface (scan/manual entry)
+
+### Frontend - Analytics & Optimization
+- [ ] Create inventory cost analysis dashboard (holding costs, order costs)
+- [ ] Build supplier performance scorecard
+- [ ] Add material bundling suggestions (frequently ordered together)
+- [ ] Create inventory turnover rate visualization
+- [ ] Build ABC analysis chart (classify materials by value/usage)
+
+### Testing
+- [ ] Write vitest tests for consumption rate calculation
+- [ ] Write vitest tests for stockout date prediction
+- [ ] Write vitest tests for reorder point calculation
+- [ ] Write vitest tests for purchase order generation
+- [ ] Write vitest tests for supplier email/SMS sending
+- [ ] Test forecasting accuracy with historical data

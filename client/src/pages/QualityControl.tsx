@@ -20,12 +20,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FlaskConical, Plus } from "lucide-react";
+import { FlaskConical, Plus, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { MobileQCForm } from "@/components/MobileQCForm";
+import { QCTrendsDashboard } from "@/components/QCTrendsDashboard";
+import { ComplianceCertificate } from "@/components/ComplianceCertificate";
 
 export default function QualityControl() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [mobileFormOpen, setMobileFormOpen] = useState(false);
 
   const { data: tests, isLoading, refetch } = trpc.qualityTests.list.useQuery();
 
@@ -74,13 +78,29 @@ export default function QualityControl() {
             <h1 className="text-3xl font-bold text-white">Quality Control</h1>
             <p className="text-white/70">Manage quality tests and results</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Plus className="mr-2 h-5 w-5" />
-                Record Test
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={mobileFormOpen} onOpenChange={setMobileFormOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg" variant="outline" className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                  <Smartphone className="mr-2 h-5 w-5" />
+                  Mobile QC
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-card/95 backdrop-blur max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Mobile Quality Control Form</DialogTitle>
+                  <DialogDescription>Complete quality test with photos and signatures</DialogDescription>
+                </DialogHeader>
+                <MobileQCForm onSuccess={() => { setMobileFormOpen(false); refetch(); }} />
+              </DialogContent>
+            </Dialog>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Record Test
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card/95 backdrop-blur">
               <DialogHeader>
                 <DialogTitle>Record Quality Test</DialogTitle>
@@ -143,7 +163,11 @@ export default function QualityControl() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
+
+        {/* QC Trends Dashboard */}
+        <QCTrendsDashboard />
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
           <CardHeader>
@@ -189,6 +213,9 @@ export default function QualityControl() {
                           <p className="text-xs text-muted-foreground mt-2">{test.notes}</p>
                         )}
                       </div>
+                    </div>
+                    <div className="ml-auto">
+                      <ComplianceCertificate test={test} />
                     </div>
                   </div>
                 ))}

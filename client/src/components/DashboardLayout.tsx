@@ -34,6 +34,7 @@ const menuItems = [
   { icon: Folder, label: "Projekti", path: "/projects" },
   { icon: Package, label: "Materijali", path: "/materials" },
   { icon: Truck, label: "Isporuke", path: "/deliveries" },
+  { icon: Truck, label: "Vozač isporuke", path: "/driver-deliveries" },
   { icon: FlaskConical, label: "Kontrola kvaliteta", path: "/quality" },
   { icon: Users, label: "Radna snaga", path: "/employees" },
   { icon: Cog, label: "Mašine", path: "/machines" },

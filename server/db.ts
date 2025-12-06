@@ -305,6 +305,65 @@ export async function updateQualityTest(id: number, data: Partial<InsertQualityT
   await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
 }
 
+export async function getFailedQualityTests(days: number = 30) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+
+  const result = await db
+    .select()
+    .from(qualityTests)
+    .where(
+      and(
+        eq(qualityTests.status, 'fail'),
+        gte(qualityTests.createdAt, cutoffDate)
+      )
+    )
+    .orderBy(desc(qualityTests.createdAt));
+
+  return result;
+}
+
+export async function getQualityTestTrends(days: number = 30) {
+  const db = await getDb();
+  if (!db) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+
+  const allTests = await db
+    .select()
+    .from(qualityTests)
+    .where(gte(qualityTests.createdAt, cutoffDate));
+
+  const totalTests = allTests.length;
+  if (totalTests === 0) {
+    return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+  }
+
+  const passCount = allTests.filter(t => t.status === 'pass').length;
+  const failCount = allTests.filter(t => t.status === 'fail').length;
+  const pendingCount = allTests.filter(t => t.status === 'pending').length;
+
+  const byType = [
+    { type: 'slump', total: allTests.filter(t => t.testType === 'slump').length },
+    { type: 'strength', total: allTests.filter(t => t.testType === 'strength').length },
+    { type: 'air_content', total: allTests.filter(t => t.testType === 'air_content').length },
+    { type: 'temperature', total: allTests.filter(t => t.testType === 'temperature').length },
+    { type: 'other', total: allTests.filter(t => t.testType === 'other').length },
+  ];
+
+  return {
+    passRate: (passCount / totalTests) * 100,
+    failRate: (failCount / totalTests) * 100,
+    pendingRate: (pendingCount / totalTests) * 100,
+    totalTests,
+    byType,
+  };
+}
+
 // ============ Employees ============
 export async function createEmployee(employee: InsertEmployee) {
   const db = await getDb();

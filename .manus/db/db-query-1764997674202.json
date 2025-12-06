@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE deliveries \nADD COLUMN IF NOT EXISTS customerName VARCHAR(255),\nADD COLUMN IF NOT EXISTS customerPhone VARCHAR(50),\nADD COLUMN IF NOT EXISTS smsNotificationSent BOOLEAN DEFAULT FALSE;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute ALTER TABLE deliveries \nADD COLUMN IF NOT EXISTS customerName VARCHAR(255),\nADD COLUMN IF NOT EXISTS customerPhone VARCHAR(50),\nADD COLUMN IF NOT EXISTS smsNotificationSent BOOLEAN DEFAULT FALSE;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 888
+}

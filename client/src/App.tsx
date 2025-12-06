@@ -15,6 +15,7 @@ import Machines from "./pages/Machines";
 import Timesheets from "./pages/Timesheets";
 import TimesheetSummary from "./pages/TimesheetSummary";
 import Settings from "./pages/Settings";
+import DriverDeliveries from "./pages/DriverDeliveries";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path={"/projects"} component={Projects} />
       <Route path={"/materials"} component={Materials} />
       <Route path={"/deliveries"} component={Deliveries} />
+      <Route path={"/driver-deliveries"} component={DriverDeliveries} />
       <Route path={"/quality"} component={QualityControl} />
       <Route path={"/employees"} component={Employees} />
       <Route path={"/machines"} component={Machines} />

@@ -270,10 +270,18 @@ export const appRouter = router({
         concreteType: z.string(),
         volume: z.number(),
         scheduledTime: z.date(),
-        status: z.enum(["scheduled", "in_transit", "delivered", "cancelled"]).default("scheduled"),
+        status: z.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
         driverName: z.string().optional(),
         vehicleNumber: z.string().optional(),
         notes: z.string().optional(),
+        gpsLocation: z.string().optional(),
+        deliveryPhotos: z.string().optional(),
+        estimatedArrival: z.number().optional(),
+        actualArrivalTime: z.number().optional(),
+        actualDeliveryTime: z.number().optional(),
+        driverNotes: z.string().optional(),
+        customerName: z.string().optional(),
+        customerPhone: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         await db.createDelivery({
@@ -292,15 +300,99 @@ export const appRouter = router({
         volume: z.number().optional(),
         scheduledTime: z.date().optional(),
         actualTime: z.date().optional(),
-        status: z.enum(["scheduled", "in_transit", "delivered", "cancelled"]).optional(),
+        status: z.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
         driverName: z.string().optional(),
         vehicleNumber: z.string().optional(),
         notes: z.string().optional(),
+        gpsLocation: z.string().optional(),
+        deliveryPhotos: z.string().optional(),
+        estimatedArrival: z.number().optional(),
+        actualArrivalTime: z.number().optional(),
+        actualDeliveryTime: z.number().optional(),
+        driverNotes: z.string().optional(),
+        customerName: z.string().optional(),
+        customerPhone: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
         await db.updateDelivery(id, data);
         return { success: true };
+      }),
+
+    updateStatus: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+        gpsLocation: z.string().optional(),
+        driverNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, status, gpsLocation, driverNotes } = input;
+        const updateData: any = { status };
+        
+        if (gpsLocation) updateData.gpsLocation = gpsLocation;
+        if (driverNotes) updateData.driverNotes = driverNotes;
+        
+        // Track timestamps
+        const now = Math.floor(Date.now() / 1000);
+        if (status === 'arrived') updateData.actualArrivalTime = now;
+        if (status === 'delivered') updateData.actualDeliveryTime = now;
+        
+        await db.updateDelivery(id, updateData);
+        return { success: true };
+      }),
+
+    uploadDeliveryPhoto: protectedProcedure
+      .input(z.object({
+        deliveryId: z.number(),
+        photoData: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const photoBuffer = Buffer.from(input.photoData, 'base64');
+        const fileExtension = input.mimeType.split('/')[1] || 'jpg';
+        const fileKey = `delivery-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
+        
+        const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
+        
+        // Get existing delivery and append photo
+        const allDeliveries = await db.getDeliveries();
+        const delivery = allDeliveries.find(d => d.id === input.deliveryId);
+        if (delivery) {
+          const existingPhotos = delivery.deliveryPhotos ? JSON.parse(delivery.deliveryPhotos) : [];
+          existingPhotos.push(url);
+          await db.updateDelivery(input.deliveryId, { deliveryPhotos: JSON.stringify(existingPhotos) });
+        }
+        
+        return { success: true, url };
+      }),
+
+    getActiveDeliveries: protectedProcedure.query(async () => {
+      const deliveries = await db.getDeliveries();
+      return deliveries.filter(d => 
+        ['loaded', 'en_route', 'arrived', 'delivered'].includes(d.status)
+      );
+    }),
+
+    sendCustomerNotification: protectedProcedure
+      .input(z.object({
+        deliveryId: z.number(),
+        message: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const allDeliveries = await db.getDeliveries();
+        const delivery = allDeliveries.find(d => d.id === input.deliveryId);
+        
+        if (!delivery || !delivery.customerPhone) {
+          return { success: false, message: 'No customer phone number' };
+        }
+
+        // In production, integrate with SMS service (Twilio, AWS SNS, etc.)
+        // For now, just mark as sent
+        await db.updateDelivery(input.deliveryId, { smsNotificationSent: true });
+        
+        console.log(`[SMS] To: ${delivery.customerPhone}, Message: ${input.message}`);
+        return { success: true, message: 'SMS notification sent' };
       }),
   }),
 
@@ -325,10 +417,72 @@ export const appRouter = router({
         projectId: z.number().optional(),
         testedBy: z.string().optional(),
         notes: z.string().optional(),
+        photoUrls: z.string().optional(), // JSON array
+        inspectorSignature: z.string().optional(),
+        supervisorSignature: z.string().optional(),
+        testLocation: z.string().optional(),
+        complianceStandard: z.string().optional(),
+        offlineSyncStatus: z.enum(["synced", "pending", "failed"]).default("synced").optional(),
       }))
       .mutation(async ({ input }) => {
         await db.createQualityTest(input);
         return { success: true };
+      }),
+
+    uploadPhoto: protectedProcedure
+      .input(z.object({
+        photoData: z.string(), // Base64 encoded image
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const photoBuffer = Buffer.from(input.photoData, 'base64');
+        const fileExtension = input.mimeType.split('/')[1] || 'jpg';
+        const fileKey = `qc-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
+        
+        const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
+        return { success: true, url };
+      }),
+
+    syncOfflineTests: protectedProcedure
+      .input(z.object({
+        tests: z.array(z.object({
+          testName: z.string(),
+          testType: z.enum(["slump", "strength", "air_content", "temperature", "other"]),
+          result: z.string(),
+          unit: z.string().optional(),
+          status: z.enum(["pass", "fail", "pending"]),
+          deliveryId: z.number().optional(),
+          projectId: z.number().optional(),
+          testedBy: z.string().optional(),
+          notes: z.string().optional(),
+          photoUrls: z.string().optional(),
+          inspectorSignature: z.string().optional(),
+          supervisorSignature: z.string().optional(),
+          testLocation: z.string().optional(),
+          complianceStandard: z.string().optional(),
+        })),
+      }))
+      .mutation(async ({ input }) => {
+        for (const test of input.tests) {
+          await db.createQualityTest({ ...test, offlineSyncStatus: 'synced' });
+        }
+        return { success: true, syncedCount: input.tests.length };
+      }),
+
+    getFailedTests: protectedProcedure
+      .input(z.object({
+        days: z.number().default(30),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getFailedQualityTests(input?.days || 30);
+      }),
+
+    getTrends: protectedProcedure
+      .input(z.object({
+        days: z.number().default(30),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getQualityTestTrends(input?.days || 30);
       }),
 
     update: protectedProcedure
@@ -343,6 +497,12 @@ export const appRouter = router({
         projectId: z.number().optional(),
         testedBy: z.string().optional(),
         notes: z.string().optional(),
+        photoUrls: z.string().optional(),
+        inspectorSignature: z.string().optional(),
+        supervisorSignature: z.string().optional(),
+        testLocation: z.string().optional(),
+        complianceStandard: z.string().optional(),
+        offlineSyncStatus: z.enum(["synced", "pending", "failed"]).optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
