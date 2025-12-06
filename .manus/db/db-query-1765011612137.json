@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS ai_messages (\n  id INT PRIMARY KEY AUTO_INCREMENT,\n  conversationId INT NOT NULL,\n  role ENUM('user', 'assistant', 'system', 'tool') NOT NULL,\n  content TEXT NOT NULL,\n  model VARCHAR(100),\n  audioUrl TEXT,\n  imageUrl TEXT,\n  thinkingProcess JSON,\n  toolCalls JSON,\n  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,\n  FOREIGN KEY (conversationId) REFERENCES ai_conversations(id) ON DELETE CASCADE\n)",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS ai_messages (\n  id INT PRIMARY KEY AUTO_INCREMENT,\n  conversationId INT NOT NULL,\n  role ENUM('user', 'assistant', 'system', 'tool') NOT NULL,\n  content TEXT NOT NULL,\n  model VARCHAR(100),\n  audioUrl TEXT,\n  imageUrl TEXT,\n  thinkingProcess JSON,\n  toolCalls JSON,\n  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,\n  FOREIGN KEY (conversationId) REFERENCES ai_conversations(id) ON DELETE CASCADE\n)",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 242
+}

@@ -485,3 +485,113 @@
 - [x] Test logo upload with various image formats
 - [x] Test email rendering with custom branding
 - [x] Test branding persistence across sessions
+
+
+## AI Assistant with Ollama Integration
+
+### Database Schema
+- [x] Create ai_conversations table
+- [x] Create ai_messages table
+- [x] Create ai_models table
+- [x] Push database schema changes
+
+### Backend - Ollama Integration
+- [x] Install axios for Ollama API calls
+- [x] Create Ollama service wrapper (server/_core/ollama.ts)
+- [x] Implement chatWithOllama with streaming support
+- [x] Implement listOllamaModels
+- [x] Implement pullOllamaModel
+- [x] Implement deleteOllamaModel
+- [ ] Test connection to local Ollama instance
+
+### Backend - Voice Transcription
+- [ ] Create audio upload endpoint
+- [ ] Integrate existing Whisper API for transcription
+- [ ] Support multiple languages (Bosnian, English)
+- [ ] Add audio file validation
+
+### Backend - OCR & Vision
+- [ ] Create OCR service (server/_core/ocr.ts)
+- [ ] Implement extractTextFromImage using llava
+- [ ] Implement extractTextFromPDF
+- [ ] Implement analyzeImageWithVision
+- [ ] Test vision model with sample images
+
+### Backend - Agentic Tools
+- [x] Create AI tools framework (server/_core/aiTools.ts)
+- [x] Implement search_materials tool
+- [x] Implement get_delivery_status tool
+- [x] Implement search_documents tool
+- [x] Implement get_quality_tests tool
+- [x] Implement generate_forecast tool
+- [x] Add tool execution logging
+
+### Backend - tRPC Procedures
+- [ ] Create aiAssistant router
+- [ ] Implement chat procedure with streaming
+- [ ] Implement listConversations procedure
+- [ ] Implement getConversation procedure
+- [ ] Implement deleteConversation procedure
+- [ ] Implement listModels procedure
+- [ ] Implement pullModel procedure
+- [ ] Implement deleteModel procedure
+- [ ] Implement transcribeAudio procedure
+- [ ] Implement analyzeImage procedure
+- [ ] Implement extractText procedure
+
+### Frontend - Chat Interface
+- [ ] Create AIAssistant page component
+- [ ] Build chat message list with streaming
+- [ ] Create message input component
+- [ ] Add auto-scroll to latest message
+- [ ] Implement copy message functionality
+- [ ] Add export conversation feature
+- [ ] Create conversation sidebar
+- [ ] Add new conversation button
+
+### Frontend - Voice Recording
+- [ ] Create VoiceRecorder component
+- [ ] Implement MediaRecorder API integration
+- [ ] Add waveform visualization
+- [ ] Add recording timer
+- [ ] Implement audio playback preview
+- [ ] Add cancel/send controls
+
+### Frontend - Model Management
+- [ ] Create ModelSwitcher component
+- [ ] Build model selector dropdown
+- [ ] Add pull new models UI
+- [ ] Implement model deletion
+- [ ] Show model info (type, size, description)
+- [ ] Add active model indicator
+
+### Frontend - Vision & OCR
+- [ ] Add image upload component
+- [ ] Add document upload component
+- [ ] Implement drag-and-drop upload
+- [ ] Add image preview in chat
+- [ ] Show OCR extracted text
+
+### Frontend - Thinking Process
+- [ ] Create ThinkingProcess component
+- [ ] Visualize chain-of-thought reasoning
+- [ ] Show tool calls with parameters
+- [ ] Add expandable/collapsible sections
+- [ ] Color-code by step type
+
+### Integration with DMS
+- [ ] Connect AI to materials inventory
+- [ ] Connect AI to delivery tracking
+- [ ] Connect AI to quality control
+- [ ] Connect AI to document management
+- [ ] Connect AI to forecasting system
+
+### Testing
+- [ ] Test Ollama connection and streaming
+- [ ] Test voice transcription accuracy
+- [ ] Test vision model with various images
+- [ ] Test OCR with documents
+- [ ] Test all agentic tools
+- [ ] Test model switching
+- [ ] Test conversation persistence
+- [ ] End-to-end integration testing

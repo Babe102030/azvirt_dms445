@@ -421,3 +421,49 @@ export const emailBranding = mysqlTable("email_branding", {
 
 export type EmailBranding = typeof emailBranding.$inferSelect;
 export type InsertEmailBranding = typeof emailBranding.$inferInsert;
+
+
+// AI Assistant Tables
+import { sql, json } from "drizzle-orm";
+
+export const aiConversations = mysqlTable("ai_conversations", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AiConversation = typeof aiConversations.$inferSelect;
+export type InsertAiConversation = typeof aiConversations.$inferInsert;
+
+export const aiMessages = mysqlTable("ai_messages", {
+  id: int("id").primaryKey().autoincrement(),
+  conversationId: int("conversationId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant", "system", "tool"]).notNull(),
+  content: text("content").notNull(),
+  model: varchar("model", { length: 100 }),
+  audioUrl: text("audioUrl"),
+  imageUrl: text("imageUrl"),
+  thinkingProcess: text("thinkingProcess"), // JSON string
+  toolCalls: text("toolCalls"), // JSON string
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AiMessage = typeof aiMessages.$inferSelect;
+export type InsertAiMessage = typeof aiMessages.$inferInsert;
+
+export const aiModels = mysqlTable("ai_models", {
+  id: int("id").primaryKey().autoincrement(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  displayName: varchar("displayName", { length: 255 }).notNull(),
+  type: mysqlEnum("type", ["text", "vision", "code"]).notNull(),
+  size: varchar("size", { length: 20 }),
+  isInstalled: boolean("isInstalled").default(false),
+  lastUsed: timestamp("lastUsed"),
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AiModel = typeof aiModels.$inferSelect;
+export type InsertAiModel = typeof aiModels.$inferInsert;
