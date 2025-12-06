@@ -6,36 +6,46 @@ interface EmailOptions {
 }
 
 /**
- * Send email using a production email service
- * In production, integrate with SendGrid, AWS SES, or similar
+ * Send email using SendGrid
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
-    // For now, log to console
-    // In production, replace with actual email service API call
-    console.log(`[EMAIL] To: ${options.to}`);
-    console.log(`[EMAIL] Subject: ${options.subject}`);
-    console.log(`[EMAIL] Body: ${options.html.substring(0, 200)}...`);
+    const sgMail = (await import('@sendgrid/mail')).default;
     
-    // Simulate email sending
-    // In production:
-    // const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     personalizations: [{ to: [{ email: options.to }] }],
-    //     from: { email: 'noreply@azvirt.com' },
-    //     subject: options.subject,
-    //     content: [{ type: 'text/html', value: options.html }],
-    //   }),
-    // });
+    // Check if SendGrid is configured
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    const fromName = process.env.SENDGRID_FROM_NAME || 'AzVirt DMS';
     
+    if (!apiKey || !fromEmail) {
+      console.warn('[EMAIL] SendGrid not configured. Email not sent.');
+      console.log(`[EMAIL] To: ${options.to}`);
+      console.log(`[EMAIL] Subject: ${options.subject}`);
+      return false;
+    }
+    
+    // Configure SendGrid
+    sgMail.setApiKey(apiKey);
+    
+    // Send email
+    const msg = {
+      to: options.to,
+      from: {
+        email: fromEmail,
+        name: fromName,
+      },
+      subject: options.subject,
+      html: options.html,
+    };
+    
+    await sgMail.send(msg);
+    console.log(`[EMAIL] Successfully sent to: ${options.to}`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('[EMAIL] Failed to send:', error);
+    if (error.response) {
+      console.error('[EMAIL] SendGrid error:', error.response.body);
+    }
     return false;
   }
 }

@@ -222,12 +222,34 @@ __export(email_exports, {
 });
 async function sendEmail(options) {
   try {
-    console.log(`[EMAIL] To: ${options.to}`);
-    console.log(`[EMAIL] Subject: ${options.subject}`);
-    console.log(`[EMAIL] Body: ${options.html.substring(0, 200)}...`);
+    const sgMail = (await import("@sendgrid/mail")).default;
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL;
+    const fromName = process.env.SENDGRID_FROM_NAME || "AzVirt DMS";
+    if (!apiKey || !fromEmail) {
+      console.warn("[EMAIL] SendGrid not configured. Email not sent.");
+      console.log(`[EMAIL] To: ${options.to}`);
+      console.log(`[EMAIL] Subject: ${options.subject}`);
+      return false;
+    }
+    sgMail.setApiKey(apiKey);
+    const msg = {
+      to: options.to,
+      from: {
+        email: fromEmail,
+        name: fromName
+      },
+      subject: options.subject,
+      html: options.html
+    };
+    await sgMail.send(msg);
+    console.log(`[EMAIL] Successfully sent to: ${options.to}`);
     return true;
   } catch (error) {
     console.error("[EMAIL] Failed to send:", error);
+    if (error.response) {
+      console.error("[EMAIL] SendGrid error:", error.response.body);
+    }
     return false;
   }
 }
