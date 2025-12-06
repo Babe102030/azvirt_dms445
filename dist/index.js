@@ -766,6 +766,46 @@ var forecastPredictions = mysqlTable("forecast_predictions", {
   confidence: int("confidence"),
   calculatedAt: timestamp("calculatedAt").defaultNow().notNull()
 });
+var reportSettings2 = mysqlTable("report_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  includeProduction: boolean("includeProduction").default(true).notNull(),
+  includeDeliveries: boolean("includeDeliveries").default(true).notNull(),
+  includeMaterials: boolean("includeMaterials").default(true).notNull(),
+  includeQualityControl: boolean("includeQualityControl").default(true).notNull(),
+  reportTime: varchar("reportTime", { length: 10 }).default("18:00").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var reportRecipients2 = mysqlTable("report_recipients", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
+var emailTemplates2 = mysqlTable("email_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 100 }).notNull().unique(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  htmlTemplate: text("htmlTemplate").notNull(),
+  variables: text("variables"),
+  // JSON string of available variables
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var emailBranding2 = mysqlTable("email_branding", {
+  id: int("id").autoincrement().primaryKey(),
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
+  secondaryColor: varchar("secondaryColor", { length: 20 }).default("#ea580c").notNull(),
+  companyName: varchar("companyName", { length: 255 }).default("AzVirt").notNull(),
+  footerText: text("footerText"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
 
 // server/db.ts
 init_env();

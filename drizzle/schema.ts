@@ -354,3 +354,70 @@ export const forecastPredictions = mysqlTable("forecast_predictions", {
 
 export type ForecastPrediction = typeof forecastPredictions.$inferSelect;
 export type InsertForecastPrediction = typeof forecastPredictions.$inferInsert;
+
+/**
+ * Report settings table for daily production report customization
+ */
+export const reportSettings = mysqlTable("report_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  includeProduction: boolean("includeProduction").default(true).notNull(),
+  includeDeliveries: boolean("includeDeliveries").default(true).notNull(),
+  includeMaterials: boolean("includeMaterials").default(true).notNull(),
+  includeQualityControl: boolean("includeQualityControl").default(true).notNull(),
+  reportTime: varchar("reportTime", { length: 10 }).default("18:00").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ReportSettings = typeof reportSettings.$inferSelect;
+export type InsertReportSettings = typeof reportSettings.$inferInsert;
+
+/**
+ * Report recipients table for managing email recipients
+ */
+export const reportRecipients = mysqlTable("report_recipients", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: varchar("name", { length: 255 }),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ReportRecipient = typeof reportRecipients.$inferSelect;
+export type InsertReportRecipient = typeof reportRecipients.$inferInsert;
+
+/**
+ * Email templates table for customizable email designs
+ */
+export const emailTemplates = mysqlTable("email_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 100 }).notNull().unique(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  htmlTemplate: text("htmlTemplate").notNull(),
+  variables: text("variables"), // JSON string of available variables
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
+
+/**
+ * Email branding table for company branding customization
+ */
+export const emailBranding = mysqlTable("email_branding", {
+  id: int("id").autoincrement().primaryKey(),
+  logoUrl: varchar("logoUrl", { length: 500 }),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
+  secondaryColor: varchar("secondaryColor", { length: 20 }).default("#ea580c").notNull(),
+  companyName: varchar("companyName", { length: 255 }).default("AzVirt").notNull(),
+  footerText: text("footerText"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmailBranding = typeof emailBranding.$inferSelect;
+export type InsertEmailBranding = typeof emailBranding.$inferInsert;

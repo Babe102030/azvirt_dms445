@@ -420,3 +420,38 @@
 - [x] Test email delivery with SendGrid
 - [x] Add error handling for failed emails
 - [x] Create vitest tests for SendGrid integration
+
+
+## Email Template Management System
+### Database Schema
+- [x] Create email_templates table (name, type, subject, htmlTemplate, variables)
+- [x] Create email_branding table (logoUrl, primaryColor, secondaryColor, companyName, footerText)
+- [ ] Push database schema changes
+
+### Backend Procedures
+- [x] Create getEmailTemplates procedure
+- [x] Create getEmailTemplate procedure (by type)
+- [x] Create upsertEmailTemplate procedure
+- [x] Create getEmailBranding procedure
+- [x] Create updateEmailBranding procedure
+- [ ] Update email generation functions to use custom templates
+
+### Frontend - Template Editor
+- [ ] Create EmailTemplateEditor page with visual editor
+- [ ] Add color picker for branding colors
+- [ ] Add logo upload functionality
+- [ ] Create live email preview component
+- [ ] Add template variable documentation
+- [ ] Create template selection dropdown for each email type
+- [ ] Add reset to default template button
+
+### Template Types
+- [ ] Daily production report template
+- [ ] Low stock alert template
+- [ ] Purchase order template
+- [ ] Generic notification template
+
+### Testing
+- [ ] Write vitest tests for template management
+- [ ] Test template rendering with custom branding
+- [ ] Test logo upload and display

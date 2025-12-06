@@ -981,3 +981,101 @@ export async function removeReportRecipient(id: number) {
     .set({ active: false })
     .where(eq(reportRecipients.id, id));
 }
+
+
+// Email Templates
+export async function getEmailTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(emailTemplates).where(eq(emailTemplates.isActive, true));
+}
+
+export async function getEmailTemplateByType(type: string) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const results = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type)).limit(1);
+  return results[0] || null;
+}
+
+export async function upsertEmailTemplate(data: {
+  name: string;
+  type: string;
+  subject: string;
+  htmlTemplate: string;
+  variables?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await getEmailTemplateByType(data.type);
+  
+  if (existing) {
+    await db.update(emailTemplates)
+      .set({
+        name: data.name,
+        subject: data.subject,
+        htmlTemplate: data.htmlTemplate,
+        variables: data.variables,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailTemplates.id, existing.id));
+    return existing.id;
+  } else {
+    await db.insert(emailTemplates).values({
+      name: data.name,
+      type: data.type,
+      subject: data.subject,
+      htmlTemplate: data.htmlTemplate,
+      variables: data.variables,
+      isActive: true,
+    });
+    return 0;
+  }
+}
+
+// Email Branding
+export async function getEmailBranding() {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const results = await db.select().from(emailBranding).limit(1);
+  return results[0] || null;
+}
+
+export async function upsertEmailBranding(data: {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  companyName?: string;
+  footerText?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await getEmailBranding();
+  
+  if (existing) {
+    await db.update(emailBranding)
+      .set({
+        logoUrl: data.logoUrl ?? existing.logoUrl,
+        primaryColor: data.primaryColor ?? existing.primaryColor,
+        secondaryColor: data.secondaryColor ?? existing.secondaryColor,
+        companyName: data.companyName ?? existing.companyName,
+        footerText: data.footerText ?? existing.footerText,
+        updatedAt: new Date(),
+      })
+      .where(eq(emailBranding.id, existing.id));
+    return existing.id;
+  } else {
+    await db.insert(emailBranding).values({
+      logoUrl: data.logoUrl || null,
+      primaryColor: data.primaryColor || "#f97316",
+      secondaryColor: data.secondaryColor || "#ea580c",
+      companyName: data.companyName || "AzVirt",
+      footerText: data.footerText || null,
+    });
+    return 0;
+  }
+}
