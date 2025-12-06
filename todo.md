@@ -172,3 +172,14 @@
 - [x] Translate dialog and modal content
 - [x] Translate backend validation messages
 - [x] Test all translations for consistency
+
+
+## Multi-Language Support (NEW)
+- [x] Create language context and provider for state management
+- [x] Create translation files for English, Bosnian/Serbian, and Azerbaijani
+- [x] Translate all UI text to Azerbaijani
+- [x] Build language switcher component
+- [x] Integrate language switcher into dashboard header
+- [x] Add language preference persistence to user profile (localStorage)
+- [x] Set Bosnian/Serbian as default language
+- [x] Test language switching across all pages
