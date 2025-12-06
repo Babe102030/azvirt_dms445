@@ -2572,38 +2572,48 @@ var aiAssistantRouter = router({
   chat: protectedProcedure.input(
     z2.object({
       conversationId: z2.number().optional(),
-      message: z2.string(),
+      message: z2.string().min(1, "Message cannot be empty"),
       model: z2.string().default("llama3.2"),
       imageUrl: z2.string().optional(),
       audioUrl: z2.string().optional(),
       useTools: z2.boolean().default(true)
     })
   ).mutation(async ({ input, ctx }) => {
-    const userId = ctx.user.id;
-    let conversationId = input.conversationId;
-    if (!conversationId) {
-      conversationId = await createAiConversation({
-        userId,
-        title: input.message.substring(0, 50),
-        modelName: input.model
+    try {
+      const userId = ctx.user.id;
+      const availableModels = await ollamaService.listModels();
+      if (!availableModels.some((m) => m.name === input.model)) {
+        throw new Error(`Model "${input.model}" is not available. Please pull it first or use an available model.`);
+      }
+      let conversationId = input.conversationId;
+      if (!conversationId) {
+        conversationId = await createAiConversation({
+          userId,
+          title: input.message.substring(0, 50),
+          modelName: input.model
+        });
+      } else {
+        const conversations = await getAiConversations(userId);
+        if (!conversations.some((c) => c.id === conversationId)) {
+          throw new Error("Conversation not found or access denied");
+        }
+      }
+      await createAiMessage({
+        conversationId,
+        role: "user",
+        content: input.message,
+        audioUrl: input.audioUrl,
+        imageUrl: input.imageUrl
       });
-    }
-    await createAiMessage({
-      conversationId,
-      role: "user",
-      content: input.message,
-      audioUrl: input.audioUrl,
-      imageUrl: input.imageUrl
-    });
-    const history = await getAiMessages(conversationId);
-    const messages = history.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-      images: msg.imageUrl ? [msg.imageUrl] : void 0
-    }));
-    const systemMessage = {
-      role: "system",
-      content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
+      const history = await getAiMessages(conversationId);
+      const messages = history.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+        images: msg.imageUrl ? [msg.imageUrl] : void 0
+      }));
+      const systemMessage = {
+        role: "system",
+        content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
 
 Available tools:
 - search_materials: Search and check inventory levels
@@ -2614,27 +2624,34 @@ Available tools:
 - calculate_stats: Calculate business metrics and statistics
 
 When users ask about the system, provide helpful, accurate information. Use tools when appropriate to fetch real data. Be concise and professional.`
-    };
-    const response = await ollamaService.chat(
-      input.model,
-      [systemMessage, ...messages],
-      {
-        stream: false,
-        temperature: 0.7
+      };
+      const response = await ollamaService.chat(
+        input.model,
+        [systemMessage, ...messages],
+        {
+          stream: false,
+          temperature: 0.7
+        }
+      );
+      if (!response || !response.message || !response.message.content) {
+        throw new Error("Invalid response from AI model");
       }
-    );
-    const assistantMessageId = await createAiMessage({
-      conversationId,
-      role: "assistant",
-      content: response.message.content,
-      model: input.model
-    });
-    return {
-      conversationId,
-      messageId: assistantMessageId,
-      content: response.message.content,
-      model: input.model
-    };
+      const assistantMessageId = await createAiMessage({
+        conversationId,
+        role: "assistant",
+        content: response.message.content,
+        model: input.model
+      });
+      return {
+        conversationId,
+        messageId: assistantMessageId,
+        content: response.message.content,
+        model: input.model
+      };
+    } catch (error) {
+      console.error("AI chat error:", error);
+      throw new Error(`Chat failed: ${error.message || "Unknown error"}`);
+    }
   }),
   /**
    * Stream chat response (for real-time streaming)
@@ -2788,7 +2805,12 @@ When users ask about the system, provide helpful, accurate information. Use tool
       return result;
     } catch (error) {
       console.error("Tool execution error:", error);
-      throw new Error(`Tool execution failed: ${error.message}`);
+      return {
+        success: false,
+        toolName: input.toolName,
+        parameters: input.parameters,
+        error: error.message || "Unknown error"
+      };
     }
   })
 });

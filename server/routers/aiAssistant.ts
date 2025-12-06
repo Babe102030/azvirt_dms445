@@ -18,7 +18,7 @@ export const aiAssistantRouter = router({
     .input(
       z.object({
         conversationId: z.number().optional(),
-        message: z.string(),
+        message: z.string().min(1, 'Message cannot be empty'),
         model: z.string().default("llama3.2"),
         imageUrl: z.string().optional(),
         audioUrl: z.string().optional(),
@@ -26,39 +26,52 @@ export const aiAssistantRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const userId = ctx.user.id;
+      try {
+        const userId = ctx.user.id;
 
-      // Create or get conversation
-      let conversationId = input.conversationId;
-      if (!conversationId) {
-        conversationId = await db.createAiConversation({
-          userId,
-          title: input.message.substring(0, 50),
-          modelName: input.model,
+        // Validate model availability
+        const availableModels = await ollamaService.listModels();
+        if (!availableModels.some(m => m.name === input.model)) {
+          throw new Error(`Model "${input.model}" is not available. Please pull it first or use an available model.`);
+        }
+
+        // Create or get conversation
+        let conversationId = input.conversationId;
+        if (!conversationId) {
+          conversationId = await db.createAiConversation({
+            userId,
+            title: input.message.substring(0, 50),
+            modelName: input.model,
+          });
+        } else {
+          // Verify user owns this conversation
+          const conversations = await db.getAiConversations(userId);
+          if (!conversations.some(c => c.id === conversationId)) {
+            throw new Error('Conversation not found or access denied');
+          }
+        }
+
+        // Save user message
+        await db.createAiMessage({
+          conversationId,
+          role: "user",
+          content: input.message,
+          audioUrl: input.audioUrl,
+          imageUrl: input.imageUrl,
         });
-      }
 
-      // Save user message
-      await db.createAiMessage({
-        conversationId,
-        role: "user",
-        content: input.message,
-        audioUrl: input.audioUrl,
-        imageUrl: input.imageUrl,
-      });
+        // Get conversation history
+        const history = await db.getAiMessages(conversationId);
+        const messages = history.map((msg) => ({
+          role: msg.role as "user" | "assistant" | "system",
+          content: msg.content,
+          images: msg.imageUrl ? [msg.imageUrl] : undefined,
+        }));
 
-      // Get conversation history
-      const history = await db.getAiMessages(conversationId);
-      const messages = history.map((msg) => ({
-        role: msg.role as "user" | "assistant" | "system",
-        content: msg.content,
-        images: msg.imageUrl ? [msg.imageUrl] : undefined,
-      }));
-
-      // Add system message with DMS context
-      const systemMessage = {
-        role: "system" as const,
-        content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
+        // Add system message with DMS context
+        const systemMessage = {
+          role: "system" as const,
+          content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
 
 Available tools:
 - search_materials: Search and check inventory levels
@@ -69,32 +82,40 @@ Available tools:
 - calculate_stats: Calculate business metrics and statistics
 
 When users ask about the system, provide helpful, accurate information. Use tools when appropriate to fetch real data. Be concise and professional.`,
-      };
+        };
 
-      // Chat with Ollama (non-streaming)
-      const response = await ollamaService.chat(
-        input.model,
-        [systemMessage, ...messages],
-        {
-          stream: false,
-          temperature: 0.7,
+        // Chat with Ollama (non-streaming)
+        const response = await ollamaService.chat(
+          input.model,
+          [systemMessage, ...messages],
+          {
+            stream: false,
+            temperature: 0.7,
+          }
+        ) as import("../_core/ollama").OllamaResponse;
+
+        if (!response || !response.message || !response.message.content) {
+          throw new Error('Invalid response from AI model');
         }
-      ) as import("../_core/ollama").OllamaResponse;
 
-      // Save assistant response
-      const assistantMessageId = await db.createAiMessage({
-        conversationId,
-        role: "assistant",
-        content: response.message.content,
-        model: input.model,
-      });
+        // Save assistant response
+        const assistantMessageId = await db.createAiMessage({
+          conversationId,
+          role: "assistant",
+          content: response.message.content,
+          model: input.model,
+        });
 
-      return {
-        conversationId,
-        messageId: assistantMessageId,
-        content: response.message.content,
-        model: input.model,
-      };
+        return {
+          conversationId,
+          messageId: assistantMessageId,
+          content: response.message.content,
+          model: input.model,
+        };
+      } catch (error: any) {
+        console.error('AI chat error:', error);
+        throw new Error(`Chat failed: ${error.message || 'Unknown error'}`);
+      }
     }),
 
   /**
@@ -290,7 +311,13 @@ When users ask about the system, provide helpful, accurate information. Use tool
         return result;
       } catch (error: any) {
         console.error("Tool execution error:", error);
-        throw new Error(`Tool execution failed: ${error.message}`);
+        // Return error response instead of throwing
+        return {
+          success: false,
+          toolName: input.toolName,
+          parameters: input.parameters,
+          error: error.message || 'Unknown error',
+        };
       }
     }),
 });
