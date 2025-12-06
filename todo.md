@@ -139,3 +139,23 @@
 - [x] Implement email notification for low stock materials (via notifyOwner)
 - [x] Add configuration for stock check timezone (UTC 8 AM)
 - [x] Test the automated task
+
+
+## SMS Critical Stock Alerts (NEW)
+- [x] Add critical threshold field to materials table schema
+- [x] Add SMS notification fields to users table (phoneNumber, smsNotificationsEnabled)
+- [x] Create SMS service module (_core/sms.ts) with validation and error handling
+- [x] Add database helper functions for critical stock and admin users with SMS
+- [x] Add getCriticalStockMaterials() function to get materials below critical threshold
+- [x] Add getAdminUsersWithSMS() function to get admin users with SMS enabled
+- [x] Add updateUserSMSSettings() function to update user SMS preferences
+- [x] Add critical threshold field to material create/update procedures
+- [x] Add checkCriticalStock query procedure to check for critical stock levels
+- [x] Add sendCriticalStockSMS mutation procedure to send SMS alerts to managers
+- [x] Add updateSMSSettings procedure to auth router for user SMS configuration
+- [x] Create Settings page for managers to configure SMS notifications and phone number
+- [x] Add critical threshold field to Materials form
+- [x] Display critical threshold in materials list
+- [x] Add Settings menu item to dashboard sidebar
+- [x] Add Settings route to App.tsx
+- [x] Write comprehensive vitest tests for SMS service (10 tests, all passing)

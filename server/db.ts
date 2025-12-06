@@ -640,3 +640,48 @@ export async function getLowStockMaterials() {
     .from(materials)
     .where(sql`${materials.quantity} <= ${materials.minStock}`);
 }
+
+
+export async function getCriticalStockMaterials() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(materials)
+    .where(sql`${materials.quantity} <= ${materials.criticalThreshold} AND ${materials.criticalThreshold} > 0`);
+}
+
+export async function getAdminUsersWithSMS() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return await db
+    .select()
+    .from(users)
+    .where(and(
+      eq(users.role, 'admin'),
+      eq(users.smsNotificationsEnabled, true),
+      sql`${users.phoneNumber} IS NOT NULL`
+    ));
+}
+
+export async function updateUserSMSSettings(userId: number, phoneNumber: string, enabled: boolean) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db
+      .update(users)
+      .set({
+        phoneNumber,
+        smsNotificationsEnabled: enabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("Failed to update SMS settings:", error);
+    return false;
+  }
+}

@@ -119,6 +119,99 @@ var init_notification = __esm({
   }
 });
 
+// server/_core/sms.ts
+var sms_exports = {};
+__export(sms_exports, {
+  sendSMS: () => sendSMS
+});
+import { TRPCError as TRPCError3 } from "@trpc/server";
+async function sendSMS(payload) {
+  const { phoneNumber, message } = validatePayload2(payload);
+  if (!ENV.forgeApiKey) {
+    throw new TRPCError3({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "SMS service API key is not configured."
+    });
+  }
+  const endpoint = buildEndpointUrl2(ENV.forgeApiUrl);
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+        "content-type": "application/json",
+        "connect-protocol-version": "1"
+      },
+      body: JSON.stringify({ phoneNumber, message })
+    });
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      console.warn(
+        `[SMS] Failed to send SMS to ${phoneNumber} (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`
+      );
+      return { success: false };
+    }
+    return { success: true };
+  } catch (error) {
+    console.warn(`[SMS] Error calling SMS service for ${phoneNumber}:`, error);
+    return { success: false };
+  }
+}
+var PHONE_MAX_LENGTH, MESSAGE_MAX_LENGTH, trimValue2, isNonEmptyString3, buildEndpointUrl2, validatePayload2;
+var init_sms = __esm({
+  "server/_core/sms.ts"() {
+    "use strict";
+    init_env();
+    PHONE_MAX_LENGTH = 20;
+    MESSAGE_MAX_LENGTH = 160;
+    trimValue2 = (value) => value.trim();
+    isNonEmptyString3 = (value) => typeof value === "string" && value.trim().length > 0;
+    buildEndpointUrl2 = (baseUrl) => {
+      if (!baseUrl) {
+        throw new TRPCError3({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "SMS service URL is not configured."
+        });
+      }
+      const normalizedBase = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+      return new URL(
+        "webdevtoken.v1.WebDevService/SendSMS",
+        normalizedBase
+      ).toString();
+    };
+    validatePayload2 = (input) => {
+      if (!isNonEmptyString3(input.phoneNumber)) {
+        throw new TRPCError3({
+          code: "BAD_REQUEST",
+          message: "Phone number is required."
+        });
+      }
+      if (!isNonEmptyString3(input.message)) {
+        throw new TRPCError3({
+          code: "BAD_REQUEST",
+          message: "SMS message is required."
+        });
+      }
+      const phoneNumber = trimValue2(input.phoneNumber);
+      const message = trimValue2(input.message);
+      if (phoneNumber.length > PHONE_MAX_LENGTH) {
+        throw new TRPCError3({
+          code: "BAD_REQUEST",
+          message: `Phone number must be at most ${PHONE_MAX_LENGTH} characters.`
+        });
+      }
+      if (message.length > MESSAGE_MAX_LENGTH) {
+        throw new TRPCError3({
+          code: "BAD_REQUEST",
+          message: `SMS message must be at most ${MESSAGE_MAX_LENGTH} characters. Current length: ${message.length}`
+        });
+      }
+      return { phoneNumber, message };
+    };
+  }
+});
+
 // server/_core/index.ts
 import "dotenv/config";
 import express2 from "express";
@@ -138,7 +231,7 @@ import { eq, desc, like, and, or, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
 // drizzle/schema.ts
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
 var users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -146,6 +239,8 @@ var users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
@@ -183,6 +278,7 @@ var materials = mysqlTable("materials", {
   unit: varchar("unit", { length: 50 }).notNull(),
   quantity: int("quantity").notNull().default(0),
   minStock: int("minStock").notNull().default(0),
+  criticalThreshold: int("criticalThreshold").notNull().default(0),
   supplier: varchar("supplier", { length: 255 }),
   unitPrice: int("unitPrice"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -734,6 +830,35 @@ async function getLowStockMaterials() {
   if (!db) return [];
   return await db.select().from(materials).where(sql`${materials.quantity} <= ${materials.minStock}`);
 }
+async function getCriticalStockMaterials() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(materials).where(sql`${materials.quantity} <= ${materials.criticalThreshold} AND ${materials.criticalThreshold} > 0`);
+}
+async function getAdminUsersWithSMS() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(users).where(and(
+    eq(users.role, "admin"),
+    eq(users.smsNotificationsEnabled, true),
+    sql`${users.phoneNumber} IS NOT NULL`
+  ));
+}
+async function updateUserSMSSettings(userId, phoneNumber, enabled) {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users).set({
+      phoneNumber,
+      smsNotificationsEnabled: enabled,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("Failed to update SMS settings:", error);
+    return false;
+  }
+}
 
 // server/_core/cookies.ts
 function isSecureRequest(req) {
@@ -1150,6 +1275,17 @@ var appRouter = router({
       return {
         success: true
       };
+    }),
+    updateSMSSettings: protectedProcedure.input(z2.object({
+      phoneNumber: z2.string().min(1),
+      smsNotificationsEnabled: z2.boolean()
+    })).mutation(async ({ input, ctx }) => {
+      const success = await updateUserSMSSettings(
+        ctx.user.id,
+        input.phoneNumber,
+        input.smsNotificationsEnabled
+      );
+      return { success };
     })
   }),
   documents: router({
@@ -1233,6 +1369,7 @@ var appRouter = router({
       unit: z2.string(),
       quantity: z2.number().default(0),
       minStock: z2.number().default(0),
+      criticalThreshold: z2.number().default(0),
       supplier: z2.string().optional(),
       unitPrice: z2.number().optional()
     })).mutation(async ({ input }) => {
@@ -1246,6 +1383,7 @@ var appRouter = router({
       unit: z2.string().optional(),
       quantity: z2.number().optional(),
       minStock: z2.number().optional(),
+      criticalThreshold: z2.number().optional(),
       supplier: z2.string().optional(),
       unitPrice: z2.number().optional()
     })).mutation(async ({ input }) => {
@@ -1282,6 +1420,40 @@ Please reorder these materials to avoid project delays.`;
         success: notified,
         materialsCount: lowStockMaterials.length,
         message: notified ? `Alert sent for ${lowStockMaterials.length} low-stock material(s)` : "Failed to send notification"
+      };
+    }),
+    checkCriticalStock: protectedProcedure.query(async () => {
+      return await getCriticalStockMaterials();
+    }),
+    sendCriticalStockSMS: protectedProcedure.mutation(async () => {
+      const criticalMaterials = await getCriticalStockMaterials();
+      if (criticalMaterials.length === 0) {
+        return { success: true, message: "No critical stock alerts needed", smsCount: 0 };
+      }
+      const adminUsers = await getAdminUsersWithSMS();
+      if (adminUsers.length === 0) {
+        return { success: false, message: "No managers with SMS notifications enabled", smsCount: 0 };
+      }
+      const materialsList = criticalMaterials.map((m) => `${m.name}: ${m.quantity}/${m.criticalThreshold} ${m.unit}`).join(", ");
+      const smsMessage = `CRITICAL STOCK ALERT: ${criticalMaterials.length} material(s) below critical level. ${materialsList}. Immediate reorder required.`;
+      const { sendSMS: sendSMS2 } = await Promise.resolve().then(() => (init_sms(), sms_exports));
+      const smsResults = await Promise.all(
+        adminUsers.map(
+          (user) => sendSMS2({
+            phoneNumber: user.phoneNumber,
+            message: smsMessage
+          }).catch((err) => {
+            console.error(`Failed to send SMS to ${user.phoneNumber}:`, err);
+            return { success: false };
+          })
+        )
+      );
+      const successCount = smsResults.filter((r) => r.success).length;
+      return {
+        success: successCount > 0,
+        materialsCount: criticalMaterials.length,
+        smsCount: successCount,
+        message: `SMS alerts sent to ${successCount} manager(s) for ${criticalMaterials.length} critical material(s)`
       };
     })
   }),

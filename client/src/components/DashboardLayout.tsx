@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -38,6 +38,7 @@ const menuItems = [
   { icon: Cog, label: "Machines", path: "/machines" },
   { icon: Clock, label: "Timesheets", path: "/timesheets" },
   { icon: TrendingUp, label: "Reports", path: "/timesheet-summary" },
+  { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

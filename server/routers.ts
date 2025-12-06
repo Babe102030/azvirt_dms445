@@ -19,6 +19,19 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    updateSMSSettings: protectedProcedure
+      .input(z.object({
+        phoneNumber: z.string().min(1),
+        smsNotificationsEnabled: z.boolean(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const success = await db.updateUserSMSSettings(
+          ctx.user.id,
+          input.phoneNumber,
+          input.smsNotificationsEnabled
+        );
+        return { success };
+      }),
   }),
 
   documents: router({
@@ -123,6 +136,7 @@ export const appRouter = router({
         unit: z.string(),
         quantity: z.number().default(0),
         minStock: z.number().default(0),
+        criticalThreshold: z.number().default(0),
         supplier: z.string().optional(),
         unitPrice: z.number().optional(),
       }))
@@ -139,6 +153,7 @@ export const appRouter = router({
         unit: z.string().optional(),
         quantity: z.number().optional(),
         minStock: z.number().optional(),
+        criticalThreshold: z.number().optional(),
         supplier: z.string().optional(),
         unitPrice: z.number().optional(),
       }))
@@ -186,6 +201,54 @@ export const appRouter = router({
           message: notified 
             ? `Alert sent for ${lowStockMaterials.length} low-stock material(s)` 
             : "Failed to send notification"
+        };
+      }),
+
+    checkCriticalStock: protectedProcedure
+      .query(async () => {
+        return await db.getCriticalStockMaterials();
+      }),
+
+    sendCriticalStockSMS: protectedProcedure
+      .mutation(async () => {
+        const criticalMaterials = await db.getCriticalStockMaterials();
+        
+        if (criticalMaterials.length === 0) {
+          return { success: true, message: "No critical stock alerts needed", smsCount: 0 };
+        }
+
+        const adminUsers = await db.getAdminUsersWithSMS();
+        
+        if (adminUsers.length === 0) {
+          return { success: false, message: "No managers with SMS notifications enabled", smsCount: 0 };
+        }
+
+        const materialsList = criticalMaterials
+          .map((m: any) => `${m.name}: ${m.quantity}/${m.criticalThreshold} ${m.unit}`)
+          .join(", ");
+
+        const smsMessage = `CRITICAL STOCK ALERT: ${criticalMaterials.length} material(s) below critical level. ${materialsList}. Immediate reorder required.`;
+
+        const { sendSMS } = await import("./_core/sms");
+        const smsResults = await Promise.all(
+          adminUsers.map((user: any) => 
+            sendSMS({
+              phoneNumber: user.phoneNumber!,
+              message: smsMessage,
+            }).catch((err: any) => {
+              console.error(`Failed to send SMS to ${user.phoneNumber}:`, err);
+              return { success: false };
+            })
+          )
+        );
+
+        const successCount = smsResults.filter((r: any) => r.success).length;
+
+        return { 
+          success: successCount > 0, 
+          materialsCount: criticalMaterials.length,
+          smsCount: successCount,
+          message: `SMS alerts sent to ${successCount} manager(s) for ${criticalMaterials.length} critical material(s)`
         };
       }),
   }),

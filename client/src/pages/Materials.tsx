@@ -62,6 +62,7 @@ export default function Materials() {
       unit: formData.get("unit") as string,
       quantity: parseInt(formData.get("quantity") as string) || 0,
       minStock: parseInt(formData.get("minStock") as string) || 0,
+      criticalThreshold: parseInt(formData.get("criticalThreshold") as string) || 0,
       supplier: formData.get("supplier") as string,
       unitPrice: parseInt(formData.get("unitPrice") as string) || undefined,
     });
@@ -132,6 +133,11 @@ export default function Materials() {
                   <Input id="minStock" name="minStock" type="number" defaultValue="0" />
                 </div>
                 <div>
+                  <Label htmlFor="criticalThreshold">Critical Threshold (SMS Alert Level)</Label>
+                  <Input id="criticalThreshold" name="criticalThreshold" type="number" defaultValue="0" />
+                  <p className="text-xs text-muted-foreground mt-1">SMS alerts will be sent when stock falls below this level</p>
+                </div>
+                <div>
                   <Label htmlFor="supplier">Supplier</Label>
                   <Input id="supplier" name="supplier" />
                 </div>
@@ -187,6 +193,11 @@ export default function Materials() {
                             <span className="text-xs text-muted-foreground">
                               Min: {material.minStock} {material.unit}
                             </span>
+                            {material.criticalThreshold > 0 && (
+                              <span className="text-xs text-red-400">
+                                Critical: {material.criticalThreshold} {material.unit}
+                              </span>
+                            )}
                             {material.supplier && (
                               <span className="text-xs text-muted-foreground">
                                 Supplier: {material.supplier}
