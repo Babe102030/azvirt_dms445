@@ -22,7 +22,8 @@ import {
   aiModels,
   reportSettings,
   reportRecipients,
-  emailBranding
+  emailBranding,
+  emailTemplates
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1193,4 +1194,80 @@ export async function upsertModel(name: string, displayName: string, type: "text
       lastUsed: new Date(),
     });
   }
+}
+
+export async function createAiConversation(data: { userId: number; title?: string; modelName?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(aiConversations).values({
+    userId: data.userId,
+    title: data.title || "New Conversation",
+    modelName: data.modelName,
+  });
+  
+  return result[0].insertId;
+}
+
+export async function getAiConversations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(aiConversations)
+    .where(eq(aiConversations.userId, userId))
+    .orderBy(aiConversations.updatedAt);
+}
+
+export async function deleteAiConversation(conversationId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Delete all messages first
+  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
+  
+  // Delete conversation
+  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+}
+
+export async function createAiMessage(data: {
+  conversationId: number;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  model?: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  thinkingProcess?: string;
+  toolCalls?: string;
+  metadata?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(aiMessages).values({
+    conversationId: data.conversationId,
+    role: data.role,
+    content: data.content,
+    model: data.model,
+    audioUrl: data.audioUrl,
+    imageUrl: data.imageUrl,
+    thinkingProcess: data.thinkingProcess,
+    toolCalls: data.toolCalls,
+    metadata: data.metadata,
+  });
+  
+  // Update conversation timestamp
+  await db.update(aiConversations)
+    .set({ updatedAt: new Date() })
+    .where(eq(aiConversations.id, data.conversationId));
+  
+  return result[0].insertId;
+}
+
+export async function getAiMessages(conversationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(aiMessages)
+    .where(eq(aiMessages.conversationId, conversationId))
+    .orderBy(aiMessages.createdAt);
 }

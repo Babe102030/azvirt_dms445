@@ -424,12 +424,13 @@ export type InsertEmailBranding = typeof emailBranding.$inferInsert;
 
 
 // AI Assistant Tables
-import { sql, json } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export const aiConversations = mysqlTable("ai_conversations", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("userId").notNull(),
   title: varchar("title", { length: 255 }),
+  modelName: varchar("modelName", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -447,6 +448,7 @@ export const aiMessages = mysqlTable("ai_messages", {
   imageUrl: text("imageUrl"),
   thinkingProcess: text("thinkingProcess"), // JSON string
   toolCalls: text("toolCalls"), // JSON string
+  metadata: text("metadata"), // JSON string for additional data
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

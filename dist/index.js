@@ -784,7 +784,7 @@ var reportRecipients = mysqlTable("report_recipients", {
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
-var emailTemplates2 = mysqlTable("email_templates", {
+var emailTemplates = mysqlTable("email_templates", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   type: varchar("type", { length: 100 }).notNull().unique(),
@@ -810,6 +810,7 @@ var aiConversations = mysqlTable("ai_conversations", {
   id: int("id").primaryKey().autoincrement(),
   userId: int("userId").notNull(),
   title: varchar("title", { length: 255 }),
+  modelName: varchar("modelName", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
 });
@@ -825,6 +826,8 @@ var aiMessages = mysqlTable("ai_messages", {
   // JSON string
   toolCalls: text("toolCalls"),
   // JSON string
+  metadata: text("metadata"),
+  // JSON string for additional data
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
 var aiModels = mysqlTable("ai_models", {
@@ -1457,6 +1460,49 @@ async function upsertEmailBranding(data) {
     return 0;
   }
 }
+async function createAiConversation(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(aiConversations).values({
+    userId: data.userId,
+    title: data.title || "New Conversation",
+    modelName: data.modelName
+  });
+  return result[0].insertId;
+}
+async function getAiConversations(userId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(aiConversations.updatedAt);
+}
+async function deleteAiConversation(conversationId) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
+  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+}
+async function createAiMessage(data) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(aiMessages).values({
+    conversationId: data.conversationId,
+    role: data.role,
+    content: data.content,
+    model: data.model,
+    audioUrl: data.audioUrl,
+    imageUrl: data.imageUrl,
+    thinkingProcess: data.thinkingProcess,
+    toolCalls: data.toolCalls,
+    metadata: data.metadata
+  });
+  await db.update(aiConversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiConversations.id, data.conversationId));
+  return result[0].insertId;
+}
+async function getAiMessages(conversationId) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
+}
 
 // server/_core/cookies.ts
 function isSecureRequest(req) {
@@ -1807,7 +1853,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
-import { z as z2 } from "zod";
+import { z as z3 } from "zod";
 
 // server/storage.ts
 init_env();
@@ -1863,8 +1909,894 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
 
 // server/routers.ts
 import { nanoid } from "nanoid";
+
+// server/routers/aiAssistant.ts
+import { z as z2 } from "zod";
+
+// server/_core/ollama.ts
+import axios2 from "axios";
+var OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+var OllamaService = class {
+  client;
+  constructor() {
+    this.client = axios2.create({
+      baseURL: OLLAMA_BASE_URL,
+      timeout: 3e5,
+      // 5 minutes for large model responses
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  }
+  /**
+   * Chat with Ollama model (streaming or non-streaming)
+   */
+  async chat(model, messages, options) {
+    const requestBody = {
+      model,
+      messages,
+      stream: options?.stream ?? false,
+      options: {
+        temperature: options?.temperature ?? 0.7,
+        top_p: options?.top_p ?? 0.9,
+        top_k: options?.top_k ?? 40,
+        num_predict: options?.num_predict ?? -1
+      }
+    };
+    if (options?.stream) {
+      return this.streamChat(requestBody);
+    }
+    const response = await this.client.post("/api/chat", requestBody);
+    return response.data;
+  }
+  /**
+   * Stream chat responses
+   */
+  async *streamChat(requestBody) {
+    const response = await this.client.post("/api/chat", requestBody, {
+      responseType: "stream"
+    });
+    const stream = response.data;
+    let buffer = "";
+    for await (const chunk of stream) {
+      buffer += chunk.toString();
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.trim()) {
+          try {
+            const data = JSON.parse(line);
+            yield data;
+          } catch (e) {
+            console.error("Failed to parse Ollama stream chunk:", e);
+          }
+        }
+      }
+    }
+    if (buffer.trim()) {
+      try {
+        const data = JSON.parse(buffer);
+        yield data;
+      } catch (e) {
+        console.error("Failed to parse final Ollama chunk:", e);
+      }
+    }
+  }
+  /**
+   * Generate completion (simpler interface for single prompts)
+   */
+  async generate(model, prompt, options) {
+    const requestBody = {
+      model,
+      prompt,
+      stream: options?.stream ?? false,
+      images: options?.images,
+      system: options?.system
+    };
+    const response = await this.client.post("/api/generate", requestBody);
+    return response.data;
+  }
+  /**
+   * List all available models
+   */
+  async listModels() {
+    try {
+      const response = await this.client.get("/api/tags");
+      return response.data.models || [];
+    } catch (error) {
+      console.error("Failed to list Ollama models:", error);
+      return [];
+    }
+  }
+  /**
+   * Get model information
+   */
+  async showModel(modelName) {
+    try {
+      const response = await this.client.post("/api/show", {
+        name: modelName
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to get info for model ${modelName}:`, error);
+      return null;
+    }
+  }
+  /**
+   * Pull a model from Ollama registry
+   */
+  async pullModel(modelName, onProgress) {
+    try {
+      const response = await this.client.post(
+        "/api/pull",
+        { name: modelName, stream: true },
+        { responseType: "stream" }
+      );
+      const stream = response.data;
+      let buffer = "";
+      for await (const chunk of stream) {
+        buffer += chunk.toString();
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const data = JSON.parse(line);
+              if (onProgress) {
+                onProgress(data);
+              }
+              if (data.status === "success") {
+                return true;
+              }
+            } catch (e) {
+              console.error("Failed to parse pull progress:", e);
+            }
+          }
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error(`Failed to pull model ${modelName}:`, error);
+      return false;
+    }
+  }
+  /**
+   * Delete a model
+   */
+  async deleteModel(modelName) {
+    try {
+      await this.client.delete("/api/delete", {
+        data: { name: modelName }
+      });
+      return true;
+    } catch (error) {
+      console.error(`Failed to delete model ${modelName}:`, error);
+      return false;
+    }
+  }
+  /**
+   * Check if Ollama is running
+   */
+  async isAvailable() {
+    try {
+      await this.client.get("/");
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  /**
+   * Analyze image with vision model
+   */
+  async analyzeImage(model, imageBase64, prompt) {
+    const messages = [
+      {
+        role: "user",
+        content: prompt,
+        images: [imageBase64]
+      }
+    ];
+    const response = await this.chat(model, messages);
+    return response.message.content;
+  }
+};
+var ollamaService = new OllamaService();
+
+// server/_core/aiTools.ts
+import { like as like2, eq as eq2, and as and2, gte as gte2, lte, desc as desc2 } from "drizzle-orm";
+var searchMaterialsTool = {
+  name: "search_materials",
+  description: "Search materials inventory by name or check stock levels. Returns current stock, supplier info, and low stock warnings.",
+  parameters: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: 'Material name to search for (e.g., "cement", "gravel")'
+      },
+      checkLowStock: {
+        type: "boolean",
+        description: "If true, returns only materials below minimum stock level"
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    let query = db.select().from(materials);
+    if (params.query) {
+      query = query.where(like2(materials.name, `%${params.query}%`));
+    }
+    const results = await query;
+    if (params.checkLowStock) {
+      return results.filter((m) => m.quantity <= m.minStock);
+    }
+    return results.map((m) => ({
+      id: m.id,
+      name: m.name,
+      category: m.category,
+      quantity: m.quantity,
+      unit: m.unit,
+      minStock: m.minStock,
+      supplier: m.supplier,
+      isLowStock: m.quantity <= m.minStock,
+      isCritical: m.quantity <= m.criticalThreshold
+    }));
+  }
+};
+var getDeliveryStatusTool = {
+  name: "get_delivery_status",
+  description: "Get real-time delivery status, GPS location, and ETA. Can search by delivery ID, project name, or status.",
+  parameters: {
+    type: "object",
+    properties: {
+      deliveryId: {
+        type: "number",
+        description: "Specific delivery ID to lookup"
+      },
+      projectName: {
+        type: "string",
+        description: "Project name to filter deliveries"
+      },
+      status: {
+        type: "string",
+        description: "Delivery status to filter",
+        enum: ["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed"]
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const conditions = [];
+    if (params.deliveryId) {
+      conditions.push(eq2(deliveries.id, params.deliveryId));
+    }
+    if (params.projectName) {
+      conditions.push(like2(deliveries.projectName, `%${params.projectName}%`));
+    }
+    if (params.status) {
+      conditions.push(eq2(deliveries.status, params.status));
+    }
+    const results = await db.select().from(deliveries).where(conditions.length > 0 ? and2(...conditions) : void 0).orderBy(desc2(deliveries.scheduledTime)).limit(10);
+    return results.map((d) => ({
+      id: d.id,
+      projectName: d.projectName,
+      concreteType: d.concreteType,
+      volume: d.volume,
+      status: d.status,
+      scheduledTime: d.scheduledTime,
+      driverName: d.driverName,
+      vehicleNumber: d.vehicleNumber,
+      gpsLocation: d.gpsLocation,
+      estimatedArrival: d.estimatedArrival,
+      notes: d.notes
+    }));
+  }
+};
+var searchDocumentsTool = {
+  name: "search_documents",
+  description: "Search documents by name, category, or project. Returns document metadata and download URLs.",
+  parameters: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Document name to search for"
+      },
+      category: {
+        type: "string",
+        description: "Document category to filter",
+        enum: ["contract", "blueprint", "report", "certificate", "invoice", "other"]
+      },
+      projectId: {
+        type: "number",
+        description: "Project ID to filter documents"
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const conditions = [];
+    if (params.query) {
+      conditions.push(like2(documents.name, `%${params.query}%`));
+    }
+    if (params.category) {
+      conditions.push(eq2(documents.category, params.category));
+    }
+    if (params.projectId) {
+      conditions.push(eq2(documents.projectId, params.projectId));
+    }
+    const results = await db.select().from(documents).where(conditions.length > 0 ? and2(...conditions) : void 0).orderBy(desc2(documents.createdAt)).limit(20);
+    return results.map((d) => ({
+      id: d.id,
+      name: d.name,
+      description: d.description,
+      category: d.category,
+      fileUrl: d.fileUrl,
+      mimeType: d.mimeType,
+      fileSize: d.fileSize,
+      createdAt: d.createdAt
+    }));
+  }
+};
+var getQualityTestsTool = {
+  name: "get_quality_tests",
+  description: "Retrieve quality control test results. Can filter by status, test type, or delivery.",
+  parameters: {
+    type: "object",
+    properties: {
+      status: {
+        type: "string",
+        description: "Test status to filter",
+        enum: ["pass", "fail", "pending"]
+      },
+      testType: {
+        type: "string",
+        description: "Type of test to filter",
+        enum: ["slump", "strength", "air_content", "temperature", "other"]
+      },
+      deliveryId: {
+        type: "number",
+        description: "Delivery ID to get tests for"
+      },
+      limit: {
+        type: "number",
+        description: "Maximum number of results to return (default: 10)"
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const conditions = [];
+    if (params.status) {
+      conditions.push(eq2(qualityTests.status, params.status));
+    }
+    if (params.testType) {
+      conditions.push(eq2(qualityTests.testType, params.testType));
+    }
+    if (params.deliveryId) {
+      conditions.push(eq2(qualityTests.deliveryId, params.deliveryId));
+    }
+    const results = await db.select().from(qualityTests).where(conditions.length > 0 ? and2(...conditions) : void 0).orderBy(desc2(qualityTests.createdAt)).limit(params.limit || 10);
+    return results.map((t2) => ({
+      id: t2.id,
+      testName: t2.testName,
+      testType: t2.testType,
+      result: t2.result,
+      unit: t2.unit,
+      status: t2.status,
+      testedBy: t2.testedBy,
+      complianceStandard: t2.complianceStandard,
+      notes: t2.notes,
+      createdAt: t2.createdAt
+    }));
+  }
+};
+var generateForecastTool = {
+  name: "generate_forecast",
+  description: "Generate inventory forecast predictions showing when materials will run out and recommended order quantities.",
+  parameters: {
+    type: "object",
+    properties: {
+      materialId: {
+        type: "number",
+        description: "Specific material ID to forecast (optional, forecasts all if not provided)"
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    let query = db.select().from(forecastPredictions).orderBy(forecastPredictions.daysUntilStockout);
+    if (params.materialId) {
+      query = query.where(eq2(forecastPredictions.materialId, params.materialId));
+    }
+    const results = await query.limit(20);
+    return results.map((f) => ({
+      materialId: f.materialId,
+      materialName: f.materialName,
+      currentStock: f.currentStock,
+      dailyConsumptionRate: f.dailyConsumptionRate,
+      daysUntilStockout: f.daysUntilStockout,
+      predictedRunoutDate: f.predictedRunoutDate,
+      recommendedOrderQty: f.recommendedOrderQty,
+      confidence: f.confidence,
+      status: f.daysUntilStockout && f.daysUntilStockout < 7 ? "critical" : f.daysUntilStockout && f.daysUntilStockout < 14 ? "warning" : "ok"
+    }));
+  }
+};
+var calculateStatsTool = {
+  name: "calculate_stats",
+  description: "Calculate statistics and aggregations (total deliveries, average test results, etc.)",
+  parameters: {
+    type: "object",
+    properties: {
+      metric: {
+        type: "string",
+        description: "Metric to calculate",
+        enum: ["total_deliveries", "total_concrete_volume", "qc_pass_rate", "active_projects"]
+      },
+      startDate: {
+        type: "string",
+        description: "Start date for filtering (ISO format)"
+      },
+      endDate: {
+        type: "string",
+        description: "End date for filtering (ISO format)"
+      }
+    },
+    required: ["metric"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { metric, startDate, endDate } = params;
+    const dateConditions = [];
+    if (startDate) {
+      dateConditions.push(gte2(deliveries.createdAt, new Date(startDate)));
+    }
+    if (endDate) {
+      dateConditions.push(lte(deliveries.createdAt, new Date(endDate)));
+    }
+    switch (metric) {
+      case "total_deliveries": {
+        const results = await db.select().from(deliveries).where(dateConditions.length > 0 ? and2(...dateConditions) : void 0);
+        return {
+          metric: "total_deliveries",
+          value: results.length,
+          period: { startDate, endDate }
+        };
+      }
+      case "total_concrete_volume": {
+        const results = await db.select().from(deliveries).where(dateConditions.length > 0 ? and2(...dateConditions) : void 0);
+        const totalVolume = results.reduce((sum, d) => sum + (d.volume || 0), 0);
+        return {
+          metric: "total_concrete_volume",
+          value: totalVolume,
+          unit: "m\xB3",
+          period: { startDate, endDate }
+        };
+      }
+      case "qc_pass_rate": {
+        const allTests = await db.select().from(qualityTests);
+        const passedTests = allTests.filter((t2) => t2.status === "pass");
+        const passRate = allTests.length > 0 ? passedTests.length / allTests.length * 100 : 0;
+        return {
+          metric: "qc_pass_rate",
+          value: Math.round(passRate * 10) / 10,
+          unit: "%",
+          totalTests: allTests.length,
+          passedTests: passedTests.length
+        };
+      }
+      default:
+        return { error: "Unknown metric" };
+    }
+  }
+};
+var AI_TOOLS = [
+  searchMaterialsTool,
+  getDeliveryStatusTool,
+  searchDocumentsTool,
+  getQualityTestsTool,
+  generateForecastTool,
+  calculateStatsTool
+];
+async function executeTool(toolName, parameters, userId) {
+  const tool = AI_TOOLS.find((t2) => t2.name === toolName);
+  if (!tool) {
+    throw new Error(`Tool not found: ${toolName}`);
+  }
+  try {
+    const result = await tool.execute(parameters, userId);
+    return {
+      success: true,
+      toolName,
+      parameters,
+      result
+    };
+  } catch (error) {
+    console.error(`Tool execution failed for ${toolName}:`, error);
+    return {
+      success: false,
+      toolName,
+      parameters,
+      error: error instanceof Error ? error.message : "Unknown error"
+    };
+  }
+}
+
+// server/_core/voiceTranscription.ts
+init_env();
+async function transcribeAudio(options) {
+  try {
+    if (!ENV.forgeApiUrl) {
+      return {
+        error: "Voice transcription service is not configured",
+        code: "SERVICE_ERROR",
+        details: "BUILT_IN_FORGE_API_URL is not set"
+      };
+    }
+    if (!ENV.forgeApiKey) {
+      return {
+        error: "Voice transcription service authentication is missing",
+        code: "SERVICE_ERROR",
+        details: "BUILT_IN_FORGE_API_KEY is not set"
+      };
+    }
+    let audioBuffer;
+    let mimeType;
+    try {
+      const response2 = await fetch(options.audioUrl);
+      if (!response2.ok) {
+        return {
+          error: "Failed to download audio file",
+          code: "INVALID_FORMAT",
+          details: `HTTP ${response2.status}: ${response2.statusText}`
+        };
+      }
+      audioBuffer = Buffer.from(await response2.arrayBuffer());
+      mimeType = response2.headers.get("content-type") || "audio/mpeg";
+      const sizeMB = audioBuffer.length / (1024 * 1024);
+      if (sizeMB > 16) {
+        return {
+          error: "Audio file exceeds maximum size limit",
+          code: "FILE_TOO_LARGE",
+          details: `File size is ${sizeMB.toFixed(2)}MB, maximum allowed is 16MB`
+        };
+      }
+    } catch (error) {
+      return {
+        error: "Failed to fetch audio file",
+        code: "SERVICE_ERROR",
+        details: error instanceof Error ? error.message : "Unknown error"
+      };
+    }
+    const formData = new FormData();
+    const filename = `audio.${getFileExtension(mimeType)}`;
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: mimeType });
+    formData.append("file", audioBlob, filename);
+    formData.append("model", "whisper-1");
+    formData.append("response_format", "verbose_json");
+    const prompt = options.prompt || (options.language ? `Transcribe the user's voice to text, the user's working language is ${getLanguageName(options.language)}` : "Transcribe the user's voice to text");
+    formData.append("prompt", prompt);
+    const baseUrl = ENV.forgeApiUrl.endsWith("/") ? ENV.forgeApiUrl : `${ENV.forgeApiUrl}/`;
+    const fullUrl = new URL(
+      "v1/audio/transcriptions",
+      baseUrl
+    ).toString();
+    const response = await fetch(fullUrl, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+        "Accept-Encoding": "identity"
+      },
+      body: formData
+    });
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return {
+        error: "Transcription service request failed",
+        code: "TRANSCRIPTION_FAILED",
+        details: `${response.status} ${response.statusText}${errorText ? `: ${errorText}` : ""}`
+      };
+    }
+    const whisperResponse = await response.json();
+    if (!whisperResponse.text || typeof whisperResponse.text !== "string") {
+      return {
+        error: "Invalid transcription response",
+        code: "SERVICE_ERROR",
+        details: "Transcription service returned an invalid response format"
+      };
+    }
+    return whisperResponse;
+  } catch (error) {
+    return {
+      error: "Voice transcription failed",
+      code: "SERVICE_ERROR",
+      details: error instanceof Error ? error.message : "An unexpected error occurred"
+    };
+  }
+}
+function getFileExtension(mimeType) {
+  const mimeToExt = {
+    "audio/webm": "webm",
+    "audio/mp3": "mp3",
+    "audio/mpeg": "mp3",
+    "audio/wav": "wav",
+    "audio/wave": "wav",
+    "audio/ogg": "ogg",
+    "audio/m4a": "m4a",
+    "audio/mp4": "m4a"
+  };
+  return mimeToExt[mimeType] || "audio";
+}
+function getLanguageName(langCode) {
+  const langMap = {
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "nl": "Dutch",
+    "pl": "Polish",
+    "tr": "Turkish",
+    "sv": "Swedish",
+    "da": "Danish",
+    "no": "Norwegian",
+    "fi": "Finnish"
+  };
+  return langMap[langCode] || langCode;
+}
+
+// server/routers/aiAssistant.ts
+var aiAssistantRouter = router({
+  /**
+   * Chat with AI assistant (streaming support)
+   */
+  chat: protectedProcedure.input(
+    z2.object({
+      conversationId: z2.number().optional(),
+      message: z2.string(),
+      model: z2.string().default("llama3.2"),
+      imageUrl: z2.string().optional(),
+      audioUrl: z2.string().optional(),
+      useTools: z2.boolean().default(true)
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const userId = ctx.user.id;
+    let conversationId = input.conversationId;
+    if (!conversationId) {
+      conversationId = await createAiConversation({
+        userId,
+        title: input.message.substring(0, 50),
+        modelName: input.model
+      });
+    }
+    await createAiMessage({
+      conversationId,
+      role: "user",
+      content: input.message,
+      audioUrl: input.audioUrl,
+      imageUrl: input.imageUrl
+    });
+    const history = await getAiMessages(conversationId);
+    const messages = history.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+      images: msg.imageUrl ? [msg.imageUrl] : void 0
+    }));
+    const systemMessage = {
+      role: "system",
+      content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
+
+Available tools:
+- search_materials: Search and check inventory levels
+- get_delivery_status: Track delivery status and history
+- search_documents: Find documents and files
+- get_quality_tests: Review quality control test results
+- generate_forecast: Get inventory forecasting predictions
+- calculate_stats: Calculate business metrics and statistics
+
+When users ask about the system, provide helpful, accurate information. Use tools when appropriate to fetch real data. Be concise and professional.`
+    };
+    const response = await ollamaService.chat(
+      input.model,
+      [systemMessage, ...messages],
+      {
+        stream: false,
+        temperature: 0.7
+      }
+    );
+    const assistantMessageId = await createAiMessage({
+      conversationId,
+      role: "assistant",
+      content: response.message.content,
+      model: input.model
+    });
+    return {
+      conversationId,
+      messageId: assistantMessageId,
+      content: response.message.content,
+      model: input.model
+    };
+  }),
+  /**
+   * Stream chat response (for real-time streaming)
+   */
+  streamChat: protectedProcedure.input(
+    z2.object({
+      conversationId: z2.number(),
+      message: z2.string(),
+      model: z2.string().default("llama3.2")
+    })
+  ).mutation(async ({ input, ctx }) => {
+    return { message: "Streaming not yet implemented. Use chat endpoint." };
+  }),
+  /**
+   * Transcribe voice audio to text
+   */
+  transcribeVoice: protectedProcedure.input(
+    z2.object({
+      audioData: z2.string(),
+      // base64 encoded audio
+      language: z2.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    try {
+      const audioBuffer = Buffer.from(input.audioData, "base64");
+      const timestamp2 = Date.now();
+      const { url: audioUrl } = await storagePut(
+        `voice/${ctx.user.id}/recording-${timestamp2}.webm`,
+        audioBuffer,
+        "audio/webm"
+      );
+      const result = await transcribeAudio({
+        audioUrl,
+        language: input.language || "en"
+      });
+      if ("error" in result) {
+        throw new Error(result.error);
+      }
+      return {
+        text: result.text,
+        language: result.language || input.language || "en",
+        audioUrl
+      };
+    } catch (error) {
+      console.error("Voice transcription error:", error);
+      throw new Error(`Transcription failed: ${error.message}`);
+    }
+  }),
+  /**
+   * Get all conversations for current user
+   */
+  getConversations: protectedProcedure.query(async ({ ctx }) => {
+    return await getAiConversations(ctx.user.id);
+  }),
+  /**
+   * Get messages for a conversation
+   */
+  getMessages: protectedProcedure.input(z2.object({ conversationId: z2.number() })).query(async ({ input, ctx }) => {
+    const conversations = await getAiConversations(ctx.user.id);
+    const conversation = conversations.find((c) => c.id === input.conversationId);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+    return await getAiMessages(input.conversationId);
+  }),
+  /**
+   * Create a new conversation
+   */
+  createConversation: protectedProcedure.input(
+    z2.object({
+      title: z2.string().optional(),
+      modelName: z2.string().default("llama3.2")
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const conversationId = await createAiConversation({
+      userId: ctx.user.id,
+      title: input.title || "New Conversation",
+      modelName: input.modelName
+    });
+    return { conversationId };
+  }),
+  /**
+   * Delete a conversation
+   */
+  deleteConversation: protectedProcedure.input(z2.object({ conversationId: z2.number() })).mutation(async ({ input, ctx }) => {
+    const conversations = await getAiConversations(ctx.user.id);
+    const conversation = conversations.find((c) => c.id === input.conversationId);
+    if (!conversation) {
+      throw new Error("Conversation not found");
+    }
+    await deleteAiConversation(input.conversationId);
+    return { success: true };
+  }),
+  /**
+   * List available Ollama models
+   */
+  listModels: protectedProcedure.query(async () => {
+    try {
+      const models = await ollamaService.listModels();
+      return models.map((model) => ({
+        name: model.name,
+        size: model.size,
+        modifiedAt: model.modified_at,
+        family: model.details?.family || "unknown",
+        parameterSize: model.details?.parameter_size || "unknown"
+      }));
+    } catch (error) {
+      console.error("Failed to list models:", error);
+      return [];
+    }
+  }),
+  /**
+   * Pull a new model from Ollama registry
+   */
+  pullModel: protectedProcedure.input(z2.object({ modelName: z2.string() })).mutation(async ({ input }) => {
+    try {
+      const success = await ollamaService.pullModel(input.modelName);
+      return { success, message: success ? "Model pulled successfully" : "Failed to pull model" };
+    } catch (error) {
+      console.error("Failed to pull model:", error);
+      return { success: false, message: error.message };
+    }
+  }),
+  /**
+   * Delete a model
+   */
+  deleteModel: protectedProcedure.input(z2.object({ modelName: z2.string() })).mutation(async ({ input }) => {
+    try {
+      const success = await ollamaService.deleteModel(input.modelName);
+      return { success, message: success ? "Model deleted successfully" : "Failed to delete model" };
+    } catch (error) {
+      console.error("Failed to delete model:", error);
+      return { success: false, message: error.message };
+    }
+  }),
+  /**
+   * Execute an agentic tool
+   */
+  executeTool: protectedProcedure.input(
+    z2.object({
+      toolName: z2.string(),
+      parameters: z2.record(z2.string(), z2.any())
+    })
+  ).mutation(async ({ input, ctx }) => {
+    try {
+      const result = await executeTool(
+        input.toolName,
+        input.parameters,
+        ctx.user.id
+      );
+      return result;
+    } catch (error) {
+      console.error("Tool execution error:", error);
+      throw new Error(`Tool execution failed: ${error.message}`);
+    }
+  })
+});
+
+// server/routers.ts
 var appRouter = router({
   system: systemRouter,
+  ai: aiAssistantRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -1874,9 +2806,9 @@ var appRouter = router({
         success: true
       };
     }),
-    updateSMSSettings: protectedProcedure.input(z2.object({
-      phoneNumber: z2.string().min(1),
-      smsNotificationsEnabled: z2.boolean()
+    updateSMSSettings: protectedProcedure.input(z3.object({
+      phoneNumber: z3.string().min(1),
+      smsNotificationsEnabled: z3.boolean()
     })).mutation(async ({ input, ctx }) => {
       const success = await updateUserSMSSettings(
         ctx.user.id,
@@ -1887,21 +2819,21 @@ var appRouter = router({
     })
   }),
   documents: router({
-    list: protectedProcedure.input(z2.object({
-      projectId: z2.number().optional(),
-      category: z2.string().optional(),
-      search: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      projectId: z3.number().optional(),
+      category: z3.string().optional(),
+      search: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDocuments(input);
     }),
-    upload: protectedProcedure.input(z2.object({
-      name: z2.string(),
-      description: z2.string().optional(),
-      fileData: z2.string(),
-      mimeType: z2.string(),
-      fileSize: z2.number(),
-      category: z2.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
-      projectId: z2.number().optional()
+    upload: protectedProcedure.input(z3.object({
+      name: z3.string(),
+      description: z3.string().optional(),
+      fileData: z3.string(),
+      mimeType: z3.string(),
+      fileSize: z3.number(),
+      category: z3.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
+      projectId: z3.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const fileBuffer = Buffer.from(input.fileData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "bin";
@@ -1920,7 +2852,7 @@ var appRouter = router({
       });
       return { success: true, url };
     }),
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       await deleteDocument(input.id);
       return { success: true };
     })
@@ -1929,13 +2861,13 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getProjects();
     }),
-    create: protectedProcedure.input(z2.object({
-      name: z2.string(),
-      description: z2.string().optional(),
-      location: z2.string().optional(),
-      status: z2.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
-      startDate: z2.date().optional(),
-      endDate: z2.date().optional()
+    create: protectedProcedure.input(z3.object({
+      name: z3.string(),
+      description: z3.string().optional(),
+      location: z3.string().optional(),
+      status: z3.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
+      startDate: z3.date().optional(),
+      endDate: z3.date().optional()
     })).mutation(async ({ input, ctx }) => {
       await createProject({
         ...input,
@@ -1943,14 +2875,14 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      name: z2.string().optional(),
-      description: z2.string().optional(),
-      location: z2.string().optional(),
-      status: z2.enum(["planning", "active", "completed", "on_hold"]).optional(),
-      startDate: z2.date().optional(),
-      endDate: z2.date().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      name: z3.string().optional(),
+      description: z3.string().optional(),
+      location: z3.string().optional(),
+      status: z3.enum(["planning", "active", "completed", "on_hold"]).optional(),
+      startDate: z3.date().optional(),
+      endDate: z3.date().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateProject(id, data);
@@ -1961,55 +2893,55 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getMaterials();
     }),
-    create: protectedProcedure.input(z2.object({
-      name: z2.string(),
-      category: z2.enum(["cement", "aggregate", "admixture", "water", "other"]),
-      unit: z2.string(),
-      quantity: z2.number().default(0),
-      minStock: z2.number().default(0),
-      criticalThreshold: z2.number().default(0),
-      supplier: z2.string().optional(),
-      unitPrice: z2.number().optional()
+    create: protectedProcedure.input(z3.object({
+      name: z3.string(),
+      category: z3.enum(["cement", "aggregate", "admixture", "water", "other"]),
+      unit: z3.string(),
+      quantity: z3.number().default(0),
+      minStock: z3.number().default(0),
+      criticalThreshold: z3.number().default(0),
+      supplier: z3.string().optional(),
+      unitPrice: z3.number().optional()
     })).mutation(async ({ input }) => {
       await createMaterial(input);
       return { success: true };
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      name: z2.string().optional(),
-      category: z2.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
-      unit: z2.string().optional(),
-      quantity: z2.number().optional(),
-      minStock: z2.number().optional(),
-      criticalThreshold: z2.number().optional(),
-      supplier: z2.string().optional(),
-      unitPrice: z2.number().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      name: z3.string().optional(),
+      category: z3.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
+      unit: z3.string().optional(),
+      quantity: z3.number().optional(),
+      minStock: z3.number().optional(),
+      criticalThreshold: z3.number().optional(),
+      supplier: z3.string().optional(),
+      unitPrice: z3.number().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateMaterial(id, data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       await deleteMaterial(input.id);
       return { success: true };
     }),
     checkLowStock: protectedProcedure.query(async () => {
       return await getLowStockMaterials();
     }),
-    recordConsumption: protectedProcedure.input(z2.object({
-      materialId: z2.number(),
-      quantity: z2.number(),
-      consumptionDate: z2.date(),
-      projectId: z2.number().optional(),
-      deliveryId: z2.number().optional(),
-      notes: z2.string().optional()
+    recordConsumption: protectedProcedure.input(z3.object({
+      materialId: z3.number(),
+      quantity: z3.number(),
+      consumptionDate: z3.date(),
+      projectId: z3.number().optional(),
+      deliveryId: z3.number().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       await recordConsumption(input);
       return { success: true };
     }),
-    getConsumptionHistory: protectedProcedure.input(z2.object({
-      materialId: z2.number().optional(),
-      days: z2.number().default(30)
+    getConsumptionHistory: protectedProcedure.input(z3.object({
+      materialId: z3.number().optional(),
+      days: z3.number().default(30)
     })).query(async ({ input }) => {
       return await getConsumptionHistory(input.materialId, input.days);
     }),
@@ -2080,30 +3012,30 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   deliveries: router({
-    list: protectedProcedure.input(z2.object({
-      projectId: z2.number().optional(),
-      status: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      projectId: z3.number().optional(),
+      status: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDeliveries(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      projectId: z2.number().optional(),
-      projectName: z2.string(),
-      concreteType: z2.string(),
-      volume: z2.number(),
-      scheduledTime: z2.date(),
-      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
-      driverName: z2.string().optional(),
-      vehicleNumber: z2.string().optional(),
-      notes: z2.string().optional(),
-      gpsLocation: z2.string().optional(),
-      deliveryPhotos: z2.string().optional(),
-      estimatedArrival: z2.number().optional(),
-      actualArrivalTime: z2.number().optional(),
-      actualDeliveryTime: z2.number().optional(),
-      driverNotes: z2.string().optional(),
-      customerName: z2.string().optional(),
-      customerPhone: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      projectId: z3.number().optional(),
+      projectName: z3.string(),
+      concreteType: z3.string(),
+      volume: z3.number(),
+      scheduledTime: z3.date(),
+      status: z3.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
+      driverName: z3.string().optional(),
+      vehicleNumber: z3.string().optional(),
+      notes: z3.string().optional(),
+      gpsLocation: z3.string().optional(),
+      deliveryPhotos: z3.string().optional(),
+      estimatedArrival: z3.number().optional(),
+      actualArrivalTime: z3.number().optional(),
+      actualDeliveryTime: z3.number().optional(),
+      driverNotes: z3.string().optional(),
+      customerName: z3.string().optional(),
+      customerPhone: z3.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createDelivery({
         ...input,
@@ -2111,36 +3043,36 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      projectId: z2.number().optional(),
-      projectName: z2.string().optional(),
-      concreteType: z2.string().optional(),
-      volume: z2.number().optional(),
-      scheduledTime: z2.date().optional(),
-      actualTime: z2.date().optional(),
-      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
-      driverName: z2.string().optional(),
-      vehicleNumber: z2.string().optional(),
-      notes: z2.string().optional(),
-      gpsLocation: z2.string().optional(),
-      deliveryPhotos: z2.string().optional(),
-      estimatedArrival: z2.number().optional(),
-      actualArrivalTime: z2.number().optional(),
-      actualDeliveryTime: z2.number().optional(),
-      driverNotes: z2.string().optional(),
-      customerName: z2.string().optional(),
-      customerPhone: z2.string().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      projectId: z3.number().optional(),
+      projectName: z3.string().optional(),
+      concreteType: z3.string().optional(),
+      volume: z3.number().optional(),
+      scheduledTime: z3.date().optional(),
+      actualTime: z3.date().optional(),
+      status: z3.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
+      driverName: z3.string().optional(),
+      vehicleNumber: z3.string().optional(),
+      notes: z3.string().optional(),
+      gpsLocation: z3.string().optional(),
+      deliveryPhotos: z3.string().optional(),
+      estimatedArrival: z3.number().optional(),
+      actualArrivalTime: z3.number().optional(),
+      actualDeliveryTime: z3.number().optional(),
+      driverNotes: z3.string().optional(),
+      customerName: z3.string().optional(),
+      customerPhone: z3.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateDelivery(id, data);
       return { success: true };
     }),
-    updateStatus: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      status: z2.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
-      gpsLocation: z2.string().optional(),
-      driverNotes: z2.string().optional()
+    updateStatus: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      status: z3.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+      gpsLocation: z3.string().optional(),
+      driverNotes: z3.string().optional()
     })).mutation(async ({ input }) => {
       const { id, status, gpsLocation, driverNotes } = input;
       const updateData = { status };
@@ -2152,10 +3084,10 @@ Please reorder these materials to avoid project delays.`;
       await updateDelivery(id, updateData);
       return { success: true };
     }),
-    uploadDeliveryPhoto: protectedProcedure.input(z2.object({
-      deliveryId: z2.number(),
-      photoData: z2.string(),
-      mimeType: z2.string()
+    uploadDeliveryPhoto: protectedProcedure.input(z3.object({
+      deliveryId: z3.number(),
+      photoData: z3.string(),
+      mimeType: z3.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -2176,9 +3108,9 @@ Please reorder these materials to avoid project delays.`;
         (d) => ["loaded", "en_route", "arrived", "delivered"].includes(d.status)
       );
     }),
-    sendCustomerNotification: protectedProcedure.input(z2.object({
-      deliveryId: z2.number(),
-      message: z2.string()
+    sendCustomerNotification: protectedProcedure.input(z3.object({
+      deliveryId: z3.number(),
+      message: z3.string()
     })).mutation(async ({ input }) => {
       const allDeliveries = await getDeliveries();
       const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
@@ -2191,37 +3123,37 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   qualityTests: router({
-    list: protectedProcedure.input(z2.object({
-      projectId: z2.number().optional(),
-      deliveryId: z2.number().optional()
+    list: protectedProcedure.input(z3.object({
+      projectId: z3.number().optional(),
+      deliveryId: z3.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getQualityTests(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      testName: z2.string(),
-      testType: z2.enum(["slump", "strength", "air_content", "temperature", "other"]),
-      result: z2.string(),
-      unit: z2.string().optional(),
-      status: z2.enum(["pass", "fail", "pending"]).default("pending"),
-      deliveryId: z2.number().optional(),
-      projectId: z2.number().optional(),
-      testedBy: z2.string().optional(),
-      notes: z2.string().optional(),
-      photoUrls: z2.string().optional(),
+    create: protectedProcedure.input(z3.object({
+      testName: z3.string(),
+      testType: z3.enum(["slump", "strength", "air_content", "temperature", "other"]),
+      result: z3.string(),
+      unit: z3.string().optional(),
+      status: z3.enum(["pass", "fail", "pending"]).default("pending"),
+      deliveryId: z3.number().optional(),
+      projectId: z3.number().optional(),
+      testedBy: z3.string().optional(),
+      notes: z3.string().optional(),
+      photoUrls: z3.string().optional(),
       // JSON array
-      inspectorSignature: z2.string().optional(),
-      supervisorSignature: z2.string().optional(),
-      testLocation: z2.string().optional(),
-      complianceStandard: z2.string().optional(),
-      offlineSyncStatus: z2.enum(["synced", "pending", "failed"]).default("synced").optional()
+      inspectorSignature: z3.string().optional(),
+      supervisorSignature: z3.string().optional(),
+      testLocation: z3.string().optional(),
+      complianceStandard: z3.string().optional(),
+      offlineSyncStatus: z3.enum(["synced", "pending", "failed"]).default("synced").optional()
     })).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
     }),
-    uploadPhoto: protectedProcedure.input(z2.object({
-      photoData: z2.string(),
+    uploadPhoto: protectedProcedure.input(z3.object({
+      photoData: z3.string(),
       // Base64 encoded image
-      mimeType: z2.string()
+      mimeType: z3.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -2229,22 +3161,22 @@ Please reorder these materials to avoid project delays.`;
       const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
       return { success: true, url };
     }),
-    syncOfflineTests: protectedProcedure.input(z2.object({
-      tests: z2.array(z2.object({
-        testName: z2.string(),
-        testType: z2.enum(["slump", "strength", "air_content", "temperature", "other"]),
-        result: z2.string(),
-        unit: z2.string().optional(),
-        status: z2.enum(["pass", "fail", "pending"]),
-        deliveryId: z2.number().optional(),
-        projectId: z2.number().optional(),
-        testedBy: z2.string().optional(),
-        notes: z2.string().optional(),
-        photoUrls: z2.string().optional(),
-        inspectorSignature: z2.string().optional(),
-        supervisorSignature: z2.string().optional(),
-        testLocation: z2.string().optional(),
-        complianceStandard: z2.string().optional()
+    syncOfflineTests: protectedProcedure.input(z3.object({
+      tests: z3.array(z3.object({
+        testName: z3.string(),
+        testType: z3.enum(["slump", "strength", "air_content", "temperature", "other"]),
+        result: z3.string(),
+        unit: z3.string().optional(),
+        status: z3.enum(["pass", "fail", "pending"]),
+        deliveryId: z3.number().optional(),
+        projectId: z3.number().optional(),
+        testedBy: z3.string().optional(),
+        notes: z3.string().optional(),
+        photoUrls: z3.string().optional(),
+        inspectorSignature: z3.string().optional(),
+        supervisorSignature: z3.string().optional(),
+        testLocation: z3.string().optional(),
+        complianceStandard: z3.string().optional()
       }))
     })).mutation(async ({ input }) => {
       for (const test of input.tests) {
@@ -2252,33 +3184,33 @@ Please reorder these materials to avoid project delays.`;
       }
       return { success: true, syncedCount: input.tests.length };
     }),
-    getFailedTests: protectedProcedure.input(z2.object({
-      days: z2.number().default(30)
+    getFailedTests: protectedProcedure.input(z3.object({
+      days: z3.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getFailedQualityTests(input?.days || 30);
     }),
-    getTrends: protectedProcedure.input(z2.object({
-      days: z2.number().default(30)
+    getTrends: protectedProcedure.input(z3.object({
+      days: z3.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getQualityTestTrends(input?.days || 30);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      testName: z2.string().optional(),
-      testType: z2.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
-      result: z2.string().optional(),
-      unit: z2.string().optional(),
-      status: z2.enum(["pass", "fail", "pending"]).optional(),
-      deliveryId: z2.number().optional(),
-      projectId: z2.number().optional(),
-      testedBy: z2.string().optional(),
-      notes: z2.string().optional(),
-      photoUrls: z2.string().optional(),
-      inspectorSignature: z2.string().optional(),
-      supervisorSignature: z2.string().optional(),
-      testLocation: z2.string().optional(),
-      complianceStandard: z2.string().optional(),
-      offlineSyncStatus: z2.enum(["synced", "pending", "failed"]).optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      testName: z3.string().optional(),
+      testType: z3.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
+      result: z3.string().optional(),
+      unit: z3.string().optional(),
+      status: z3.enum(["pass", "fail", "pending"]).optional(),
+      deliveryId: z3.number().optional(),
+      projectId: z3.number().optional(),
+      testedBy: z3.string().optional(),
+      notes: z3.string().optional(),
+      photoUrls: z3.string().optional(),
+      inspectorSignature: z3.string().optional(),
+      supervisorSignature: z3.string().optional(),
+      testLocation: z3.string().optional(),
+      complianceStandard: z3.string().optional(),
+      offlineSyncStatus: z3.enum(["synced", "pending", "failed"]).optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateQualityTest(id, data);
@@ -2346,78 +3278,78 @@ Please reorder these materials to avoid project delays.`;
   }),
   // Workforce Management
   employees: router({
-    list: protectedProcedure.input(z2.object({
-      department: z2.string().optional(),
-      status: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      department: z3.string().optional(),
+      status: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getEmployees(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      firstName: z2.string(),
-      lastName: z2.string(),
-      employeeNumber: z2.string(),
-      position: z2.string(),
-      department: z2.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
-      phoneNumber: z2.string().optional(),
-      email: z2.string().optional(),
-      hourlyRate: z2.number().optional(),
-      status: z2.enum(["active", "inactive", "on_leave"]).default("active"),
-      hireDate: z2.date().optional()
+    create: protectedProcedure.input(z3.object({
+      firstName: z3.string(),
+      lastName: z3.string(),
+      employeeNumber: z3.string(),
+      position: z3.string(),
+      department: z3.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
+      phoneNumber: z3.string().optional(),
+      email: z3.string().optional(),
+      hourlyRate: z3.number().optional(),
+      status: z3.enum(["active", "inactive", "on_leave"]).default("active"),
+      hireDate: z3.date().optional()
     })).mutation(async ({ input }) => {
       return await createEmployee(input);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      data: z2.object({
-        firstName: z2.string().optional(),
-        lastName: z2.string().optional(),
-        position: z2.string().optional(),
-        department: z2.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
-        phoneNumber: z2.string().optional(),
-        email: z2.string().optional(),
-        hourlyRate: z2.number().optional(),
-        status: z2.enum(["active", "inactive", "on_leave"]).optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      data: z3.object({
+        firstName: z3.string().optional(),
+        lastName: z3.string().optional(),
+        position: z3.string().optional(),
+        department: z3.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
+        phoneNumber: z3.string().optional(),
+        email: z3.string().optional(),
+        hourlyRate: z3.number().optional(),
+        status: z3.enum(["active", "inactive", "on_leave"]).optional()
       })
     })).mutation(async ({ input }) => {
       await updateEmployee(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       await deleteEmployee(input.id);
       return { success: true };
     })
   }),
   workHours: router({
-    list: protectedProcedure.input(z2.object({
-      employeeId: z2.number().optional(),
-      projectId: z2.number().optional(),
-      status: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      employeeId: z3.number().optional(),
+      projectId: z3.number().optional(),
+      status: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getWorkHours(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      employeeId: z2.number(),
-      projectId: z2.number().optional(),
-      date: z2.date(),
-      startTime: z2.date(),
-      endTime: z2.date().optional(),
-      hoursWorked: z2.number().optional(),
-      overtimeHours: z2.number().optional(),
-      workType: z2.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
-      notes: z2.string().optional(),
-      status: z2.enum(["pending", "approved", "rejected"]).default("pending")
+    create: protectedProcedure.input(z3.object({
+      employeeId: z3.number(),
+      projectId: z3.number().optional(),
+      date: z3.date(),
+      startTime: z3.date(),
+      endTime: z3.date().optional(),
+      hoursWorked: z3.number().optional(),
+      overtimeHours: z3.number().optional(),
+      workType: z3.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+      notes: z3.string().optional(),
+      status: z3.enum(["pending", "approved", "rejected"]).default("pending")
     })).mutation(async ({ input, ctx }) => {
       return await createWorkHour(input);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      data: z2.object({
-        endTime: z2.date().optional(),
-        hoursWorked: z2.number().optional(),
-        overtimeHours: z2.number().optional(),
-        notes: z2.string().optional(),
-        status: z2.enum(["pending", "approved", "rejected"]).optional(),
-        approvedBy: z2.number().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      data: z3.object({
+        endTime: z3.date().optional(),
+        hoursWorked: z3.number().optional(),
+        overtimeHours: z3.number().optional(),
+        notes: z3.string().optional(),
+        status: z3.enum(["pending", "approved", "rejected"]).optional(),
+        approvedBy: z3.number().optional()
       })
     })).mutation(async ({ input }) => {
       await updateWorkHour(input.id, input.data);
@@ -2429,25 +3361,25 @@ Please reorder these materials to avoid project delays.`;
     list: protectedProcedure.query(async () => {
       return await getConcreteBases();
     }),
-    create: protectedProcedure.input(z2.object({
-      name: z2.string(),
-      location: z2.string(),
-      capacity: z2.number(),
-      status: z2.enum(["operational", "maintenance", "inactive"]).default("operational"),
-      managerName: z2.string().optional(),
-      phoneNumber: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      name: z3.string(),
+      location: z3.string(),
+      capacity: z3.number(),
+      status: z3.enum(["operational", "maintenance", "inactive"]).default("operational"),
+      managerName: z3.string().optional(),
+      phoneNumber: z3.string().optional()
     })).mutation(async ({ input }) => {
       return await createConcreteBase(input);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      data: z2.object({
-        name: z2.string().optional(),
-        location: z2.string().optional(),
-        capacity: z2.number().optional(),
-        status: z2.enum(["operational", "maintenance", "inactive"]).optional(),
-        managerName: z2.string().optional(),
-        phoneNumber: z2.string().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      data: z3.object({
+        name: z3.string().optional(),
+        location: z3.string().optional(),
+        capacity: z3.number().optional(),
+        status: z3.enum(["operational", "maintenance", "inactive"]).optional(),
+        managerName: z3.string().optional(),
+        phoneNumber: z3.string().optional()
       })
     })).mutation(async ({ input }) => {
       await updateConcreteBase(input.id, input.data);
@@ -2455,102 +3387,102 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   machines: router({
-    list: protectedProcedure.input(z2.object({
-      concreteBaseId: z2.number().optional(),
-      type: z2.string().optional(),
-      status: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      concreteBaseId: z3.number().optional(),
+      type: z3.string().optional(),
+      status: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachines(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      name: z2.string(),
-      machineNumber: z2.string(),
-      type: z2.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
-      manufacturer: z2.string().optional(),
-      model: z2.string().optional(),
-      year: z2.number().optional(),
-      concreteBaseId: z2.number().optional(),
-      status: z2.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+    create: protectedProcedure.input(z3.object({
+      name: z3.string(),
+      machineNumber: z3.string(),
+      type: z3.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
+      manufacturer: z3.string().optional(),
+      model: z3.string().optional(),
+      year: z3.number().optional(),
+      concreteBaseId: z3.number().optional(),
+      status: z3.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
     })).mutation(async ({ input }) => {
       return await createMachine(input);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      data: z2.object({
-        name: z2.string().optional(),
-        type: z2.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
-        status: z2.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
-        totalWorkingHours: z2.number().optional(),
-        lastMaintenanceDate: z2.date().optional(),
-        nextMaintenanceDate: z2.date().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      data: z3.object({
+        name: z3.string().optional(),
+        type: z3.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+        status: z3.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+        totalWorkingHours: z3.number().optional(),
+        lastMaintenanceDate: z3.date().optional(),
+        nextMaintenanceDate: z3.date().optional()
       })
     })).mutation(async ({ input }) => {
       await updateMachine(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z2.object({ id: z2.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z3.object({ id: z3.number() })).mutation(async ({ input }) => {
       await deleteMachine(input.id);
       return { success: true };
     })
   }),
   machineMaintenance: router({
-    list: protectedProcedure.input(z2.object({
-      machineId: z2.number().optional(),
-      maintenanceType: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      machineId: z3.number().optional(),
+      maintenanceType: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineMaintenance(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      machineId: z2.number(),
-      date: z2.date(),
-      maintenanceType: z2.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
-      description: z2.string().optional(),
-      lubricationType: z2.string().optional(),
-      lubricationAmount: z2.number().optional(),
-      fuelType: z2.string().optional(),
-      fuelAmount: z2.number().optional(),
-      cost: z2.number().optional(),
-      performedBy: z2.string().optional(),
-      hoursAtMaintenance: z2.number().optional(),
-      notes: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      machineId: z3.number(),
+      date: z3.date(),
+      maintenanceType: z3.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
+      description: z3.string().optional(),
+      lubricationType: z3.string().optional(),
+      lubricationAmount: z3.number().optional(),
+      fuelType: z3.string().optional(),
+      fuelAmount: z3.number().optional(),
+      cost: z3.number().optional(),
+      performedBy: z3.string().optional(),
+      hoursAtMaintenance: z3.number().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineMaintenance(input);
     })
   }),
   machineWorkHours: router({
-    list: protectedProcedure.input(z2.object({
-      machineId: z2.number().optional(),
-      projectId: z2.number().optional()
+    list: protectedProcedure.input(z3.object({
+      machineId: z3.number().optional(),
+      projectId: z3.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineWorkHours(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      machineId: z2.number(),
-      projectId: z2.number().optional(),
-      date: z2.date(),
-      startTime: z2.date(),
-      endTime: z2.date().optional(),
-      hoursWorked: z2.number().optional(),
-      operatorId: z2.number().optional(),
-      operatorName: z2.string().optional(),
-      notes: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      machineId: z3.number(),
+      projectId: z3.number().optional(),
+      date: z3.date(),
+      startTime: z3.date(),
+      endTime: z3.date().optional(),
+      hoursWorked: z3.number().optional(),
+      operatorId: z3.number().optional(),
+      operatorName: z3.string().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineWorkHour(input);
     })
   }),
   timesheets: router({
-    list: protectedProcedure.input(z2.object({
-      employeeId: z2.number().optional(),
-      status: z2.enum(["pending", "approved", "rejected"]).optional(),
-      startDate: z2.date().optional(),
-      endDate: z2.date().optional()
+    list: protectedProcedure.input(z3.object({
+      employeeId: z3.number().optional(),
+      status: z3.enum(["pending", "approved", "rejected"]).optional(),
+      startDate: z3.date().optional(),
+      endDate: z3.date().optional()
     }).optional()).query(async ({ input }) => {
       return await getWorkHours(input);
     }),
-    clockIn: protectedProcedure.input(z2.object({
-      employeeId: z2.number(),
-      projectId: z2.number().optional(),
-      notes: z2.string().optional()
+    clockIn: protectedProcedure.input(z3.object({
+      employeeId: z3.number(),
+      projectId: z3.number().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       return await createWorkHour({
         employeeId: input.employeeId,
@@ -2561,47 +3493,47 @@ Please reorder these materials to avoid project delays.`;
         status: "pending"
       });
     }),
-    clockOut: protectedProcedure.input(z2.object({
-      id: z2.number()
+    clockOut: protectedProcedure.input(z3.object({
+      id: z3.number()
     })).mutation(async ({ input }) => {
       const endTime = /* @__PURE__ */ new Date();
       await updateWorkHour(input.id, { endTime });
       return { success: true };
     }),
-    create: protectedProcedure.input(z2.object({
-      employeeId: z2.number(),
-      date: z2.date(),
-      startTime: z2.date(),
-      endTime: z2.date().optional(),
-      hoursWorked: z2.number().optional(),
-      overtimeHours: z2.number().optional(),
-      workType: z2.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
-      projectId: z2.number().optional(),
-      notes: z2.string().optional(),
-      status: z2.enum(["pending", "approved", "rejected"]).default("pending")
+    create: protectedProcedure.input(z3.object({
+      employeeId: z3.number(),
+      date: z3.date(),
+      startTime: z3.date(),
+      endTime: z3.date().optional(),
+      hoursWorked: z3.number().optional(),
+      overtimeHours: z3.number().optional(),
+      workType: z3.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
+      projectId: z3.number().optional(),
+      notes: z3.string().optional(),
+      status: z3.enum(["pending", "approved", "rejected"]).default("pending")
     })).mutation(async ({ input }) => {
       return await createWorkHour(input);
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      data: z2.object({
-        startTime: z2.date().optional(),
-        endTime: z2.date().optional(),
-        hoursWorked: z2.number().optional(),
-        overtimeHours: z2.number().optional(),
-        workType: z2.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
-        projectId: z2.number().optional(),
-        notes: z2.string().optional(),
-        status: z2.enum(["pending", "approved", "rejected"]).optional(),
-        approvedBy: z2.number().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      data: z3.object({
+        startTime: z3.date().optional(),
+        endTime: z3.date().optional(),
+        hoursWorked: z3.number().optional(),
+        overtimeHours: z3.number().optional(),
+        workType: z3.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
+        projectId: z3.number().optional(),
+        notes: z3.string().optional(),
+        status: z3.enum(["pending", "approved", "rejected"]).optional(),
+        approvedBy: z3.number().optional()
       })
     })).mutation(async ({ input }) => {
       await updateWorkHour(input.id, input.data);
       return { success: true };
     }),
-    approve: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      notes: z2.string().optional()
+    approve: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      notes: z3.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await updateWorkHour(input.id, {
         status: "approved",
@@ -2610,9 +3542,9 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    reject: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      notes: z2.string().optional()
+    reject: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      notes: z3.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await updateWorkHour(input.id, {
         status: "rejected",
@@ -2621,58 +3553,58 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    weeklySummary: protectedProcedure.input(z2.object({
-      employeeId: z2.number().optional(),
-      weekStart: z2.date()
+    weeklySummary: protectedProcedure.input(z3.object({
+      employeeId: z3.number().optional(),
+      weekStart: z3.date()
     })).query(async ({ input }) => {
       return await getWeeklyTimesheetSummary(input.employeeId, input.weekStart);
     }),
-    monthlySummary: protectedProcedure.input(z2.object({
-      employeeId: z2.number().optional(),
-      year: z2.number(),
-      month: z2.number()
+    monthlySummary: protectedProcedure.input(z3.object({
+      employeeId: z3.number().optional(),
+      year: z3.number(),
+      month: z3.number()
     })).query(async ({ input }) => {
       return await getMonthlyTimesheetSummary(input.employeeId, input.year, input.month);
     })
   }),
   aggregateInputs: router({
-    list: protectedProcedure.input(z2.object({
-      concreteBaseId: z2.number().optional(),
-      materialType: z2.string().optional()
+    list: protectedProcedure.input(z3.object({
+      concreteBaseId: z3.number().optional(),
+      materialType: z3.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getAggregateInputs(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      concreteBaseId: z2.number(),
-      date: z2.date(),
-      materialType: z2.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
-      materialName: z2.string(),
-      quantity: z2.number(),
-      unit: z2.string(),
-      supplier: z2.string().optional(),
-      batchNumber: z2.string().optional(),
-      receivedBy: z2.string().optional(),
-      notes: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      concreteBaseId: z3.number(),
+      date: z3.date(),
+      materialType: z3.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
+      materialName: z3.string(),
+      quantity: z3.number(),
+      unit: z3.string(),
+      supplier: z3.string().optional(),
+      batchNumber: z3.string().optional(),
+      receivedBy: z3.string().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       return await createAggregateInput(input);
     })
   }),
   purchaseOrders: router({
-    list: protectedProcedure.input(z2.object({
-      status: z2.string().optional(),
-      materialId: z2.number().optional()
+    list: protectedProcedure.input(z3.object({
+      status: z3.string().optional(),
+      materialId: z3.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getPurchaseOrders(input);
     }),
-    create: protectedProcedure.input(z2.object({
-      materialId: z2.number(),
-      materialName: z2.string(),
-      quantity: z2.number(),
-      supplier: z2.string().optional(),
-      supplierEmail: z2.string().optional(),
-      expectedDelivery: z2.date().optional(),
-      totalCost: z2.number().optional(),
-      notes: z2.string().optional()
+    create: protectedProcedure.input(z3.object({
+      materialId: z3.number(),
+      materialName: z3.string(),
+      quantity: z3.number(),
+      supplier: z3.string().optional(),
+      supplierEmail: z3.string().optional(),
+      expectedDelivery: z3.date().optional(),
+      totalCost: z3.number().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createPurchaseOrder({
         ...input,
@@ -2681,33 +3613,38 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z2.object({
-      id: z2.number(),
-      status: z2.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
-      expectedDelivery: z2.date().optional(),
-      actualDelivery: z2.date().optional(),
-      totalCost: z2.number().optional(),
-      notes: z2.string().optional()
+    update: protectedProcedure.input(z3.object({
+      id: z3.number(),
+      status: z3.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
+      expectedDelivery: z3.date().optional(),
+      actualDelivery: z3.date().optional(),
+      totalCost: z3.number().optional(),
+      notes: z3.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updatePurchaseOrder(id, data);
       return { success: true };
     }),
-    sendToSupplier: protectedProcedure.input(z2.object({
-      orderId: z2.number()
+    sendToSupplier: protectedProcedure.input(z3.object({
+      orderId: z3.number()
     })).mutation(async ({ input }) => {
       const orders = await getPurchaseOrders();
       const order = orders.find((o) => o.id === input.orderId);
       if (!order || !order.supplierEmail) {
         return { success: false, message: "No supplier email found" };
       }
+      const materials2 = await getMaterials();
+      const material = materials2.find((m) => m.id === order.materialId);
+      const unit = material?.unit || "kg";
       const { sendEmail: sendEmail2, generatePurchaseOrderEmailHTML: generatePurchaseOrderEmailHTML2 } = await Promise.resolve().then(() => (init_email(), email_exports));
       const emailHTML = generatePurchaseOrderEmailHTML2({
         id: order.id,
         materialName: order.materialName,
         quantity: order.quantity,
+        unit,
         supplier: order.supplier || "Supplier",
-        expectedDelivery: order.expectedDelivery || null,
+        orderDate: order.orderDate ? new Date(order.orderDate).toISOString().split("T")[0] : (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+        expectedDelivery: order.expectedDelivery ? new Date(order.expectedDelivery).toISOString().split("T")[0] : null,
         notes: order.notes || null
       });
       const sent = await sendEmail2({
@@ -2722,8 +3659,8 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   reports: router({
-    dailyProduction: protectedProcedure.input(z2.object({
-      date: z2.string()
+    dailyProduction: protectedProcedure.input(z3.object({
+      date: z3.string()
       // YYYY-MM-DD format
     })).query(async ({ input }) => {
       const targetDate = new Date(input.date);
@@ -2768,9 +3705,9 @@ Please reorder these materials to avoid project delays.`;
         qualityTests: qualityTests2
       };
     }),
-    sendDailyProductionEmail: protectedProcedure.input(z2.object({
-      date: z2.string(),
-      recipientEmail: z2.string()
+    sendDailyProductionEmail: protectedProcedure.input(z3.object({
+      date: z3.string(),
+      recipientEmail: z3.string()
     })).mutation(async ({ input }) => {
       const targetDate = new Date(input.date);
       const nextDay = new Date(targetDate);
@@ -2832,21 +3769,21 @@ Please reorder these materials to avoid project delays.`;
     get: protectedProcedure.query(async () => {
       return await getEmailBranding();
     }),
-    update: protectedProcedure.input(z2.object({
-      logoUrl: z2.string().optional(),
-      primaryColor: z2.string().optional(),
-      secondaryColor: z2.string().optional(),
-      companyName: z2.string().optional(),
-      footerText: z2.string().optional()
+    update: protectedProcedure.input(z3.object({
+      logoUrl: z3.string().optional(),
+      primaryColor: z3.string().optional(),
+      secondaryColor: z3.string().optional(),
+      companyName: z3.string().optional(),
+      footerText: z3.string().optional()
     })).mutation(async ({ input }) => {
       await upsertEmailBranding(input);
       return { success: true };
     }),
-    uploadLogo: protectedProcedure.input(z2.object({
-      fileData: z2.string(),
+    uploadLogo: protectedProcedure.input(z3.object({
+      fileData: z3.string(),
       // base64 encoded image
-      fileName: z2.string(),
-      mimeType: z2.string()
+      fileName: z3.string(),
+      mimeType: z3.string()
     })).mutation(async ({ input }) => {
       const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
       if (!allowedTypes.includes(input.mimeType)) {

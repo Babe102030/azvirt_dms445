@@ -20,6 +20,7 @@ import ForecastingDashboard from "./pages/ForecastingDashboard";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import ReportSettings from "./pages/ReportSettings";
 import EmailBrandingSettings from "./pages/EmailBrandingSettings";
+import AIAssistant from "./pages/AIAssistant";
 
 function Router() {
   return (
@@ -40,6 +41,7 @@ function Router() {
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />
+      <Route path={"/ai-assistant"} component={AIAssistant} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

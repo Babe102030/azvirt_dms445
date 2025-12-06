@@ -6,9 +6,11 @@ import { z } from "zod";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import * as db from "./db";
+import { aiAssistantRouter } from "./routers/aiAssistant";
 
 export const appRouter = router({
   system: systemRouter,
+  ai: aiAssistantRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -1076,13 +1078,20 @@ export const appRouter = router({
           return { success: false, message: 'No supplier email found' };
         }
 
+        // Get material to find unit
+        const materials = await db.getMaterials();
+        const material = materials.find(m => m.id === order.materialId);
+        const unit = material?.unit || 'kg';
+
         const { sendEmail, generatePurchaseOrderEmailHTML } = await import('./_core/email');
         const emailHTML = generatePurchaseOrderEmailHTML({
           id: order.id,
           materialName: order.materialName,
           quantity: order.quantity,
+          unit,
           supplier: order.supplier || 'Supplier',
-          expectedDelivery: order.expectedDelivery || null,
+          orderDate: order.orderDate ? new Date(order.orderDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          expectedDelivery: order.expectedDelivery ? new Date(order.expectedDelivery).toISOString().split('T')[0] : null,
           notes: order.notes || null,
         });
 

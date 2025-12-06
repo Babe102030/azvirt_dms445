@@ -43,7 +43,9 @@ const searchMaterialsTool: Tool = {
     required: [],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+    
     let query = db.select().from(materials);
 
     if (params.query) {
@@ -96,7 +98,9 @@ const getDeliveryStatusTool: Tool = {
     required: [],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+    
     const conditions = [];
 
     if (params.deliveryId) {
@@ -158,7 +162,9 @@ const searchDocumentsTool: Tool = {
     required: [],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+    
     const conditions = [];
 
     if (params.query) {
@@ -222,7 +228,9 @@ const getQualityTestsTool: Tool = {
     required: [],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+    
     const conditions = [];
 
     if (params.status) {
@@ -274,7 +282,8 @@ const generateForecastTool: Tool = {
     required: [],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
     
     let query = db
       .select()
@@ -328,7 +337,9 @@ const calculateStatsTool: Tool = {
     required: ['metric'],
   },
   execute: async (params, userId) => {
-    const db = getDb();
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+    
     const { metric, startDate, endDate } = params;
 
     const dateConditions = [];
