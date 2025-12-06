@@ -342,3 +342,63 @@
 - [ ] Write vitest tests for purchase order generation
 - [ ] Write vitest tests for supplier email/SMS sending
 - [ ] Test forecasting accuracy with historical data
+
+
+## Feature 2: Smart Inventory Forecasting & Auto-Reorder System
+### Database Schema
+- [x] Create material_consumption_log table (materialId, quantity, date, projectId, deliveryId)
+- [x] Create purchase_orders table (materialId, quantity, supplier, status, orderDate, expectedDelivery)
+- [x] Create forecast_predictions table (materialId, predictedRunoutDate, recommendedOrderQty, confidence)
+- [x] Add email notification settings to materials table
+- [x] Push database schema changes
+
+### Backend - AI Forecasting Engine
+- [x] Create recordConsumption procedure to log material usage
+- [x] Create calculateConsumptionRate procedure (daily/weekly averages)
+- [x] Create predictStockout procedure using linear regression
+- [x] Create generateReorderRecommendations procedure
+- [x] Create getLowStockMaterials procedure with threshold check
+- [x] Add consumption tracking to delivery completion workflow
+
+### Backend - Purchase Order System
+- [x] Create createPurchaseOrder procedure
+- [x] Create updatePurchaseOrderStatus procedure
+- [x] Create getPurchaseOrders procedure with filters
+- [x] Create sendLowStockEmail procedure with email template
+- [x] Create sendPurchaseOrderEmail procedure to suppliers
+- [x] Add automatic PO creation when stock below threshold
+
+### Backend - Daily Production Reports
+- [x] Create generateDailyProductionReport procedure
+- [x] Create sendDailyProductionEmail procedure
+- [x] Calculate total concrete produced per day
+- [x] Calculate material consumption per day
+- [x] Include delivery statistics in report
+- [x] Schedule daily email at configurable time
+
+### Frontend - Forecasting Dashboard
+- [x] Create ForecastingDashboard component with charts
+- [x] Display consumption trends (line chart)
+- [x] Show predicted stockout dates with countdown
+- [x] Create low stock alerts panel
+- [x] Build reorder recommendations table
+- [x] Add one-click purchase order creation
+
+### Frontend - Purchase Orders
+- [x] Create PurchaseOrdersPage component
+- [x] Build PO creation form with supplier selection
+- [x] Display active POs with status tracking
+- [x] Add PO approval workflow
+- [x] Show PO history and analytics
+
+### Email Templates
+- [x] Design low stock alert email template
+- [x] Design purchase order email template
+- [x] Design daily production report email template
+- [x] Add email configuration settings page
+
+### Testing
+- [x] Write vitest tests for forecasting algorithms
+- [x] Write vitest tests for consumption tracking
+- [x] Write vitest tests for email sending
+- [x] Test daily report generation

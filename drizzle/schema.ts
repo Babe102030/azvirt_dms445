@@ -73,6 +73,9 @@ export const materials = mysqlTable("materials", {
   criticalThreshold: int("criticalThreshold").notNull().default(0),
   supplier: varchar("supplier", { length: 255 }),
   unitPrice: int("unitPrice"),
+  lowStockEmailSent: boolean("lowStockEmailSent").default(false),
+  lastEmailSentAt: timestamp("lastEmailSentAt"),
+  supplierEmail: varchar("supplierEmail", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -291,3 +294,63 @@ export const aggregateInputs = mysqlTable("aggregateInputs", {
 
 export type AggregateInput = typeof aggregateInputs.$inferSelect;
 export type InsertAggregateInput = typeof aggregateInputs.$inferInsert;
+
+/**
+ * Material consumption log for tracking usage over time
+ */
+export const materialConsumptionLog = mysqlTable("material_consumption_log", {
+  id: int("id").autoincrement().primaryKey(),
+  materialId: int("materialId").notNull(),
+  quantity: int("quantity").notNull(),
+  consumptionDate: timestamp("consumptionDate").notNull(),
+  projectId: int("projectId"),
+  deliveryId: int("deliveryId"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type MaterialConsumptionLog = typeof materialConsumptionLog.$inferSelect;
+export type InsertMaterialConsumptionLog = typeof materialConsumptionLog.$inferInsert;
+
+/**
+ * Purchase orders table for automated ordering
+ */
+export const purchaseOrders = mysqlTable("purchase_orders", {
+  id: int("id").autoincrement().primaryKey(),
+  materialId: int("materialId").notNull(),
+  materialName: varchar("materialName", { length: 255 }).notNull(),
+  quantity: int("quantity").notNull(),
+  supplier: varchar("supplier", { length: 255 }),
+  supplierEmail: varchar("supplierEmail", { length: 255 }),
+  status: mysqlEnum("status", ["pending", "approved", "ordered", "received", "cancelled"]).default("pending").notNull(),
+  orderDate: timestamp("orderDate").defaultNow().notNull(),
+  expectedDelivery: timestamp("expectedDelivery"),
+  actualDelivery: timestamp("actualDelivery"),
+  totalCost: int("totalCost"),
+  notes: text("notes"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+
+/**
+ * Forecast predictions table for AI-powered stock predictions
+ */
+export const forecastPredictions = mysqlTable("forecast_predictions", {
+  id: int("id").autoincrement().primaryKey(),
+  materialId: int("materialId").notNull(),
+  materialName: varchar("materialName", { length: 255 }).notNull(),
+  currentStock: int("currentStock").notNull(),
+  dailyConsumptionRate: int("dailyConsumptionRate").notNull(),
+  predictedRunoutDate: timestamp("predictedRunoutDate"),
+  daysUntilStockout: int("daysUntilStockout"),
+  recommendedOrderQty: int("recommendedOrderQty"),
+  confidence: int("confidence"),
+  calculatedAt: timestamp("calculatedAt").defaultNow().notNull(),
+});
+
+export type ForecastPrediction = typeof forecastPredictions.$inferSelect;
+export type InsertForecastPrediction = typeof forecastPredictions.$inferInsert;

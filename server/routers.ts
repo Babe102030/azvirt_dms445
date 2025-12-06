@@ -175,6 +175,40 @@ export const appRouter = router({
         return await db.getLowStockMaterials();
       }),
 
+    recordConsumption: protectedProcedure
+      .input(z.object({
+        materialId: z.number(),
+        quantity: z.number(),
+        consumptionDate: z.date(),
+        projectId: z.number().optional(),
+        deliveryId: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        await db.recordConsumption(input);
+        return { success: true };
+      }),
+
+    getConsumptionHistory: protectedProcedure
+      .input(z.object({
+        materialId: z.number().optional(),
+        days: z.number().default(30),
+      }))
+      .query(async ({ input }) => {
+        return await db.getConsumptionHistory(input.materialId, input.days);
+      }),
+
+    generateForecasts: protectedProcedure
+      .mutation(async () => {
+        const predictions = await db.generateForecastPredictions();
+        return { success: true, predictions };
+      }),
+
+    getForecasts: protectedProcedure
+      .query(async () => {
+        return await db.getForecastPredictions();
+      }),
+
     sendLowStockAlert: protectedProcedure
       .mutation(async () => {
         const lowStockMaterials = await db.getLowStockMaterials();
@@ -982,6 +1016,213 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         return await db.createAggregateInput(input);
+      }),
+  }),
+
+  purchaseOrders: router({
+    list: protectedProcedure
+      .input(z.object({
+        status: z.string().optional(),
+        materialId: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getPurchaseOrders(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        materialId: z.number(),
+        materialName: z.string(),
+        quantity: z.number(),
+        supplier: z.string().optional(),
+        supplierEmail: z.string().optional(),
+        expectedDelivery: z.date().optional(),
+        totalCost: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        await db.createPurchaseOrder({
+          ...input,
+          status: 'pending',
+          createdBy: ctx.user.id,
+        });
+        return { success: true };
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        status: z.enum(['pending', 'approved', 'ordered', 'received', 'cancelled']).optional(),
+        expectedDelivery: z.date().optional(),
+        actualDelivery: z.date().optional(),
+        totalCost: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        await db.updatePurchaseOrder(id, data);
+        return { success: true };
+      }),
+
+    sendToSupplier: protectedProcedure
+      .input(z.object({
+        orderId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const orders = await db.getPurchaseOrders();
+        const order = orders.find(o => o.id === input.orderId);
+        
+        if (!order || !order.supplierEmail) {
+          return { success: false, message: 'No supplier email found' };
+        }
+
+        const { sendEmail, generatePurchaseOrderEmailHTML } = await import('./_core/email');
+        const emailHTML = generatePurchaseOrderEmailHTML({
+          id: order.id,
+          materialName: order.materialName,
+          quantity: order.quantity,
+          supplier: order.supplier || 'Supplier',
+          expectedDelivery: order.expectedDelivery || undefined,
+          notes: order.notes || undefined,
+        });
+
+        const sent = await sendEmail({
+          to: order.supplierEmail,
+          subject: `Purchase Order #${order.id} - ${order.materialName}`,
+          html: emailHTML,
+        });
+
+        if (sent) {
+          await db.updatePurchaseOrder(input.orderId, { status: 'ordered' });
+        }
+
+        return { success: sent };
+      }),
+  }),
+
+  reports: router({
+    dailyProduction: protectedProcedure
+      .input(z.object({
+        date: z.string(), // YYYY-MM-DD format
+      }))
+      .query(async ({ input }) => {
+        const targetDate = new Date(input.date);
+        const nextDay = new Date(targetDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        // Get deliveries completed on this date
+        const allDeliveries = await db.getDeliveries();
+        const completedDeliveries = allDeliveries.filter(d => {
+          if (!d.actualDeliveryTime) return false;
+          const deliveryDate = new Date(d.actualDeliveryTime);
+          return deliveryDate >= targetDate && deliveryDate < nextDay;
+        });
+
+        // Calculate total concrete produced
+        const totalConcreteProduced = completedDeliveries.reduce((sum, d) => sum + (d.volume || 0), 0);
+
+        // Get material consumption for the day
+        const consumptions = await db.getConsumptionHistory(undefined, 1);
+        const dayConsumptions = consumptions.filter(c => {
+          const cDate = new Date(c.consumptionDate);
+          return cDate >= targetDate && cDate < nextDay;
+        });
+
+        const materials = await db.getMaterials();
+        const materialConsumption = dayConsumptions.map(c => {
+          const material = materials.find(m => m.id === c.materialId);
+          return {
+            name: material?.name || 'Unknown',
+            quantity: c.quantity,
+            unit: material?.unit || 'units',
+          };
+        });
+
+        // Get quality tests for the day
+        const allTests = await db.getQualityTests();
+        const dayTests = allTests.filter(t => {
+          const testDate = new Date(t.createdAt);
+          return testDate >= targetDate && testDate < nextDay;
+        });
+
+        const qualityTests = {
+          total: dayTests.length,
+          passed: dayTests.filter(t => t.status === 'pass').length,
+          failed: dayTests.filter(t => t.status === 'fail').length,
+        };
+
+        return {
+          date: input.date,
+          totalConcreteProduced,
+          deliveriesCompleted: completedDeliveries.length,
+          materialConsumption,
+          qualityTests,
+        };
+      }),
+
+    sendDailyProductionEmail: protectedProcedure
+      .input(z.object({
+        date: z.string(),
+        recipientEmail: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const targetDate = new Date(input.date);
+        const nextDay = new Date(targetDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const allDeliveries = await db.getDeliveries();
+        const completedDeliveries = allDeliveries.filter(d => {
+          if (!d.actualDeliveryTime) return false;
+          const deliveryDate = new Date(d.actualDeliveryTime);
+          return deliveryDate >= targetDate && deliveryDate < nextDay;
+        });
+
+        const totalConcreteProduced = completedDeliveries.reduce((sum, d) => sum + (d.volume || 0), 0);
+
+        const consumptions = await db.getConsumptionHistory(undefined, 1);
+        const dayConsumptions = consumptions.filter(c => {
+          const cDate = new Date(c.consumptionDate);
+          return cDate >= targetDate && cDate < nextDay;
+        });
+
+        const materials = await db.getMaterials();
+        const materialConsumption = dayConsumptions.map(c => {
+          const material = materials.find(m => m.id === c.materialId);
+          return {
+            name: material?.name || 'Unknown',
+            quantity: c.quantity,
+            unit: material?.unit || 'units',
+          };
+        });
+
+        const allTests = await db.getQualityTests();
+        const dayTests = allTests.filter(t => {
+          const testDate = new Date(t.createdAt);
+          return testDate >= targetDate && testDate < nextDay;
+        });
+
+        const qualityTests = {
+          total: dayTests.length,
+          passed: dayTests.filter(t => t.status === 'pass').length,
+          failed: dayTests.filter(t => t.status === 'fail').length,
+        };
+
+        const { sendEmail, generateDailyProductionReportHTML } = await import('./_core/email');
+        const emailHTML = generateDailyProductionReportHTML({
+          date: input.date,
+          totalConcreteProduced,
+          deliveriesCompleted: completedDeliveries.length,
+          materialConsumption,
+          qualityTests,
+        });
+
+        const sent = await sendEmail({
+          to: input.recipientEmail,
+          subject: `Daily Production Report - ${input.date}`,
+          html: emailHTML,
+        });
+
+        return { success: sent };
       }),
   }),
 });

@@ -13,7 +13,10 @@ import {
   machines, InsertMachine,
   machineMaintenance, InsertMachineMaintenance,
   machineWorkHours, InsertMachineWorkHour,
-  aggregateInputs, InsertAggregateInput
+  aggregateInputs, InsertAggregateInput,
+  materialConsumptionLog, InsertMaterialConsumptionLog,
+  purchaseOrders, InsertPurchaseOrder,
+  forecastPredictions, InsertForecastPrediction
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -743,4 +746,154 @@ export async function updateUserSMSSettings(userId: number, phoneNumber: string,
     console.error("Failed to update SMS settings:", error);
     return false;
   }
+}
+
+
+// Material Consumption Tracking
+export async function recordConsumption(consumption: InsertMaterialConsumptionLog) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(materialConsumptionLog).values(consumption);
+  
+  // Update material quantity
+  if (consumption.materialId) {
+    const currentMaterials = await getMaterials();
+    const material = currentMaterials.find(m => m.id === consumption.materialId);
+    if (material) {
+      await updateMaterial(consumption.materialId, {
+        quantity: Math.max(0, material.quantity - consumption.quantity)
+      });
+    }
+  }
+}
+
+export async function getConsumptionHistory(materialId?: number, days: number = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  
+  let query = db.select().from(materialConsumptionLog);
+  
+  if (materialId) {
+    query = query.where(eq(materialConsumptionLog.materialId, materialId)) as any;
+  }
+  
+  const result = await query.orderBy(desc(materialConsumptionLog.consumptionDate));
+  return result;
+}
+
+export async function calculateDailyConsumptionRate(materialId: number, days: number = 30) {
+  const db = await getDb();
+  if (!db) return 0;
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  
+  const consumptions = await db
+    .select()
+    .from(materialConsumptionLog)
+    .where(eq(materialConsumptionLog.materialId, materialId));
+  
+  if (consumptions.length === 0) return 0;
+  
+  const totalConsumed = consumptions.reduce((sum, c) => sum + c.quantity, 0);
+  const uniqueDays = new Set(consumptions.map(c => 
+    new Date(c.consumptionDate).toDateString()
+  )).size;
+  
+  return uniqueDays > 0 ? totalConsumed / uniqueDays : 0;
+}
+
+// Forecasting & Predictions
+export async function generateForecastPredictions() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const allMaterials = await getMaterials();
+  const predictions: InsertForecastPrediction[] = [];
+  
+  for (const material of allMaterials) {
+    const dailyRate = await calculateDailyConsumptionRate(material.id, 30);
+    
+    if (dailyRate > 0) {
+      const daysUntilStockout = Math.floor(material.quantity / dailyRate);
+      const predictedRunoutDate = new Date();
+      predictedRunoutDate.setDate(predictedRunoutDate.getDate() + daysUntilStockout);
+      
+      // Calculate recommended order quantity (2 weeks supply + buffer)
+      const recommendedOrderQty = Math.ceil(dailyRate * 14 * 1.2);
+      
+      // Simple confidence based on data availability
+      const consumptions = await getConsumptionHistory(material.id, 30);
+      const confidence = Math.min(95, consumptions.length * 3);
+      
+      predictions.push({
+        materialId: material.id,
+        materialName: material.name,
+        currentStock: material.quantity,
+        dailyConsumptionRate: Math.round(dailyRate),
+        predictedRunoutDate,
+        daysUntilStockout,
+        recommendedOrderQty,
+        confidence,
+        calculatedAt: new Date(),
+      });
+    }
+  }
+  
+  // Clear old predictions and insert new ones
+  await db.delete(forecastPredictions);
+  if (predictions.length > 0) {
+    await db.insert(forecastPredictions).values(predictions);
+  }
+  
+  return predictions;
+}
+
+export async function getForecastPredictions() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select().from(forecastPredictions).orderBy(forecastPredictions.daysUntilStockout);
+}
+
+// Purchase Orders
+export async function createPurchaseOrder(order: InsertPurchaseOrder) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.insert(purchaseOrders).values(order);
+}
+
+export async function getPurchaseOrders(filters?: { status?: string; materialId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  let conditions: any[] = [];
+  
+  if (filters?.status) {
+    conditions.push(eq(purchaseOrders.status, filters.status as any));
+  }
+  
+  if (filters?.materialId) {
+    conditions.push(eq(purchaseOrders.materialId, filters.materialId));
+  }
+  
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  return await db
+    .select()
+    .from(purchaseOrders)
+    .where(whereClause)
+    .orderBy(desc(purchaseOrders.createdAt));
+}
+
+export async function updatePurchaseOrder(id: number, data: Partial<InsertPurchaseOrder>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  await db.update(purchaseOrders).set(data).where(eq(purchaseOrders.id, id));
 }

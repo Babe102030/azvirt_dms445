@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS forecast_predictions (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  materialId INT NOT NULL,\n  materialName VARCHAR(255) NOT NULL,\n  currentStock INT NOT NULL,\n  dailyConsumptionRate DECIMAL(10,2) NOT NULL,\n  predictedRunoutDate DATE,\n  daysUntilStockout INT,\n  recommendedOrderQty INT,\n  confidence DECIMAL(5,2),\n  calculatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  INDEX idx_material (materialId),\n  INDEX idx_runout_date (predictedRunoutDate)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS forecast_predictions (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  materialId INT NOT NULL,\n  materialName VARCHAR(255) NOT NULL,\n  currentStock INT NOT NULL,\n  dailyConsumptionRate DECIMAL(10,2) NOT NULL,\n  predictedRunoutDate DATE,\n  daysUntilStockout INT,\n  recommendedOrderQty INT,\n  confidence DECIMAL(5,2),\n  calculatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  INDEX idx_material (materialId),\n  INDEX idx_runout_date (predictedRunoutDate)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 167
+}

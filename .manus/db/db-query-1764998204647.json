@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE materials \nADD COLUMN IF NOT EXISTS lowStockEmailSent BOOLEAN DEFAULT FALSE,\nADD COLUMN IF NOT EXISTS lastEmailSentAt TIMESTAMP NULL,\nADD COLUMN IF NOT EXISTS supplierEmail VARCHAR(255);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute ALTER TABLE materials \nADD COLUMN IF NOT EXISTS lowStockEmailSent BOOLEAN DEFAULT FALSE,\nADD COLUMN IF NOT EXISTS lastEmailSentAt TIMESTAMP NULL,\nADD COLUMN IF NOT EXISTS supplierEmail VARCHAR(255);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 897
+}
