@@ -2564,6 +2564,217 @@ function getLanguageName(langCode) {
   return langMap[langCode] || langCode;
 }
 
+// shared/promptTemplates.ts
+var PROMPT_TEMPLATES = [
+  // Inventory Management Templates
+  {
+    id: "check-low-stock",
+    category: "inventory",
+    title: "Provjeri materijale sa niskim zalihama",
+    description: "Prika\u017Ei sve materijale koji su ispod minimalnog nivoa zaliha",
+    prompt: "Koji materijali trenutno imaju niske zalihe? Prika\u017Ei mi listu sa trenutnim koli\u010Dinama i minimalnim nivoima.",
+    icon: "AlertTriangle",
+    tags: ["zalihe", "upozorenje", "materijali"]
+  },
+  {
+    id: "search-material",
+    category: "inventory",
+    title: "Pretra\u017Ei specifi\u010Dan materijal",
+    description: "Prona\u0111i informacije o odre\u0111enom materijalu",
+    prompt: "Prika\u017Ei mi sve informacije o [naziv materijala] - trenutnu koli\u010Dinu, dobavlja\u010Da, cijenu i historiju potro\u0161nje.",
+    icon: "Search",
+    tags: ["pretraga", "materijal", "detalji"]
+  },
+  {
+    id: "inventory-summary",
+    category: "inventory",
+    title: "Sa\u017Eetak zaliha",
+    description: "Pregled ukupnog stanja zaliha",
+    prompt: "Daj mi sa\u017Eetak trenutnog stanja zaliha - ukupan broj materijala, kriti\u010Dni nivoi, i ukupna vrijednost.",
+    icon: "ClipboardList",
+    tags: ["sa\u017Eetak", "pregled", "zalihe"]
+  },
+  {
+    id: "order-recommendations",
+    category: "inventory",
+    title: "Preporuke za narud\u017Ebe",
+    description: "Dobij preporuke \u0161ta treba naru\u010Diti",
+    prompt: "Na osnovu trenutnih zaliha i historije potro\u0161nje, koje materijale trebam naru\u010Diti i u kojim koli\u010Dinama?",
+    icon: "ShoppingCart",
+    tags: ["narud\u017Eba", "preporuke", "planiranje"]
+  },
+  // Delivery Management Templates
+  {
+    id: "active-deliveries",
+    category: "deliveries",
+    title: "Aktivne isporuke",
+    description: "Prika\u017Ei sve trenutno aktivne isporuke",
+    prompt: "Prika\u017Ei mi sve aktivne isporuke danas - status, destinaciju, i o\u010Dekivano vrijeme dolaska.",
+    icon: "Truck",
+    tags: ["isporuke", "aktivno", "pra\u0107enje"]
+  },
+  {
+    id: "delivery-history",
+    category: "deliveries",
+    title: "Historija isporuka za projekat",
+    description: "Pregled svih isporuka za odre\u0111eni projekat",
+    prompt: "Prika\u017Ei mi sve isporuke za projekat [naziv projekta] - datume, koli\u010Dine, i status.",
+    icon: "History",
+    tags: ["historija", "projekat", "isporuke"]
+  },
+  {
+    id: "delivery-performance",
+    category: "deliveries",
+    title: "Performanse isporuka",
+    description: "Analiza efikasnosti isporuka",
+    prompt: "Analiziraj performanse isporuka za posljednjih 30 dana - procenat isporuka na vrijeme, ka\u0161njenja, i prosje\u010Dno vrijeme.",
+    icon: "BarChart",
+    tags: ["performanse", "analiza", "metrike"]
+  },
+  {
+    id: "delayed-deliveries",
+    category: "deliveries",
+    title: "Zaka\u0161njele isporuke",
+    description: "Identifikuj isporuke sa ka\u0161njenjem",
+    prompt: "Koje isporuke kasne ili su imale ka\u0161njenja u posljednje vrijeme? Prika\u017Ei razloge i trajanje ka\u0161njenja.",
+    icon: "Clock",
+    tags: ["ka\u0161njenje", "problemi", "pra\u0107enje"]
+  },
+  // Quality Control Templates
+  {
+    id: "recent-tests",
+    category: "quality",
+    title: "Nedavni testovi kvaliteta",
+    description: "Pregled posljednjih testova",
+    prompt: "Prika\u017Ei mi rezultate testova kvaliteta iz posljednje sedmice - tip testa, rezultati, i status prolaska.",
+    icon: "FlaskConical",
+    tags: ["testovi", "kvalitet", "rezultati"]
+  },
+  {
+    id: "failed-tests",
+    category: "quality",
+    title: "Neuspjeli testovi",
+    description: "Identifikuj testove koji nisu pro\u0161li",
+    prompt: "Koji testovi kvaliteta nisu pro\u0161li u posljednjih 30 dana? Prika\u017Ei detalje i razloge neuspjeha.",
+    icon: "XCircle",
+    tags: ["neuspjeh", "problemi", "kvalitet"]
+  },
+  {
+    id: "quality-trends",
+    category: "quality",
+    title: "Trendovi kvaliteta",
+    description: "Analiza trendova u kvalitetu betona",
+    prompt: "Analiziraj trendove u kvalitetu betona tokom posljednjih 3 mjeseca - \u010Dvrsto\u0107a, slump test, i stopa prolaska.",
+    icon: "TrendingUp",
+    tags: ["trendovi", "analiza", "kvalitet"]
+  },
+  {
+    id: "compliance-check",
+    category: "quality",
+    title: "Provjera uskla\u0111enosti",
+    description: "Provjeri uskla\u0111enost sa standardima",
+    prompt: "Da li su svi testovi kvaliteta u skladu sa standardima EN 206 i ASTM C94? Prika\u017Ei eventualna odstupanja.",
+    icon: "CheckCircle",
+    tags: ["uskla\u0111enost", "standardi", "provjera"]
+  },
+  // Reporting Templates
+  {
+    id: "weekly-summary",
+    category: "reports",
+    title: "Sedmi\u010Dni izvje\u0161taj",
+    description: "Generi\u0161i sa\u017Eetak sedmice",
+    prompt: "Napravi sa\u017Eetak aktivnosti za ovu sedmicu - broj isporuka, potro\u0161nja materijala, testovi kvaliteta, i klju\u010Dni doga\u0111aji.",
+    icon: "Calendar",
+    tags: ["izvje\u0161taj", "sedmi\u010Dno", "sa\u017Eetak"]
+  },
+  {
+    id: "monthly-report",
+    category: "reports",
+    title: "Mjese\u010Dni izvje\u0161taj",
+    description: "Detaljan mjese\u010Dni pregled",
+    prompt: "Generi\u0161i detaljan mjese\u010Dni izvje\u0161taj - ukupne isporuke, potro\u0161nja po materijalu, kvalitet, i finansijski pregled.",
+    icon: "FileText",
+    tags: ["izvje\u0161taj", "mjese\u010Dno", "detalji"]
+  },
+  {
+    id: "project-summary",
+    category: "reports",
+    title: "Sa\u017Eetak projekta",
+    description: "Pregled specifi\u010Dnog projekta",
+    prompt: "Napravi sa\u017Eetak za projekat [naziv projekta] - isporuke, potro\u0161nja materijala, tro\u0161kovi, i status.",
+    icon: "Folder",
+    tags: ["projekat", "sa\u017Eetak", "pregled"]
+  },
+  // Analysis Templates
+  {
+    id: "cost-analysis",
+    category: "analysis",
+    title: "Analiza tro\u0161kova",
+    description: "Analiziraj tro\u0161kove materijala i isporuka",
+    prompt: "Analiziraj tro\u0161kove za posljednjih 30 dana - najskuplji materijali, tro\u0161kovi isporuka, i mogu\u0107nosti u\u0161tede.",
+    icon: "DollarSign",
+    tags: ["tro\u0161kovi", "analiza", "finansije"]
+  },
+  {
+    id: "consumption-patterns",
+    category: "analysis",
+    title: "Obrasci potro\u0161nje",
+    description: "Identifikuj obrasce u potro\u0161nji materijala",
+    prompt: "Analiziraj obrasce potro\u0161nje materijala - koji se materijali naj\u010De\u0161\u0107e koriste, sezonske varijacije, i trendovi.",
+    icon: "PieChart",
+    tags: ["potro\u0161nja", "obrasci", "trendovi"]
+  },
+  {
+    id: "efficiency-metrics",
+    category: "analysis",
+    title: "Metrike efikasnosti",
+    description: "Izra\u010Dunaj klju\u010Dne metrike performansi",
+    prompt: "Izra\u010Dunaj klju\u010Dne metrike efikasnosti - iskori\u0161tenost zaliha, vrijeme isporuke, stopa kvaliteta, i produktivnost.",
+    icon: "Activity",
+    tags: ["metrike", "efikasnost", "KPI"]
+  },
+  // Forecasting Templates
+  {
+    id: "demand-forecast",
+    category: "forecasting",
+    title: "Prognoza potra\u017Enje",
+    description: "Predvidi budu\u0107u potra\u017Enju za materijalom",
+    prompt: "Na osnovu historijskih podataka, predvidi potra\u017Enju za [naziv materijala] u narednih 30 dana.",
+    icon: "LineChart",
+    tags: ["prognoza", "potra\u017Enja", "planiranje"]
+  },
+  {
+    id: "stockout-prediction",
+    category: "forecasting",
+    title: "Predvi\u0111anje nesta\u0161ice",
+    description: "Kada \u0107e materijali biti nesta\u0161ici",
+    prompt: "Koji materijali \u0107e biti u nesta\u0161ici u narednih 14 dana ako se nastavi trenutni tempo potro\u0161nje?",
+    icon: "AlertCircle",
+    tags: ["nesta\u0161ica", "upozorenje", "prognoza"]
+  },
+  {
+    id: "seasonal-planning",
+    category: "forecasting",
+    title: "Sezonsko planiranje",
+    description: "Planiranje za sezonske varijacije",
+    prompt: "Analiziraj sezonske varijacije u potro\u0161nji i daj preporuke za planiranje zaliha za narednu sezonu.",
+    icon: "Sun",
+    tags: ["sezonsko", "planiranje", "prognoza"]
+  }
+];
+function getTemplatesByCategory(category) {
+  return PROMPT_TEMPLATES.filter((t2) => t2.category === category);
+}
+function searchTemplates(query) {
+  const lowerQuery = query.toLowerCase();
+  return PROMPT_TEMPLATES.filter(
+    (t2) => t2.title.toLowerCase().includes(lowerQuery) || t2.description.toLowerCase().includes(lowerQuery) || t2.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)) || t2.prompt.toLowerCase().includes(lowerQuery)
+  );
+}
+function getTemplateById(id) {
+  return PROMPT_TEMPLATES.find((t2) => t2.id === id);
+}
+
 // server/routers/aiAssistant.ts
 var aiAssistantRouter = router({
   /**
@@ -2786,6 +2997,34 @@ When users ask about the system, provide helpful, accurate information. Use tool
       console.error("Failed to delete model:", error);
       return { success: false, message: error.message };
     }
+  }),
+  /**
+   * Get all prompt templates
+   */
+  getTemplates: publicProcedure.query(async () => {
+    return PROMPT_TEMPLATES;
+  }),
+  /**
+   * Get templates by category
+   */
+  getTemplatesByCategory: publicProcedure.input(z2.object({ category: z2.enum(["inventory", "deliveries", "quality", "reports", "analysis", "forecasting"]) })).query(async ({ input }) => {
+    return getTemplatesByCategory(input.category);
+  }),
+  /**
+   * Search templates
+   */
+  searchTemplates: publicProcedure.input(z2.object({ query: z2.string() })).query(async ({ input }) => {
+    return searchTemplates(input.query);
+  }),
+  /**
+   * Get template by ID
+   */
+  getTemplate: publicProcedure.input(z2.object({ id: z2.string() })).query(async ({ input }) => {
+    const template = getTemplateById(input.id);
+    if (!template) {
+      throw new Error("Template not found");
+    }
+    return template;
   }),
   /**
    * Execute an agentic tool

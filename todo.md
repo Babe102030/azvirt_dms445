@@ -663,3 +663,16 @@
 - [x] Add input validation to all AI endpoints
 - [x] Test Ollama integration end-to-end
 - [ ] Fix remaining test timeouts and database cleanup issues
+
+
+## AI Prompt Templates System
+- [x] Design template categories (Inventory, Deliveries, Quality, Reports, Analysis)
+- [x] Create template data structure with prompts and metadata
+- [x] Build tRPC procedures for template CRUD operations
+- [x] Create PromptTemplates UI component with category tabs
+- [x] Add search and filter functionality
+- [x] Integrate template selector into AI Assistant chat
+- [x] Add "Use Template" button functionality
+- [x] Create 20 pre-built templates for common tasks
+- [x] Write vitest tests for template procedures (21/21 passing)
+- [x] Test template integration end-to-end

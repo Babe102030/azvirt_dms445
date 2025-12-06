@@ -5,6 +5,7 @@ import { ollamaService } from "../_core/ollama";
 import { executeTool } from "../_core/aiTools";
 import { transcribeAudio } from "../_core/voiceTranscription";
 import { storagePut } from "../storage";
+import { PROMPT_TEMPLATES, getTemplatesByCategory, searchTemplates, getTemplateById, type TemplateCategory } from "../../shared/promptTemplates";
 
 /**
  * AI Assistant Router
@@ -289,6 +290,45 @@ When users ask about the system, provide helpful, accurate information. Use tool
         console.error("Failed to delete model:", error);
         return { success: false, message: error.message };
       }
+    }),
+
+  /**
+   * Get all prompt templates
+   */
+  getTemplates: publicProcedure
+    .query(async () => {
+      return PROMPT_TEMPLATES;
+    }),
+
+  /**
+   * Get templates by category
+   */
+  getTemplatesByCategory: publicProcedure
+    .input(z.object({ category: z.enum(['inventory', 'deliveries', 'quality', 'reports', 'analysis', 'forecasting']) }))
+    .query(async ({ input }) => {
+      return getTemplatesByCategory(input.category as TemplateCategory);
+    }),
+
+  /**
+   * Search templates
+   */
+  searchTemplates: publicProcedure
+    .input(z.object({ query: z.string() }))
+    .query(async ({ input }) => {
+      return searchTemplates(input.query);
+    }),
+
+  /**
+   * Get template by ID
+   */
+  getTemplate: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const template = getTemplateById(input.id);
+      if (!template) {
+        throw new Error('Template not found');
+      }
+      return template;
     }),
 
   /**

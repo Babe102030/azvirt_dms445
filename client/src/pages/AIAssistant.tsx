@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { VoiceRecorder } from '@/components/VoiceRecorder';
-import { Send, Bot, User, Loader2, Trash2, Plus } from 'lucide-react';
+import { PromptTemplates } from '@/components/PromptTemplates';
+import { Send, Bot, User, Loader2, Trash2, Plus, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Streamdown } from 'streamdown';
 
@@ -14,6 +16,7 @@ export default function AIAssistant() {
   const [message, setMessage] = useState('');
   const [currentConversationId, setCurrentConversationId] = useState<number | undefined>();
   const [selectedModel, setSelectedModel] = useState('llama3.2');
+  const [showTemplates, setShowTemplates] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Queries
@@ -92,6 +95,11 @@ export default function AIAssistant() {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const handleSelectTemplate = (prompt: string) => {
+    setMessage(prompt);
+    setShowTemplates(false);
   };
 
   return (
@@ -245,6 +253,20 @@ export default function AIAssistant() {
 
         {/* Input Area */}
         <div className="flex gap-2 items-end">
+          <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="icon" title="Šabloni upita">
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Šabloni upita</DialogTitle>
+              </DialogHeader>
+              <PromptTemplates onSelectTemplate={handleSelectTemplate} />
+            </DialogContent>
+          </Dialog>
+
           <div className="flex-1">
             <Input
               value={message}
