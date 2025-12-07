@@ -2402,13 +2402,413 @@ var calculateStatsTool = {
     }
   }
 };
+var logWorkHoursTool = {
+  name: "log_work_hours",
+  description: "Log or record work hours for an employee. Use this to track employee working time, overtime, and project assignments.",
+  parameters: {
+    type: "object",
+    properties: {
+      employeeId: {
+        type: "number",
+        description: "ID of the employee"
+      },
+      projectId: {
+        type: "number",
+        description: "ID of the project (optional)"
+      },
+      date: {
+        type: "string",
+        description: "Date of work in ISO format (YYYY-MM-DD)"
+      },
+      startTime: {
+        type: "string",
+        description: "Start time in ISO format"
+      },
+      endTime: {
+        type: "string",
+        description: "End time in ISO format (optional if ongoing)"
+      },
+      workType: {
+        type: "string",
+        description: "Type of work",
+        enum: ["regular", "overtime", "weekend", "holiday"]
+      },
+      notes: {
+        type: "string",
+        description: "Additional notes about the work"
+      }
+    },
+    required: ["employeeId", "date", "startTime"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { employeeId, projectId, date, startTime, endTime, workType, notes } = params;
+    let hoursWorked = null;
+    let overtimeHours = 0;
+    if (endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diffMs = end.getTime() - start.getTime();
+      hoursWorked = Math.round(diffMs / (1e3 * 60 * 60));
+      if (hoursWorked > 8) {
+        overtimeHours = hoursWorked - 8;
+      }
+    }
+    const [result] = await db.insert(workHours).values({
+      employeeId,
+      projectId: projectId || null,
+      date: new Date(date),
+      startTime: new Date(startTime),
+      endTime: endTime ? new Date(endTime) : null,
+      hoursWorked,
+      overtimeHours,
+      workType: workType || "regular",
+      notes: notes || null,
+      status: "pending"
+    });
+    return {
+      success: true,
+      workHourId: result.insertId,
+      hoursWorked,
+      overtimeHours,
+      message: "Work hours logged successfully"
+    };
+  }
+};
+var getWorkHoursSummaryTool = {
+  name: "get_work_hours_summary",
+  description: "Get summary of work hours for an employee or project. Returns total hours, overtime, and breakdown by work type.",
+  parameters: {
+    type: "object",
+    properties: {
+      employeeId: {
+        type: "number",
+        description: "Filter by employee ID"
+      },
+      projectId: {
+        type: "number",
+        description: "Filter by project ID"
+      },
+      startDate: {
+        type: "string",
+        description: "Start date for summary (YYYY-MM-DD)"
+      },
+      endDate: {
+        type: "string",
+        description: "End date for summary (YYYY-MM-DD)"
+      },
+      status: {
+        type: "string",
+        description: "Filter by approval status",
+        enum: ["pending", "approved", "rejected"]
+      }
+    },
+    required: []
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { employeeId, projectId, startDate, endDate, status } = params;
+    let query = db.select().from(workHours);
+    const conditions = [];
+    if (employeeId) conditions.push(eq2(workHours.employeeId, employeeId));
+    if (projectId) conditions.push(eq2(workHours.projectId, projectId));
+    if (status) conditions.push(eq2(workHours.status, status));
+    if (startDate) conditions.push(gte2(workHours.date, new Date(startDate)));
+    if (endDate) conditions.push(lte(workHours.date, new Date(endDate)));
+    if (conditions.length > 0) {
+      query = query.where(and2(...conditions));
+    }
+    const results = await query;
+    const totalHours = results.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+    const totalOvertime = results.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+    const byWorkType = results.reduce((acc, r) => {
+      acc[r.workType] = (acc[r.workType] || 0) + (r.hoursWorked || 0);
+      return acc;
+    }, {});
+    return {
+      totalEntries: results.length,
+      totalHours,
+      totalOvertime,
+      regularHours: totalHours - totalOvertime,
+      byWorkType,
+      entries: results.slice(0, 10)
+      // Return first 10 entries
+    };
+  }
+};
+var logMachineHoursTool = {
+  name: "log_machine_hours",
+  description: "Log work hours for machinery/equipment. Track equipment usage, operator, and project assignment.",
+  parameters: {
+    type: "object",
+    properties: {
+      machineId: {
+        type: "number",
+        description: "ID of the machine/equipment"
+      },
+      projectId: {
+        type: "number",
+        description: "ID of the project (optional)"
+      },
+      date: {
+        type: "string",
+        description: "Date of operation (YYYY-MM-DD)"
+      },
+      startTime: {
+        type: "string",
+        description: "Start time in ISO format"
+      },
+      endTime: {
+        type: "string",
+        description: "End time in ISO format (optional)"
+      },
+      operatorId: {
+        type: "number",
+        description: "ID of the operator/employee"
+      },
+      operatorName: {
+        type: "string",
+        description: "Name of the operator"
+      },
+      notes: {
+        type: "string",
+        description: "Notes about machine operation"
+      }
+    },
+    required: ["machineId", "date", "startTime"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { machineId, projectId, date, startTime, endTime, operatorId, operatorName, notes } = params;
+    let hoursWorked = null;
+    if (endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diffMs = end.getTime() - start.getTime();
+      hoursWorked = Math.round(diffMs / (1e3 * 60 * 60));
+    }
+    const [result] = await db.insert(machineWorkHours).values({
+      machineId,
+      projectId: projectId || null,
+      date: new Date(date),
+      startTime: new Date(startTime),
+      endTime: endTime ? new Date(endTime) : null,
+      hoursWorked,
+      operatorId: operatorId || null,
+      operatorName: operatorName || null,
+      notes: notes || null
+    });
+    return {
+      success: true,
+      machineWorkHourId: result.insertId,
+      hoursWorked,
+      message: "Machine hours logged successfully"
+    };
+  }
+};
+var updateDocumentTool = {
+  name: "update_document",
+  description: "Update document metadata such as name, description, category, or project assignment.",
+  parameters: {
+    type: "object",
+    properties: {
+      documentId: {
+        type: "number",
+        description: "ID of the document to update"
+      },
+      name: {
+        type: "string",
+        description: "New document name"
+      },
+      description: {
+        type: "string",
+        description: "New description"
+      },
+      category: {
+        type: "string",
+        description: "Document category",
+        enum: ["contract", "blueprint", "report", "certificate", "invoice", "other"]
+      },
+      projectId: {
+        type: "number",
+        description: "Assign to project ID"
+      }
+    },
+    required: ["documentId"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { documentId, name, description, category, projectId } = params;
+    const updates = { updatedAt: /* @__PURE__ */ new Date() };
+    if (name) updates.name = name;
+    if (description) updates.description = description;
+    if (category) updates.category = category;
+    if (projectId !== void 0) updates.projectId = projectId;
+    await db.update(documents).set(updates).where(eq2(documents.id, documentId));
+    return {
+      success: true,
+      documentId,
+      updated: Object.keys(updates).filter((k) => k !== "updatedAt"),
+      message: "Document updated successfully"
+    };
+  }
+};
+var deleteDocumentTool = {
+  name: "delete_document",
+  description: "Delete a document from the system. This permanently removes the document record.",
+  parameters: {
+    type: "object",
+    properties: {
+      documentId: {
+        type: "number",
+        description: "ID of the document to delete"
+      }
+    },
+    required: ["documentId"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { documentId } = params;
+    await db.delete(documents).where(eq2(documents.id, documentId));
+    return {
+      success: true,
+      documentId,
+      message: "Document deleted successfully"
+    };
+  }
+};
+var createMaterialTool = {
+  name: "create_material",
+  description: "Add a new material to inventory. Use this to register new materials for tracking.",
+  parameters: {
+    type: "object",
+    properties: {
+      name: {
+        type: "string",
+        description: "Material name"
+      },
+      category: {
+        type: "string",
+        description: "Material category",
+        enum: ["cement", "aggregate", "admixture", "water", "other"]
+      },
+      unit: {
+        type: "string",
+        description: "Unit of measurement (kg, m\xB3, L, etc.)"
+      },
+      quantity: {
+        type: "number",
+        description: "Initial quantity"
+      },
+      minStock: {
+        type: "number",
+        description: "Minimum stock level for alerts"
+      },
+      supplier: {
+        type: "string",
+        description: "Supplier name"
+      },
+      unitPrice: {
+        type: "number",
+        description: "Price per unit"
+      }
+    },
+    required: ["name", "unit"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { name, category, unit, quantity, minStock, supplier, unitPrice } = params;
+    const [result] = await db.insert(materials).values({
+      name,
+      category: category || "other",
+      unit,
+      quantity: quantity || 0,
+      minStock: minStock || 0,
+      criticalThreshold: minStock ? Math.floor(minStock * 0.5) : 0,
+      supplier: supplier || null,
+      unitPrice: unitPrice || null
+    });
+    return {
+      success: true,
+      materialId: result.insertId,
+      message: `Material "${name}" created successfully`
+    };
+  }
+};
+var updateMaterialQuantityTool = {
+  name: "update_material_quantity",
+  description: "Update the quantity of a material in inventory. Use for stock adjustments, additions, or consumption.",
+  parameters: {
+    type: "object",
+    properties: {
+      materialId: {
+        type: "number",
+        description: "ID of the material"
+      },
+      quantity: {
+        type: "number",
+        description: "New quantity value"
+      },
+      adjustment: {
+        type: "number",
+        description: "Amount to add (positive) or subtract (negative) from current quantity"
+      }
+    },
+    required: ["materialId"]
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: "Database not available" };
+    const { materialId, quantity, adjustment } = params;
+    if (quantity !== void 0) {
+      await db.update(materials).set({ quantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
+      return {
+        success: true,
+        materialId,
+        newQuantity: quantity,
+        message: "Material quantity updated"
+      };
+    } else if (adjustment !== void 0) {
+      const [material] = await db.select().from(materials).where(eq2(materials.id, materialId));
+      if (!material) {
+        return { error: "Material not found" };
+      }
+      const newQuantity = material.quantity + adjustment;
+      await db.update(materials).set({ quantity: newQuantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
+      return {
+        success: true,
+        materialId,
+        previousQuantity: material.quantity,
+        adjustment,
+        newQuantity,
+        message: `Material quantity ${adjustment > 0 ? "increased" : "decreased"} by ${Math.abs(adjustment)}`
+      };
+    }
+    return { error: "Either quantity or adjustment must be provided" };
+  }
+};
 var AI_TOOLS = [
+  // Read-only tools
   searchMaterialsTool,
   getDeliveryStatusTool,
   searchDocumentsTool,
   getQualityTestsTool,
   generateForecastTool,
-  calculateStatsTool
+  calculateStatsTool,
+  // Data manipulation tools
+  logWorkHoursTool,
+  getWorkHoursSummaryTool,
+  logMachineHoursTool,
+  updateDocumentTool,
+  deleteDocumentTool,
+  createMaterialTool,
+  updateMaterialQuantityTool
 ];
 async function executeTool(toolName, parameters, userId) {
   const tool = AI_TOOLS.find((t2) => t2.name === toolName);
@@ -2566,7 +2966,71 @@ function getLanguageName(langCode) {
 
 // shared/promptTemplates.ts
 var PROMPT_TEMPLATES = [
-  // Inventory Management Templates
+  // Data Entry & Manipulation Templates
+  {
+    id: "log-employee-hours",
+    category: "inventory",
+    title: "Evidentiraj radne sate zaposlenika",
+    description: "Zabilje\u017Ei radne sate za zaposlenika sa automatskim ra\u010Dunanjem prekovremenog rada",
+    prompt: "Evidentiraj radne sate za zaposlenika ID [broj] na projektu [naziv projekta]. Radio je od [vrijeme po\u010Detka] do [vrijeme kraja] dana [datum]. Tip rada: [regular/overtime/weekend/holiday].",
+    icon: "Clock",
+    tags: ["radni sati", "zaposlenici", "evidencija"]
+  },
+  {
+    id: "get-hours-summary",
+    category: "reports",
+    title: "Sa\u017Eetak radnih sati",
+    description: "Prika\u017Ei ukupne radne sate za zaposlenika ili projekat",
+    prompt: "Prika\u017Ei mi sa\u017Eetak radnih sati za zaposlenika ID [broj] u periodu od [datum po\u010Detka] do [datum kraja]. Uklju\u010Di ukupne sate, prekovremeni rad, i podjelu po tipu rada.",
+    icon: "BarChart",
+    tags: ["izvje\u0161taj", "radni sati", "sa\u017Eetak"]
+  },
+  {
+    id: "log-machine-hours",
+    category: "inventory",
+    title: "Evidentiraj rad ma\u0161ine",
+    description: "Zabilje\u017Ei sate rada opreme/ma\u0161ine",
+    prompt: "Evidentiraj rad ma\u0161ine ID [broj] na projektu [naziv]. Ma\u0161ina je radila od [vrijeme po\u010Detka] do [vrijeme kraja] dana [datum]. Operater: [ime operatera].",
+    icon: "Settings",
+    tags: ["ma\u0161ine", "oprema", "evidencija"]
+  },
+  {
+    id: "add-new-material",
+    category: "inventory",
+    title: "Dodaj novi materijal",
+    description: "Kreiraj novi materijal u inventaru",
+    prompt: 'Dodaj novi materijal u inventar: naziv "[naziv]", kategorija [cement/aggregate/admixture/water/other], jedinica [kg/m\xB3/L], po\u010Detna koli\u010Dina [broj], minimalne zalihe [broj], dobavlja\u010D "[naziv dobavlja\u010Da]", cijena po jedinici [broj].',
+    icon: "Plus",
+    tags: ["materijal", "inventar", "kreiranje"]
+  },
+  {
+    id: "update-stock-quantity",
+    category: "inventory",
+    title: "A\u017Euriraj koli\u010Dinu zaliha",
+    description: "Promijeni koli\u010Dinu materijala u inventaru",
+    prompt: "A\u017Euriraj koli\u010Dinu materijala ID [broj]: postavi na [nova koli\u010Dina] ili dodaj/oduzmi [+/- broj] od trenutne koli\u010Dine.",
+    icon: "RefreshCw",
+    tags: ["zalihe", "a\u017Euriranje", "inventar"]
+  },
+  {
+    id: "update-document-info",
+    category: "reports",
+    title: "A\u017Euriraj informacije dokumenta",
+    description: "Promijeni naziv, opis, ili kategoriju dokumenta",
+    prompt: 'A\u017Euriraj dokument ID [broj]: promijeni naziv na "[novi naziv]", opis na "[novi opis]", kategoriju na [contract/blueprint/report/certificate/invoice/other], i dodijeli projektu ID [broj].',
+    icon: "Edit",
+    tags: ["dokument", "a\u017Euriranje", "metadata"]
+  },
+  {
+    id: "delete-document",
+    category: "reports",
+    title: "Obri\u0161i dokument",
+    description: "Trajno ukloni dokument iz sistema",
+    prompt: "Obri\u0161i dokument ID [broj] iz sistema. Potvrdi brisanje.",
+    icon: "Trash2",
+    tags: ["dokument", "brisanje", "upravljanje"]
+  },
+  // Inventory Management Templates (existing)
   {
     id: "check-low-stock",
     category: "inventory",
@@ -2824,9 +3288,9 @@ var aiAssistantRouter = router({
       }));
       const systemMessage = {
         role: "system",
-        content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data about materials, deliveries, quality tests, documents, and inventory forecasting. 
+        content: `You are an AI assistant for AzVirt DMS (Delivery Management System), a concrete production and delivery management platform. You have access to real-time data AND the ability to create, update, and manage business records.
 
-Available tools:
+DATA RETRIEVAL TOOLS:
 - search_materials: Search and check inventory levels
 - get_delivery_status: Track delivery status and history
 - search_documents: Find documents and files
@@ -2834,7 +3298,32 @@ Available tools:
 - generate_forecast: Get inventory forecasting predictions
 - calculate_stats: Calculate business metrics and statistics
 
-When users ask about the system, provide helpful, accurate information. Use tools when appropriate to fetch real data. Be concise and professional.`
+DATA MANIPULATION TOOLS:
+- log_work_hours: Record employee work hours with overtime tracking
+- get_work_hours_summary: Get work hours summary for employees/projects
+- log_machine_hours: Track equipment/machinery usage hours
+- create_material: Add new materials to inventory
+- update_material_quantity: Adjust material stock levels
+- update_document: Modify document metadata (name, category, project)
+- delete_document: Remove documents from the system
+
+CAPABILITIES:
+- Answer questions about inventory, deliveries, quality, and operations
+- Create and log work hours for employees and machines
+- Add new materials and update stock quantities
+- Manage document metadata and organization
+- Generate reports and calculate business metrics
+- Provide forecasts and trend analysis
+
+GUIDELINES:
+- Always confirm before deleting or making significant changes
+- When logging hours, calculate overtime automatically (>8 hours)
+- For stock updates, show previous and new quantities
+- Be precise with dates and times (use ISO format)
+- Provide clear success/error messages
+- Ask for clarification if parameters are ambiguous
+
+Be helpful, accurate, and professional. Use tools to fetch real data and perform requested operations.`
       };
       const response = await ollamaService.chat(
         input.model,

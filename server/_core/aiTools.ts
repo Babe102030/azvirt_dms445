@@ -396,14 +396,497 @@ const calculateStatsTool: Tool = {
   },
 };
 
+/**
+ * Log work hours for an employee
+ */
+const logWorkHoursTool: Tool = {
+  name: 'log_work_hours',
+  description: 'Log or record work hours for an employee. Use this to track employee working time, overtime, and project assignments.',
+  parameters: {
+    type: 'object',
+    properties: {
+      employeeId: {
+        type: 'number',
+        description: 'ID of the employee',
+      },
+      projectId: {
+        type: 'number',
+        description: 'ID of the project (optional)',
+      },
+      date: {
+        type: 'string',
+        description: 'Date of work in ISO format (YYYY-MM-DD)',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Start time in ISO format',
+      },
+      endTime: {
+        type: 'string',
+        description: 'End time in ISO format (optional if ongoing)',
+      },
+      workType: {
+        type: 'string',
+        description: 'Type of work',
+        enum: ['regular', 'overtime', 'weekend', 'holiday'],
+      },
+      notes: {
+        type: 'string',
+        description: 'Additional notes about the work',
+      },
+    },
+    required: ['employeeId', 'date', 'startTime'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { employeeId, projectId, date, startTime, endTime, workType, notes } = params;
+
+    // Calculate hours worked if endTime is provided
+    let hoursWorked = null;
+    let overtimeHours = 0;
+    if (endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diffMs = end.getTime() - start.getTime();
+      hoursWorked = Math.round(diffMs / (1000 * 60 * 60)); // Convert to hours
+
+      // Calculate overtime (over 8 hours)
+      if (hoursWorked > 8) {
+        overtimeHours = hoursWorked - 8;
+      }
+    }
+
+    const [result] = await db.insert(workHours).values({
+      employeeId,
+      projectId: projectId || null,
+      date: new Date(date),
+      startTime: new Date(startTime),
+      endTime: endTime ? new Date(endTime) : null,
+      hoursWorked,
+      overtimeHours,
+      workType: workType || 'regular',
+      notes: notes || null,
+      status: 'pending',
+    });
+
+    return {
+      success: true,
+      workHourId: result.insertId,
+      hoursWorked,
+      overtimeHours,
+      message: 'Work hours logged successfully',
+    };
+  },
+};
+
+/**
+ * Get work hours summary
+ */
+const getWorkHoursSummaryTool: Tool = {
+  name: 'get_work_hours_summary',
+  description: 'Get summary of work hours for an employee or project. Returns total hours, overtime, and breakdown by work type.',
+  parameters: {
+    type: 'object',
+    properties: {
+      employeeId: {
+        type: 'number',
+        description: 'Filter by employee ID',
+      },
+      projectId: {
+        type: 'number',
+        description: 'Filter by project ID',
+      },
+      startDate: {
+        type: 'string',
+        description: 'Start date for summary (YYYY-MM-DD)',
+      },
+      endDate: {
+        type: 'string',
+        description: 'End date for summary (YYYY-MM-DD)',
+      },
+      status: {
+        type: 'string',
+        description: 'Filter by approval status',
+        enum: ['pending', 'approved', 'rejected'],
+      },
+    },
+    required: [],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { employeeId, projectId, startDate, endDate, status } = params;
+
+    let query = db.select().from(workHours);
+
+    const conditions = [];
+    if (employeeId) conditions.push(eq(workHours.employeeId, employeeId));
+    if (projectId) conditions.push(eq(workHours.projectId, projectId));
+    if (status) conditions.push(eq(workHours.status, status));
+    if (startDate) conditions.push(gte(workHours.date, new Date(startDate)));
+    if (endDate) conditions.push(lte(workHours.date, new Date(endDate)));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const results = await query;
+
+    // Calculate summary
+    const totalHours = results.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+    const totalOvertime = results.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
+    const byWorkType = results.reduce((acc, r) => {
+      acc[r.workType] = (acc[r.workType] || 0) + (r.hoursWorked || 0);
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      totalEntries: results.length,
+      totalHours,
+      totalOvertime,
+      regularHours: totalHours - totalOvertime,
+      byWorkType,
+      entries: results.slice(0, 10), // Return first 10 entries
+    };
+  },
+};
+
+/**
+ * Log machine work hours
+ */
+const logMachineHoursTool: Tool = {
+  name: 'log_machine_hours',
+  description: 'Log work hours for machinery/equipment. Track equipment usage, operator, and project assignment.',
+  parameters: {
+    type: 'object',
+    properties: {
+      machineId: {
+        type: 'number',
+        description: 'ID of the machine/equipment',
+      },
+      projectId: {
+        type: 'number',
+        description: 'ID of the project (optional)',
+      },
+      date: {
+        type: 'string',
+        description: 'Date of operation (YYYY-MM-DD)',
+      },
+      startTime: {
+        type: 'string',
+        description: 'Start time in ISO format',
+      },
+      endTime: {
+        type: 'string',
+        description: 'End time in ISO format (optional)',
+      },
+      operatorId: {
+        type: 'number',
+        description: 'ID of the operator/employee',
+      },
+      operatorName: {
+        type: 'string',
+        description: 'Name of the operator',
+      },
+      notes: {
+        type: 'string',
+        description: 'Notes about machine operation',
+      },
+    },
+    required: ['machineId', 'date', 'startTime'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { machineId, projectId, date, startTime, endTime, operatorId, operatorName, notes } = params;
+
+    // Calculate hours if endTime provided
+    let hoursWorked = null;
+    if (endTime) {
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+      const diffMs = end.getTime() - start.getTime();
+      hoursWorked = Math.round(diffMs / (1000 * 60 * 60));
+    }
+
+    const [result] = await db.insert(machineWorkHours).values({
+      machineId,
+      projectId: projectId || null,
+      date: new Date(date),
+      startTime: new Date(startTime),
+      endTime: endTime ? new Date(endTime) : null,
+      hoursWorked,
+      operatorId: operatorId || null,
+      operatorName: operatorName || null,
+      notes: notes || null,
+    });
+
+    return {
+      success: true,
+      machineWorkHourId: result.insertId,
+      hoursWorked,
+      message: 'Machine hours logged successfully',
+    };
+  },
+};
+
+/**
+ * Update document metadata
+ */
+const updateDocumentTool: Tool = {
+  name: 'update_document',
+  description: 'Update document metadata such as name, description, category, or project assignment.',
+  parameters: {
+    type: 'object',
+    properties: {
+      documentId: {
+        type: 'number',
+        description: 'ID of the document to update',
+      },
+      name: {
+        type: 'string',
+        description: 'New document name',
+      },
+      description: {
+        type: 'string',
+        description: 'New description',
+      },
+      category: {
+        type: 'string',
+        description: 'Document category',
+        enum: ['contract', 'blueprint', 'report', 'certificate', 'invoice', 'other'],
+      },
+      projectId: {
+        type: 'number',
+        description: 'Assign to project ID',
+      },
+    },
+    required: ['documentId'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { documentId, name, description, category, projectId } = params;
+
+    // Build update object with only provided fields
+    const updates: any = { updatedAt: new Date() };
+    if (name) updates.name = name;
+    if (description) updates.description = description;
+    if (category) updates.category = category;
+    if (projectId !== undefined) updates.projectId = projectId;
+
+    await db
+      .update(documents)
+      .set(updates)
+      .where(eq(documents.id, documentId));
+
+    return {
+      success: true,
+      documentId,
+      updated: Object.keys(updates).filter(k => k !== 'updatedAt'),
+      message: 'Document updated successfully',
+    };
+  },
+};
+
+/**
+ * Delete document
+ */
+const deleteDocumentTool: Tool = {
+  name: 'delete_document',
+  description: 'Delete a document from the system. This permanently removes the document record.',
+  parameters: {
+    type: 'object',
+    properties: {
+      documentId: {
+        type: 'number',
+        description: 'ID of the document to delete',
+      },
+    },
+    required: ['documentId'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { documentId } = params;
+
+    await db.delete(documents).where(eq(documents.id, documentId));
+
+    return {
+      success: true,
+      documentId,
+      message: 'Document deleted successfully',
+    };
+  },
+};
+
+/**
+ * Create material entry
+ */
+const createMaterialTool: Tool = {
+  name: 'create_material',
+  description: 'Add a new material to inventory. Use this to register new materials for tracking.',
+  parameters: {
+    type: 'object',
+    properties: {
+      name: {
+        type: 'string',
+        description: 'Material name',
+      },
+      category: {
+        type: 'string',
+        description: 'Material category',
+        enum: ['cement', 'aggregate', 'admixture', 'water', 'other'],
+      },
+      unit: {
+        type: 'string',
+        description: 'Unit of measurement (kg, m³, L, etc.)',
+      },
+      quantity: {
+        type: 'number',
+        description: 'Initial quantity',
+      },
+      minStock: {
+        type: 'number',
+        description: 'Minimum stock level for alerts',
+      },
+      supplier: {
+        type: 'string',
+        description: 'Supplier name',
+      },
+      unitPrice: {
+        type: 'number',
+        description: 'Price per unit',
+      },
+    },
+    required: ['name', 'unit'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { name, category, unit, quantity, minStock, supplier, unitPrice } = params;
+
+    const [result] = await db.insert(materials).values({
+      name,
+      category: category || 'other',
+      unit,
+      quantity: quantity || 0,
+      minStock: minStock || 0,
+      criticalThreshold: minStock ? Math.floor(minStock * 0.5) : 0,
+      supplier: supplier || null,
+      unitPrice: unitPrice || null,
+    });
+
+    return {
+      success: true,
+      materialId: result.insertId,
+      message: `Material "${name}" created successfully`,
+    };
+  },
+};
+
+/**
+ * Update material quantity
+ */
+const updateMaterialQuantityTool: Tool = {
+  name: 'update_material_quantity',
+  description: 'Update the quantity of a material in inventory. Use for stock adjustments, additions, or consumption.',
+  parameters: {
+    type: 'object',
+    properties: {
+      materialId: {
+        type: 'number',
+        description: 'ID of the material',
+      },
+      quantity: {
+        type: 'number',
+        description: 'New quantity value',
+      },
+      adjustment: {
+        type: 'number',
+        description: 'Amount to add (positive) or subtract (negative) from current quantity',
+      },
+    },
+    required: ['materialId'],
+  },
+  execute: async (params, userId) => {
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { materialId, quantity, adjustment } = params;
+
+    if (quantity !== undefined) {
+      // Set absolute quantity
+      await db
+        .update(materials)
+        .set({ quantity, updatedAt: new Date() })
+        .where(eq(materials.id, materialId));
+
+      return {
+        success: true,
+        materialId,
+        newQuantity: quantity,
+        message: 'Material quantity updated',
+      };
+    } else if (adjustment !== undefined) {
+      // Adjust by amount
+      const [material] = await db
+        .select()
+        .from(materials)
+        .where(eq(materials.id, materialId));
+
+      if (!material) {
+        return { error: 'Material not found' };
+      }
+
+      const newQuantity = material.quantity + adjustment;
+
+      await db
+        .update(materials)
+        .set({ quantity: newQuantity, updatedAt: new Date() })
+        .where(eq(materials.id, materialId));
+
+      return {
+        success: true,
+        materialId,
+        previousQuantity: material.quantity,
+        adjustment,
+        newQuantity,
+        message: `Material quantity ${adjustment > 0 ? 'increased' : 'decreased'} by ${Math.abs(adjustment)}`,
+      };
+    }
+
+    return { error: 'Either quantity or adjustment must be provided' };
+  },
+};
+
+// Import work hours and machine work hours from schema
+import { workHours, machineWorkHours } from '../../drizzle/schema';
+
 // Export all tools
 export const AI_TOOLS: Tool[] = [
+  // Read-only tools
   searchMaterialsTool,
   getDeliveryStatusTool,
   searchDocumentsTool,
   getQualityTestsTool,
   generateForecastTool,
   calculateStatsTool,
+  // Data manipulation tools
+  logWorkHoursTool,
+  getWorkHoursSummaryTool,
+  logMachineHoursTool,
+  updateDocumentTool,
+  deleteDocumentTool,
+  createMaterialTool,
+  updateMaterialQuantityTool,
 ];
 
 /**

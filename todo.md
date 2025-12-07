@@ -676,3 +676,16 @@
 - [x] Create 20 pre-built templates for common tasks
 - [x] Write vitest tests for template procedures (21/21 passing)
 - [x] Test template integration end-to-end
+
+
+## AI Data Manipulation Tools
+- [x] Design tool schemas for data entry operations
+- [x] Create material entry tools (create, update quantity)
+- [x] Create work hours tracking tools (log, get summary)
+- [x] Create machine hours tracking tools (log hours)
+- [x] Create document manipulation tools (update metadata, delete)
+- [x] Add 7 new tools to aiTools.ts with proper validation
+- [x] Update AI system prompt with new capabilities
+- [x] Create 7 prompt templates for data manipulation tasks
+- [x] Write vitest tests for all manipulation tools (15/15 passing)
+- [x] Test end-to-end data manipulation via AI chat

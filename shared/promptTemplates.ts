@@ -56,7 +56,71 @@ export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon
 };
 
 export const PROMPT_TEMPLATES: PromptTemplate[] = [
-  // Inventory Management Templates
+  // Data Entry & Manipulation Templates
+  {
+    id: 'log-employee-hours',
+    category: 'inventory',
+    title: 'Evidentiraj radne sate zaposlenika',
+    description: 'Zabilježi radne sate za zaposlenika sa automatskim računanjem prekovremenog rada',
+    prompt: 'Evidentiraj radne sate za zaposlenika ID [broj] na projektu [naziv projekta]. Radio je od [vrijeme početka] do [vrijeme kraja] dana [datum]. Tip rada: [regular/overtime/weekend/holiday].',
+    icon: 'Clock',
+    tags: ['radni sati', 'zaposlenici', 'evidencija'],
+  },
+  {
+    id: 'get-hours-summary',
+    category: 'reports',
+    title: 'Sažetak radnih sati',
+    description: 'Prikaži ukupne radne sate za zaposlenika ili projekat',
+    prompt: 'Prikaži mi sažetak radnih sati za zaposlenika ID [broj] u periodu od [datum početka] do [datum kraja]. Uključi ukupne sate, prekovremeni rad, i podjelu po tipu rada.',
+    icon: 'BarChart',
+    tags: ['izvještaj', 'radni sati', 'sažetak'],
+  },
+  {
+    id: 'log-machine-hours',
+    category: 'inventory',
+    title: 'Evidentiraj rad mašine',
+    description: 'Zabilježi sate rada opreme/mašine',
+    prompt: 'Evidentiraj rad mašine ID [broj] na projektu [naziv]. Mašina je radila od [vrijeme početka] do [vrijeme kraja] dana [datum]. Operater: [ime operatera].',
+    icon: 'Settings',
+    tags: ['mašine', 'oprema', 'evidencija'],
+  },
+  {
+    id: 'add-new-material',
+    category: 'inventory',
+    title: 'Dodaj novi materijal',
+    description: 'Kreiraj novi materijal u inventaru',
+    prompt: 'Dodaj novi materijal u inventar: naziv "[naziv]", kategorija [cement/aggregate/admixture/water/other], jedinica [kg/m³/L], početna količina [broj], minimalne zalihe [broj], dobavljač "[naziv dobavljača]", cijena po jedinici [broj].',
+    icon: 'Plus',
+    tags: ['materijal', 'inventar', 'kreiranje'],
+  },
+  {
+    id: 'update-stock-quantity',
+    category: 'inventory',
+    title: 'Ažuriraj količinu zaliha',
+    description: 'Promijeni količinu materijala u inventaru',
+    prompt: 'Ažuriraj količinu materijala ID [broj]: postavi na [nova količina] ili dodaj/oduzmi [+/- broj] od trenutne količine.',
+    icon: 'RefreshCw',
+    tags: ['zalihe', 'ažuriranje', 'inventar'],
+  },
+  {
+    id: 'update-document-info',
+    category: 'reports',
+    title: 'Ažuriraj informacije dokumenta',
+    description: 'Promijeni naziv, opis, ili kategoriju dokumenta',
+    prompt: 'Ažuriraj dokument ID [broj]: promijeni naziv na "[novi naziv]", opis na "[novi opis]", kategoriju na [contract/blueprint/report/certificate/invoice/other], i dodijeli projektu ID [broj].',
+    icon: 'Edit',
+    tags: ['dokument', 'ažuriranje', 'metadata'],
+  },
+  {
+    id: 'delete-document',
+    category: 'reports',
+    title: 'Obriši dokument',
+    description: 'Trajno ukloni dokument iz sistema',
+    prompt: 'Obriši dokument ID [broj] iz sistema. Potvrdi brisanje.',
+    icon: 'Trash2',
+    tags: ['dokument', 'brisanje', 'upravljanje'],
+  },
+  // Inventory Management Templates (existing)
   {
     id: 'check-low-stock',
     category: 'inventory',
