@@ -20,7 +20,8 @@ export type TemplateCategory =
   | 'quality'
   | 'reports'
   | 'analysis'
-  | 'forecasting';
+  | 'forecasting'
+  | 'bulk_import';
 
 export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon: string; description: string }> = {
   inventory: {
@@ -52,6 +53,11 @@ export const TEMPLATE_CATEGORIES: Record<TemplateCategory, { label: string; icon
     label: 'Prognoze',
     icon: 'LineChart',
     description: 'Predviđanje i planiranje',
+  },
+  bulk_import: {
+    label: 'Masovni unos',
+    icon: 'Upload',
+    description: 'Uvoz podataka iz CSV i Excel datoteka',
   },
 };
 
@@ -319,6 +325,60 @@ export const PROMPT_TEMPLATES: PromptTemplate[] = [
     prompt: 'Analiziraj sezonske varijacije u potrošnji i daj preporuke za planiranje zaliha za narednu sezonu.',
     icon: 'Sun',
     tags: ['sezonsko', 'planiranje', 'prognoza'],
+  },
+  {
+    id: 'import-work-hours-csv',
+    category: 'bulk_import',
+    title: 'Uvezi radne sate iz CSV',
+    description: 'Ucitaj radne sate zaposlenih iz CSV datoteke',
+    prompt: 'Uvezi radne sate zaposlenih iz CSV datoteke. Datoteka treba da sadrzi kolone: employeeId, date, startTime, endTime, projectId.',
+    icon: 'FileUp',
+    tags: ['radni sati', 'csv', 'zaposleni', 'uvoz'],
+  },
+  {
+    id: 'import-materials-excel',
+    category: 'bulk_import',
+    title: 'Uvezi materijale iz Excel',
+    description: 'Ucitaj materijale u inventar iz Excel datoteke',
+    prompt: 'Uvezi materijale u inventar iz Excel datoteke. Datoteka treba da sadrzi kolone: name, category, unit, quantity, minStock, supplier, unitPrice.',
+    icon: 'FileUp',
+    tags: ['materijali', 'excel', 'inventar', 'uvoz'],
+  },
+  {
+    id: 'import-documents-batch',
+    category: 'bulk_import',
+    title: 'Uvezi dokumente u batch',
+    description: 'Ucitaj vise dokumenata odjednom iz CSV datoteke',
+    prompt: 'Uvezi dokumente u sistem iz CSV datoteke. Datoteka treba da sadrzi kolone: name, fileUrl, fileKey, category, description, projectId.',
+    icon: 'FileUp',
+    tags: ['dokumenti', 'csv', 'batch', 'uvoz'],
+  },
+  {
+    id: 'bulk-update-stock',
+    category: 'bulk_import',
+    title: 'Masovna azuriranja zaliha',
+    description: 'Azuriraj kolicine materijala u batch operaciji',
+    prompt: 'Azuriraj kolicine vise materijala odjednom. Pripremi CSV datoteku sa kolonama: materialId, quantity ili adjustment za relativnu promenu.',
+    icon: 'RefreshCw',
+    tags: ['zalihe', 'azuriranje', 'batch', 'csv'],
+  },
+  {
+    id: 'import-quality-tests',
+    category: 'bulk_import',
+    title: 'Uvezi rezultate testova',
+    description: 'Ucitaj rezultate testova kvaliteta iz datoteke',
+    prompt: 'Uvezi rezultate testova kvalitete iz CSV datoteke. Datoteka treba da sadrzi: materialId, testType, result, date, notes.',
+    icon: 'FileUp',
+    tags: ['testovi', 'kvalitet', 'csv', 'uvoz'],
+  },
+  {
+    id: 'bulk-machine-hours',
+    category: 'bulk_import',
+    title: 'Uvezi sate masina',
+    description: 'Ucitaj sate rada masina iz datoteke',
+    prompt: 'Uvezi sate rada masina iz CSV datoteke. Datoteka treba da sadrzi: machineId, date, startTime, endTime, operatorId, projectId.',
+    icon: 'FileUp',
+    tags: ['masine', 'sati', 'csv', 'uvoz'],
   },
 ];
 

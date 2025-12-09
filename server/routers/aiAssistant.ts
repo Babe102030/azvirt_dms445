@@ -329,7 +329,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Get templates by category
    */
   getTemplatesByCategory: publicProcedure
-    .input(z.object({ category: z.enum(['inventory', 'deliveries', 'quality', 'reports', 'analysis', 'forecasting']) }))
+    .input(z.object({ category: z.enum(['inventory', 'deliveries', 'quality', 'reports', 'analysis', 'forecasting', 'bulk_import']) }))
     .query(async ({ input }) => {
       return getTemplatesByCategory(input.category as TemplateCategory);
     }),

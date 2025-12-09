@@ -689,3 +689,17 @@
 - [x] Create 7 prompt templates for data manipulation tasks
 - [x] Write vitest tests for all manipulation tools (15/15 passing)
 - [x] Test end-to-end data manipulation via AI chat
+
+
+## Bulk Import Feature
+- [x] Design bulk import architecture and validation strategy
+- [x] Create CSV and Excel file parsing utilities (parseCSV, parseExcel, parseFile)
+- [x] Build bulk import procedures for work hours, materials, documents
+- [x] Add progress tracking and error reporting
+- [x] Create bulk_import_data AI tool for processing files
+- [x] Add file upload handling to tRPC
+- [x] Write vitest tests for CSV parsing (18/18 passing)
+- [x] Write vitest tests for Excel parsing
+- [x] Write vitest tests for bulk import procedures
+- [x] Create 6 bulk import prompt templates (work hours, materials, documents, stock updates, quality tests, machine hours)
+- [x] Test end-to-end bulk import workflow

@@ -14,7 +14,8 @@ import {
   LineChart,
   Sparkles,
   Copy,
-  Check
+  Check,
+  Upload
 } from 'lucide-react';
 import { TEMPLATE_CATEGORIES, type TemplateCategory } from '../../../shared/promptTemplates';
 
@@ -29,6 +30,7 @@ const CATEGORY_ICONS: Record<TemplateCategory, any> = {
   reports: FileText,
   analysis: TrendingUp,
   forecasting: LineChart,
+  bulk_import: Upload,
 };
 
 export function PromptTemplates({ onSelectTemplate }: PromptTemplatesProps) {

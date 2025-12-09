@@ -7,10 +7,12 @@ import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import * as db from "./db";
 import { aiAssistantRouter } from "./routers/aiAssistant";
+import { bulkImportRouter } from "./routers/bulkImport";
 
 export const appRouter = router({
   system: systemRouter,
   ai: aiAssistantRouter,
+  bulkImport: bulkImportRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

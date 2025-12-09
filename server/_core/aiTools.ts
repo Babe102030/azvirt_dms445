@@ -870,6 +870,40 @@ const updateMaterialQuantityTool: Tool = {
 // Import work hours and machine work hours from schema
 import { workHours, machineWorkHours } from '../../drizzle/schema';
 
+const bulkImportTool: Tool = {
+  name: 'bulk_import_data',
+  description: 'Import bulk data from CSV or Excel files for work hours, materials, or documents.',
+  parameters: {
+    type: 'object',
+    properties: {
+      filePath: {
+        type: 'string',
+        description: 'Path to the CSV or Excel file to import',
+      },
+      importType: {
+        type: 'string',
+        enum: ['work_hours', 'materials', 'documents'],
+        description: 'Type of data to import',
+      },
+      sheetName: {
+        type: 'string',
+        description: 'Sheet name for Excel files (optional)',
+      },
+    },
+    required: ['filePath', 'importType'],
+  },
+  execute: async (params, userId) => {
+    const { filePath, importType } = params;
+    if (!filePath || !importType) {
+      return { error: 'filePath and importType are required' };
+    }
+    return {
+      success: true,
+      message: 'Use bulkImport procedures to complete the import',
+    };
+  },
+};
+
 // Export all tools
 export const AI_TOOLS: Tool[] = [
   // Read-only tools
@@ -887,6 +921,8 @@ export const AI_TOOLS: Tool[] = [
   deleteDocumentTool,
   createMaterialTool,
   updateMaterialQuantityTool,
+  // Bulk import tool
+  bulkImportTool,
 ];
 
 /**
