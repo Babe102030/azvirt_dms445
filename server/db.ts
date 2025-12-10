@@ -1271,3 +1271,140 @@ export async function getAiMessages(conversationId: number) {
     .where(eq(aiMessages.conversationId, conversationId))
     .orderBy(aiMessages.createdAt);
 }
+
+
+// ==================== DAILY TASKS ====================
+import { dailyTasks, InsertDailyTask, taskAssignments, InsertTaskAssignment, taskStatusHistory, InsertTaskStatusHistory } from "../drizzle/schema";
+import { ne } from "drizzle-orm";
+
+export async function createTask(task: InsertDailyTask) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(dailyTasks).values(task);
+  return result;
+}
+
+export async function getTasks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(dailyTasks).where(eq(dailyTasks.userId, userId)).orderBy(desc(dailyTasks.dueDate));
+}
+
+export async function getTaskById(taskId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(dailyTasks).where(eq(dailyTasks.id, taskId)).limit(1);
+  return result[0];
+}
+
+export async function updateTask(taskId: number, updates: Partial<InsertDailyTask>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(dailyTasks).set(updates).where(eq(dailyTasks.id, taskId));
+}
+
+export async function deleteTask(taskId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.delete(dailyTasks).where(eq(dailyTasks.id, taskId));
+}
+
+export async function getTasksByStatus(userId: number, status: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(dailyTasks)
+    .where(and(eq(dailyTasks.userId, userId), eq(dailyTasks.status, status as any)))
+    .orderBy(desc(dailyTasks.dueDate));
+}
+
+export async function getTasksByPriority(userId: number, priority: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(dailyTasks)
+    .where(and(eq(dailyTasks.userId, userId), eq(dailyTasks.priority, priority as any)))
+    .orderBy(desc(dailyTasks.dueDate));
+}
+
+export async function getOverdueTasks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(dailyTasks)
+    .where(and(
+      eq(dailyTasks.userId, userId),
+      lt(dailyTasks.dueDate, new Date()),
+      ne(dailyTasks.status, 'completed')
+    ))
+    .orderBy(dailyTasks.dueDate);
+}
+
+export async function getTodaysTasks(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  
+  return db.select().from(dailyTasks)
+    .where(and(
+      eq(dailyTasks.userId, userId),
+      gte(dailyTasks.dueDate, today),
+      lt(dailyTasks.dueDate, tomorrow)
+    ))
+    .orderBy(dailyTasks.dueDate);
+}
+
+// ==================== TASK ASSIGNMENTS ====================
+
+export async function assignTask(assignment: InsertTaskAssignment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(taskAssignments).values(assignment);
+}
+
+export async function getTaskAssignments(taskId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskAssignments).where(eq(taskAssignments.taskId, taskId));
+}
+
+export async function updateTaskAssignment(assignmentId: number, updates: Partial<InsertTaskAssignment>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(taskAssignments).set(updates).where(eq(taskAssignments.id, assignmentId));
+}
+
+export async function getAssignmentsForUser(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskAssignments).where(eq(taskAssignments.assignedTo, userId)).orderBy(desc(taskAssignments.assignedAt));
+}
+
+// ==================== TASK STATUS HISTORY ====================
+
+export async function recordTaskStatusChange(history: InsertTaskStatusHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(taskStatusHistory).values(history);
+}
+
+export async function getTaskHistory(taskId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskStatusHistory).where(eq(taskStatusHistory.taskId, taskId)).orderBy(desc(taskStatusHistory.createdAt));
+}

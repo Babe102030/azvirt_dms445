@@ -514,7 +514,7 @@ import { eq, desc, like, and, or, gte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
 // drizzle/schema.ts
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
 var users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -841,9 +841,46 @@ var aiModels = mysqlTable("ai_models", {
   description: text("description"),
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
+var dailyTasks = mysqlTable("daily_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  dueDate: timestamp("dueDate").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"]).default("pending").notNull(),
+  assignedTo: int("assignedTo"),
+  category: varchar("category", { length: 100 }),
+  tags: json("tags"),
+  attachments: json("attachments"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var taskAssignments = mysqlTable("task_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  assignedTo: int("assignedTo").notNull(),
+  assignedBy: int("assignedBy").notNull(),
+  responsibility: varchar("responsibility", { length: 255 }).notNull(),
+  completionPercentage: int("completionPercentage").default(0).notNull(),
+  notes: text("notes"),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var taskStatusHistory = mysqlTable("task_status_history", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  previousStatus: varchar("previousStatus", { length: 50 }),
+  newStatus: varchar("newStatus", { length: 50 }).notNull(),
+  changedBy: int("changedBy").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
 
 // server/db.ts
 init_env();
+import { ne } from "drizzle-orm";
 var _db = null;
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {

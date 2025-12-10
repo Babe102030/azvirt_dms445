@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -469,3 +469,61 @@ export const aiModels = mysqlTable("ai_models", {
 
 export type AiModel = typeof aiModels.$inferSelect;
 export type InsertAiModel = typeof aiModels.$inferInsert;
+
+
+/**
+ * Daily Tasks table for task management
+ */
+export const dailyTasks = mysqlTable("daily_tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  dueDate: timestamp("dueDate").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"]).default("pending").notNull(),
+  assignedTo: int("assignedTo"),
+  category: varchar("category", { length: 100 }),
+  tags: json("tags"),
+  attachments: json("attachments"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DailyTask = typeof dailyTasks.$inferSelect;
+export type InsertDailyTask = typeof dailyTasks.$inferInsert;
+
+/**
+ * Task Assignments table for responsibility tracking
+ */
+export const taskAssignments = mysqlTable("task_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  assignedTo: int("assignedTo").notNull(),
+  assignedBy: int("assignedBy").notNull(),
+  responsibility: varchar("responsibility", { length: 255 }).notNull(),
+  completionPercentage: int("completionPercentage").default(0).notNull(),
+  notes: text("notes"),
+  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaskAssignment = typeof taskAssignments.$inferSelect;
+export type InsertTaskAssignment = typeof taskAssignments.$inferInsert;
+
+/**
+ * Task Status History table for audit trail
+ */
+export const taskStatusHistory = mysqlTable("task_status_history", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  previousStatus: varchar("previousStatus", { length: 50 }),
+  newStatus: varchar("newStatus", { length: 50 }).notNull(),
+  changedBy: int("changedBy").notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TaskStatusHistory = typeof taskStatusHistory.$inferSelect;
+export type InsertTaskStatusHistory = typeof taskStatusHistory.$inferInsert;

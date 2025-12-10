@@ -703,3 +703,23 @@
 - [x] Write vitest tests for bulk import procedures
 - [x] Create 6 bulk import prompt templates (work hours, materials, documents, stock updates, quality tests, machine hours)
 - [x] Test end-to-end bulk import workflow
+
+
+## Dashboard Refinement - Voice & Tasks
+- [x] Design daily tasks and responsibility data structure
+- [x] Create daily_tasks table in database schema
+- [x] Create task_assignments table for responsibility tracking
+- [x] Create task_status_history table for audit trail
+- [x] Build backend helper functions for task CRUD operations
+- [x] Build backend helper functions for task status updates
+- [x] Build backend helper functions for task filtering and search
+- [ ] Create AI voice activation button component
+- [ ] Integrate Web Speech API for voice input
+- [ ] Add voice command parsing and routing to AI Assistant
+- [ ] Create daily tasks dashboard widget
+- [ ] Create responsibility assignment interface
+- [ ] Add task priority and deadline management
+- [ ] Build task completion tracking UI
+- [ ] Add task notifications and reminders
+- [ ] Write vitest tests for task procedures
+- [ ] Test voice activation end-to-end
