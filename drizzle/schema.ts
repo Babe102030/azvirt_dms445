@@ -527,3 +527,68 @@ export const taskStatusHistory = mysqlTable("task_status_history", {
 
 export type TaskStatusHistory = typeof taskStatusHistory.$inferSelect;
 export type InsertTaskStatusHistory = typeof taskStatusHistory.$inferInsert;
+
+
+/**
+ * Task Notifications table for tracking task-related notifications
+ */
+export const taskNotifications = mysqlTable("task_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["overdue_reminder", "completion_confirmation", "assignment", "status_change", "comment"]).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  status: mysqlEnum("status", ["pending", "sent", "failed", "read"]).default("pending").notNull(),
+  channels: json("channels"), // Array of 'email', 'sms', 'in_app'
+  scheduledFor: timestamp("scheduledFor"),
+  sentAt: timestamp("sentAt"),
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TaskNotification = typeof taskNotifications.$inferSelect;
+export type InsertTaskNotification = typeof taskNotifications.$inferInsert;
+
+/**
+ * Notification Preferences table for user notification settings
+ */
+export const notificationPreferences = mysqlTable("notification_preferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().unique(),
+  emailEnabled: boolean("emailEnabled").default(true).notNull(),
+  smsEnabled: boolean("smsEnabled").default(false).notNull(),
+  inAppEnabled: boolean("inAppEnabled").default(true).notNull(),
+  overdueReminders: boolean("overdueReminders").default(true).notNull(),
+  completionNotifications: boolean("completionNotifications").default(true).notNull(),
+  assignmentNotifications: boolean("assignmentNotifications").default(true).notNull(),
+  statusChangeNotifications: boolean("statusChangeNotifications").default(true).notNull(),
+  quietHoursStart: varchar("quietHoursStart", { length: 5 }), // HH:MM format
+  quietHoursEnd: varchar("quietHoursEnd", { length: 5 }), // HH:MM format
+  timezone: varchar("timezone", { length: 50 }).default("UTC").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = typeof notificationPreferences.$inferInsert;
+
+/**
+ * Notification History table for audit trail and analytics
+ */
+export const notificationHistory = mysqlTable("notification_history", {
+  id: int("id").autoincrement().primaryKey(),
+  notificationId: int("notificationId").notNull(),
+  userId: int("userId").notNull(),
+  channel: mysqlEnum("channel", ["email", "sms", "in_app"]).notNull(),
+  status: mysqlEnum("status", ["sent", "failed", "bounced", "opened"]).notNull(),
+  recipient: varchar("recipient", { length: 255 }).notNull(),
+  errorMessage: text("errorMessage"),
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+  openedAt: timestamp("openedAt"),
+  metadata: json("metadata"), // Additional tracking data
+});
+
+export type NotificationHistoryRecord = typeof notificationHistory.$inferSelect;
+export type InsertNotificationHistory = typeof notificationHistory.$inferInsert;

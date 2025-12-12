@@ -1408,3 +1408,162 @@ export async function getTaskHistory(taskId: number) {
   
   return db.select().from(taskStatusHistory).where(eq(taskStatusHistory.taskId, taskId)).orderBy(desc(taskStatusHistory.createdAt));
 }
+
+
+// ==================== TASK NOTIFICATIONS ====================
+import { taskNotifications, InsertTaskNotification, notificationPreferences, InsertNotificationPreference, notificationHistory, InsertNotificationHistory } from "../drizzle/schema";
+
+export async function createNotification(notification: InsertTaskNotification) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(taskNotifications).values(notification);
+  return result;
+}
+
+export async function getNotifications(userId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskNotifications)
+    .where(eq(taskNotifications.userId, userId))
+    .orderBy(desc(taskNotifications.createdAt))
+    .limit(limit);
+}
+
+export async function getUnreadNotifications(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskNotifications)
+    .where(and(
+      eq(taskNotifications.userId, userId),
+      ne(taskNotifications.status, 'read')
+    ))
+    .orderBy(desc(taskNotifications.createdAt));
+}
+
+export async function markNotificationAsRead(notificationId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(taskNotifications)
+    .set({ status: 'read', readAt: new Date() })
+    .where(eq(taskNotifications.id, notificationId));
+}
+
+export async function updateNotificationStatus(notificationId: number, status: string, sentAt?: Date) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(taskNotifications)
+    .set({ status: status as any, sentAt: sentAt || new Date() })
+    .where(eq(taskNotifications.id, notificationId));
+}
+
+export async function getPendingNotifications() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(taskNotifications)
+    .where(eq(taskNotifications.status, 'pending'))
+    .orderBy(taskNotifications.scheduledFor);
+}
+
+// ==================== NOTIFICATION PREFERENCES ====================
+
+export async function getOrCreateNotificationPreferences(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const existing = await db.select().from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    return existing[0];
+  }
+  
+  // Create default preferences
+  const result = await db.insert(notificationPreferences).values({
+    userId,
+    emailEnabled: true,
+    smsEnabled: false,
+    inAppEnabled: true,
+    overdueReminders: true,
+    completionNotifications: true,
+    assignmentNotifications: true,
+    statusChangeNotifications: true,
+    timezone: 'UTC',
+  });
+  
+  return result;
+}
+
+export async function updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreference>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(notificationPreferences)
+    .set(preferences)
+    .where(eq(notificationPreferences.userId, userId));
+}
+
+export async function getNotificationPreferences(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select().from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId))
+    .limit(1);
+  
+  return result[0] || null;
+}
+
+// ==================== NOTIFICATION HISTORY ====================
+
+export async function recordNotificationHistory(history: InsertNotificationHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(notificationHistory).values(history);
+}
+
+export async function getNotificationHistory(notificationId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationHistory)
+    .where(eq(notificationHistory.notificationId, notificationId))
+    .orderBy(desc(notificationHistory.sentAt));
+}
+
+export async function getNotificationHistoryByUser(userId: number, days: number = 30) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  
+  return db.select().from(notificationHistory)
+    .where(and(
+      eq(notificationHistory.userId, userId),
+      gte(notificationHistory.sentAt, cutoffDate)
+    ))
+    .orderBy(desc(notificationHistory.sentAt));
+}
+
+export async function getFailedNotifications(hours: number = 24) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const cutoffDate = new Date();
+  cutoffDate.setHours(cutoffDate.getHours() - hours);
+  
+  return db.select().from(notificationHistory)
+    .where(and(
+      eq(notificationHistory.status, 'failed'),
+      gte(notificationHistory.sentAt, cutoffDate)
+    ))
+    .orderBy(desc(notificationHistory.sentAt));
+}

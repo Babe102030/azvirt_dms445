@@ -8,11 +8,13 @@ import { nanoid } from "nanoid";
 import * as db from "./db";
 import { aiAssistantRouter } from "./routers/aiAssistant";
 import { bulkImportRouter } from "./routers/bulkImport";
+import { notificationsRouter } from "./routers/notifications";
 
 export const appRouter = router({
   system: systemRouter,
   ai: aiAssistantRouter,
   bulkImport: bulkImportRouter,
+  notifications: notificationsRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

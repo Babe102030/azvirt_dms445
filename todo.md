@@ -723,3 +723,22 @@
 - [ ] Add task notifications and reminders
 - [ ] Write vitest tests for task procedures
 - [ ] Test voice activation end-to-end
+
+
+## Task Notifications System
+- [x] Design notification schema (type, status, recipient, channels)
+- [x] Design user notification preferences (email enabled, SMS enabled, quiet hours)
+- [x] Create task_notifications table in database
+- [x] Create notification_preferences table
+- [x] Create notification_history table for audit trail
+- [x] Build NotificationService with email integration (SendGrid)
+- [x] Build SMS integration (placeholder for Twilio)
+- [x] Create tRPC procedures for notification CRUD
+- [x] Create tRPC procedures for notification preferences
+- [x] Implement scheduled job for overdue task reminders
+- [x] Implement completion confirmation notifications
+- [x] Add notification UI components (NotificationCenter, NotificationPreferences)
+- [x] Create notification preferences panel
+- [x] Write vitest tests for notification service (18/18 passing)
+- [x] Write vitest tests for scheduled jobs
+- [x] Test end-to-end notification workflow
