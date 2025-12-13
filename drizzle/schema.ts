@@ -592,3 +592,77 @@ export const notificationHistory = mysqlTable("notification_history", {
 
 export type NotificationHistoryRecord = typeof notificationHistory.$inferSelect;
 export type InsertNotificationHistory = typeof notificationHistory.$inferInsert;
+
+
+/**
+ * Notification Templates table for customizable notification messages
+ */
+export const notificationTemplates = mysqlTable("notification_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  createdBy: int("createdBy").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  bodyText: text("bodyText").notNull(),
+  bodyHtml: text("bodyHtml"),
+  channels: json("channels").$type<("email" | "sms" | "in_app")[]>().notNull(),
+  variables: json("variables").$type<string[]>(),
+  tags: json("tags").$type<string[]>(),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationTemplate = typeof notificationTemplates.$inferSelect;
+export type InsertNotificationTemplate = typeof notificationTemplates.$inferInsert;
+
+/**
+ * Notification Triggers table for rule-based notification automation
+ */
+export const notificationTriggers = mysqlTable("notification_triggers", {
+  id: int("id").autoincrement().primaryKey(),
+  createdBy: int("createdBy").notNull(),
+  templateId: int("templateId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  triggerCondition: json("triggerCondition").$type<{
+    operator: "and" | "or";
+    conditions: Array<{
+      field: string;
+      operator: "equals" | "not_equals" | "greater_than" | "less_than" | "contains" | "in";
+      value: any;
+    }>;
+  }>().notNull(),
+  actions: json("actions").$type<{
+    notifyUsers: "assignee" | "manager" | "all" | string[];
+    sendImmediately: boolean;
+    delayMinutes?: number;
+    maxNotificationsPerDay?: number;
+  }>().notNull(),
+  isActive: boolean("isActive").notNull().default(true),
+  lastTriggeredAt: timestamp("lastTriggeredAt"),
+  triggerCount: int("triggerCount").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type NotificationTrigger = typeof notificationTriggers.$inferSelect;
+export type InsertNotificationTrigger = typeof notificationTriggers.$inferInsert;
+
+/**
+ * Trigger Execution Log table for tracking trigger evaluations
+ */
+export const triggerExecutionLog = mysqlTable("trigger_execution_log", {
+  id: int("id").autoincrement().primaryKey(),
+  triggerId: int("triggerId").notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: int("entityId").notNull(),
+  conditionsMet: boolean("conditionsMet").notNull(),
+  notificationsSent: int("notificationsSent").notNull().default(0),
+  error: text("error"),
+  executedAt: timestamp("executedAt").defaultNow().notNull(),
+});
+
+export type TriggerExecutionLog = typeof triggerExecutionLog.$inferSelect;
+export type InsertTriggerExecutionLog = typeof triggerExecutionLog.$inferInsert;

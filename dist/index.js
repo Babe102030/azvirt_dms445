@@ -924,6 +924,46 @@ var notificationHistory = mysqlTable("notification_history", {
   metadata: json("metadata")
   // Additional tracking data
 });
+var notificationTemplates = mysqlTable("notification_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  createdBy: int("createdBy").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  subject: varchar("subject", { length: 255 }).notNull(),
+  bodyText: text("bodyText").notNull(),
+  bodyHtml: text("bodyHtml"),
+  channels: json("channels").$type().notNull(),
+  variables: json("variables").$type(),
+  tags: json("tags").$type(),
+  isActive: boolean("isActive").notNull().default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var notificationTriggers = mysqlTable("notification_triggers", {
+  id: int("id").autoincrement().primaryKey(),
+  createdBy: int("createdBy").notNull(),
+  templateId: int("templateId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  eventType: varchar("eventType", { length: 100 }).notNull(),
+  triggerCondition: json("triggerCondition").$type().notNull(),
+  actions: json("actions").$type().notNull(),
+  isActive: boolean("isActive").notNull().default(true),
+  lastTriggeredAt: timestamp("lastTriggeredAt"),
+  triggerCount: int("triggerCount").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var triggerExecutionLog = mysqlTable("trigger_execution_log", {
+  id: int("id").autoincrement().primaryKey(),
+  triggerId: int("triggerId").notNull(),
+  entityType: varchar("entityType", { length: 100 }).notNull(),
+  entityId: int("entityId").notNull(),
+  conditionsMet: boolean("conditionsMet").notNull(),
+  notificationsSent: int("notificationsSent").notNull().default(0),
+  error: text("error"),
+  executedAt: timestamp("executedAt").defaultNow().notNull()
+});
 
 // server/db.ts
 init_env();

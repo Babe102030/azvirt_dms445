@@ -23,7 +23,10 @@ import {
   reportSettings,
   reportRecipients,
   emailBranding,
-  emailTemplates
+  emailTemplates,
+  notificationTemplates,
+  notificationTriggers,
+  triggerExecutionLog
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1566,4 +1569,158 @@ export async function getFailedNotifications(hours: number = 24) {
       gte(notificationHistory.sentAt, cutoffDate)
     ))
     .orderBy(desc(notificationHistory.sentAt));
+}
+
+
+// ==================== NOTIFICATION TEMPLATES ====================
+export async function getNotificationTemplates(limit = 50, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationTemplates).limit(limit).offset(offset).orderBy(desc(notificationTemplates.createdAt));
+}
+
+export async function getNotificationTemplate(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(notificationTemplates).where(eq(notificationTemplates.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createNotificationTemplate(data: {
+  createdBy: number;
+  name: string;
+  description?: string;
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+  channels: ("email" | "sms" | "in_app")[];
+  variables?: string[];
+  tags?: string[];
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(notificationTemplates).values({
+    createdBy: data.createdBy,
+    name: data.name,
+    description: data.description || null,
+    subject: data.subject,
+    bodyText: data.bodyText,
+    bodyHtml: data.bodyHtml || null,
+    channels: JSON.stringify(data.channels) as any,
+    variables: data.variables ? JSON.stringify(data.variables) : null,
+    tags: data.tags ? JSON.stringify(data.tags) : null,
+  } as any);
+}
+
+export async function updateNotificationTemplate(id: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(notificationTemplates).set(data).where(eq(notificationTemplates.id, id));
+}
+
+export async function deleteNotificationTemplate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.delete(notificationTemplates).where(eq(notificationTemplates.id, id));
+}
+
+// ==================== NOTIFICATION TRIGGERS ====================
+export async function getNotificationTriggers(limit = 50, offset = 0) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationTriggers).limit(limit).offset(offset).orderBy(desc(notificationTriggers.createdAt));
+}
+
+export async function getNotificationTrigger(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  
+  const result = await db.select().from(notificationTriggers).where(eq(notificationTriggers.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getTriggersByTemplate(templateId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationTriggers).where(eq(notificationTriggers.templateId, templateId)).orderBy(desc(notificationTriggers.createdAt));
+}
+
+export async function getTriggersByEventType(eventType: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationTriggers).where(eq(notificationTriggers.eventType, eventType)).orderBy(desc(notificationTriggers.createdAt));
+}
+
+export async function getActiveTriggers() {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(notificationTriggers).where(eq(notificationTriggers.isActive, true)).orderBy(desc(notificationTriggers.createdAt));
+}
+
+export async function createNotificationTrigger(data: {
+  createdBy: number;
+  templateId: number;
+  name: string;
+  description?: string;
+  eventType: string;
+  triggerCondition: any;
+  actions: any;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(notificationTriggers).values({
+    createdBy: data.createdBy,
+    templateId: data.templateId,
+    name: data.name,
+    description: data.description || null,
+    eventType: data.eventType,
+    triggerCondition: JSON.stringify(data.triggerCondition) as any,
+    actions: JSON.stringify(data.actions) as any,
+  } as any)
+}
+
+export async function updateNotificationTrigger(id: number, data: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.update(notificationTriggers).set(data).where(eq(notificationTriggers.id, id));
+}
+
+export async function deleteNotificationTrigger(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.delete(notificationTriggers).where(eq(notificationTriggers.id, id));
+}
+
+// ==================== TRIGGER EXECUTION LOG ====================
+export async function recordTriggerExecution(data: {
+  triggerId: number;
+  entityType: string;
+  entityId: number;
+  conditionsMet: boolean;
+  notificationsSent: number;
+  error?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  return db.insert(triggerExecutionLog).values(data);
+}
+
+export async function getTriggerExecutionLog(triggerId: number, limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db.select().from(triggerExecutionLog).where(eq(triggerExecutionLog.triggerId, triggerId)).limit(limit).orderBy(desc(triggerExecutionLog.executedAt));
 }

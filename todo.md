@@ -742,3 +742,25 @@
 - [x] Write vitest tests for notification service (18/18 passing)
 - [x] Write vitest tests for scheduled jobs
 - [x] Test end-to-end notification workflow
+
+
+## Notification Templates & Triggers
+- [x] Design template schema (name, subject, body, variables, channels)
+- [x] Design trigger schema (event type, conditions, actions, enabled)
+- [x] Create notification_templates table
+- [x] Create notification_triggers table
+- [x] Create trigger_execution_log table for audit trail
+- [x] Build template CRUD helper functions in db.ts
+- [x] Build trigger CRUD helper functions in db.ts
+- [ ] Create trigger evaluation engine
+- [ ] Implement stock threshold trigger
+- [ ] Implement overdue task trigger
+- [ ] Implement task completion trigger
+- [ ] Implement delivery delay trigger
+- [ ] Create admin template management UI
+- [ ] Create admin trigger management UI
+- [ ] Add template variable preview
+- [ ] Add trigger condition builder
+- [ ] Write vitest tests for template system
+- [ ] Write vitest tests for trigger evaluation
+- [ ] Test end-to-end template and trigger workflow
