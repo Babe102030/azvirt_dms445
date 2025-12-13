@@ -1,16 +1,25 @@
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
 import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
-import { FileText, Package, Truck, FlaskConical, Folder, TrendingUp } from "lucide-react";
+import DashboardFilters from "@/components/DashboardFilters";
+import { 
+  FileText, Package, Truck, FlaskConical, Folder, TrendingUp, 
+  AlertCircle, CheckCircle, Clock, Search, Filter, Download, Activity
+} from "lucide-react";
 import { Link } from "wouter";
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({});
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, {
     enabled: !!user,
   });
@@ -47,55 +56,159 @@ export default function Home() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Kontrolna tabla</h1>
-          <p className="text-white/70">Dobrodošli u AzVirt sistem za upravljanje dokumentima</p>
+        {/* Enhanced Header with Search and Filters */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Kontrolna tabla</h1>
+            <p className="text-white/70">Dobrodošli u AzVirt sistem za upravljanje dokumentima</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <div className="relative flex-1 md:flex-initial min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pretraži..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-card/50 border-primary/20"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon">
+              <Download className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
+        {/* Filters Panel */}
+        {showFilters && (
+          <DashboardFilters 
+            onFilterChange={setFilters}
+            onClose={() => setShowFilters(false)}
+          />
+        )}
+
+        {/* Alert Banners */}
+        <div className="space-y-3">
+          {(stats?.lowStockMaterials ?? 0) > 0 && (
+            <div className="flex items-start gap-3 p-4 rounded-lg border bg-yellow-500/10 border-yellow-500/20 text-yellow-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold">Niska zaliha</h3>
+                <p className="text-sm">{stats?.lowStockMaterials} artikala ima nisku zalihu. Preporučuje se dopuna.</p>
+              </div>
+            </div>
+          )}
+          {(stats?.todayDeliveries ?? 0) > 0 && (
+            <div className="flex items-start gap-3 p-4 rounded-lg border bg-blue-500/10 border-blue-500/20 text-blue-700">
+              <Clock className="h-5 w-5 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold">Zakazane isporuke</h3>
+                <p className="text-sm">Danas je zakazano {stats?.todayDeliveries} isporuke. Proverite status.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Main Stats Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aktivni projekti</CardTitle>
-              <Folder className="h-4 w-4 text-primary" />
+          <Link href="/projects">
+            <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Aktivni projekti</CardTitle>
+                <Folder className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.activeProjects ?? 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.totalProjects ?? 0} ukupno projekata
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/documents">
+            <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Dokumenti</CardTitle>
+                <FileText className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.totalDocuments ?? 0}</div>
+                <p className="text-xs text-muted-foreground">Ukupno sačuvanih fajlova</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/deliveries">
+            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
+              (stats?.todayDeliveries ?? 0) > 0 
+                ? "border-yellow-500/20 hover:border-yellow-500/40" 
+                : "border-primary/20 hover:border-primary/40"
+            }`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Današnje isporuke</CardTitle>
+                <Truck className={`h-4 w-4 ${(stats?.todayDeliveries ?? 0) > 0 ? "text-yellow-500" : "text-primary"}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.todayDeliveries ?? 0}</div>
+                <p className="text-xs text-muted-foreground">Zakazano za danas</p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/materials">
+            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
+              (stats?.lowStockMaterials ?? 0) > 0 
+                ? "border-red-500/20 hover:border-red-500/40" 
+                : "border-primary/20 hover:border-primary/40"
+            }`}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Artikli sa niskim zalihama</CardTitle>
+                <Package className={`h-4 w-4 ${(stats?.lowStockMaterials ?? 0) > 0 ? "text-red-500" : "text-primary"}`} />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.lowStockMaterials ?? 0}</div>
+                <p className="text-xs text-muted-foreground">Potrebna dopuna</p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="bg-card/90 backdrop-blur border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Ukupno materijala</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.activeProjects ?? 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.totalProjects ?? 0} ukupno projekata
-              </p>
+              <div className="text-2xl font-bold">{stats?.totalMaterials ?? 0}</div>
+              <p className="text-xs text-muted-foreground">U skladištu</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Dokumenti</CardTitle>
-              <FileText className="h-4 w-4 text-primary" />
+          <Card className="bg-card/90 backdrop-blur border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Testovi na čekanju</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalDocuments ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Ukupno sačuvanih fajlova</p>
+              <div className="text-2xl font-bold text-yellow-500">{stats?.pendingTests ?? 0}</div>
+              <p className="text-xs text-muted-foreground">Čeka se obrada</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Današnje isporuke</CardTitle>
-              <Truck className="h-4 w-4 text-primary" />
+          <Card className="bg-card/90 backdrop-blur border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Ukupno isporuka</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.todayDeliveries ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Zakazano za danas</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Artikli sa niskim zalihama</CardTitle>
-              <Package className="h-4 w-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.lowStockMaterials ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Potrebna dopuna</p>
+              <div className="text-2xl font-bold">{stats?.totalDeliveries ?? 0}</div>
+              <p className="text-xs text-muted-foreground">Sve isporuke</p>
             </CardContent>
           </Card>
         </div>
