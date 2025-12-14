@@ -782,3 +782,19 @@
 - [x] Add dark mode toggle and theme customization
 - [x] Create dashboard widget customization (reorder, hide/show)
 - [x] Add performance optimization and caching
+
+
+## Dashboard Widget Customization
+- [x] Design widget configuration schema (id, title, visible, width, order)
+- [x] Create widget configuration management hook (useDashboardWidgets)
+- [x] Implement local storage persistence for widget layouts
+- [x] Build drag-and-drop reordering with native HTML5 drag API
+- [x] Create widget visibility toggle UI with eye icons
+- [x] Implement widget resize functionality (full, half, third, quarter)
+- [x] Add reset to default layout button
+- [x] Create preset layout templates (Manager, Supervisor, Worker)
+- [x] Build customization settings panel (DashboardCustomizer)
+- [x] Add widget configuration export/import via localStorage
+- [x] Create CustomizableDashboard page with dynamic widget rendering
+- [x] Implement drag-and-drop reordering with visual feedback
+- [x] Test persistence across page reloads (localStorage integration)
