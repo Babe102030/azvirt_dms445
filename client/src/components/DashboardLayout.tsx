@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot, BellRing } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -45,6 +45,7 @@ const menuItems = [
   { icon: Mail, label: "Postavke izvještaja", path: "/report-settings" },
   { icon: Palette, label: "Email branding", path: "/email-branding" },
   { icon: Bot, label: "AI Asistent", path: "/ai-assistant" },
+  { icon: BellRing, label: "Šabloni obavještenja", path: "/notification-templates" },
   { icon: Settings, label: "Podešavanja", path: "/settings" },
 ];
 

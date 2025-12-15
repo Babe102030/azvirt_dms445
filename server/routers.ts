@@ -9,12 +9,14 @@ import * as db from "./db";
 import { aiAssistantRouter } from "./routers/aiAssistant";
 import { bulkImportRouter } from "./routers/bulkImport";
 import { notificationsRouter } from "./routers/notifications";
+import { notificationTemplatesRouter } from "./routers/notificationTemplates";
 
 export const appRouter = router({
   system: systemRouter,
   ai: aiAssistantRouter,
   bulkImport: bulkImportRouter,
   notifications: notificationsRouter,
+  notificationTemplates: notificationTemplatesRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

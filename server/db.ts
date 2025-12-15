@@ -1602,7 +1602,7 @@ export async function createNotificationTemplate(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  return db.insert(notificationTemplates).values({
+  const result = await db.insert(notificationTemplates).values({
     createdBy: data.createdBy,
     name: data.name,
     description: data.description || null,
@@ -1613,6 +1613,10 @@ export async function createNotificationTemplate(data: {
     variables: data.variables ? JSON.stringify(data.variables) : null,
     tags: data.tags ? JSON.stringify(data.tags) : null,
   } as any);
+  
+  // Extract insertId from MySQL result
+  const insertId = (result as any)[0]?.insertId;
+  return { insertId };
 }
 
 export async function updateNotificationTemplate(id: number, data: any) {
@@ -1678,7 +1682,7 @@ export async function createNotificationTrigger(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  return db.insert(notificationTriggers).values({
+  const result = await db.insert(notificationTriggers).values({
     createdBy: data.createdBy,
     templateId: data.templateId,
     name: data.name,
@@ -1686,7 +1690,10 @@ export async function createNotificationTrigger(data: {
     eventType: data.eventType,
     triggerCondition: JSON.stringify(data.triggerCondition) as any,
     actions: JSON.stringify(data.actions) as any,
-  } as any)
+  } as any);
+  
+  const insertId = (result as any)[0]?.insertId;
+  return { insertId }
 }
 
 export async function updateNotificationTrigger(id: number, data: any) {

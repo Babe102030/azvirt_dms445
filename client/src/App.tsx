@@ -22,6 +22,7 @@ import ReportSettings from "./pages/ReportSettings";
 import EmailBrandingSettings from "./pages/EmailBrandingSettings";
 import AIAssistant from "./pages/AIAssistant";
 import CustomizableDashboard from "./pages/CustomizableDashboard";
+import NotificationTemplates from "./pages/NotificationTemplates";
 
 function Router() {
   return (
@@ -44,6 +45,7 @@ function Router() {
       <Route path={"/email-branding"} component={EmailBrandingSettings} />
       <Route path={"/ai-assistant"} component={AIAssistant} />
       <Route path={"/dashboard-custom"} component={CustomizableDashboard} />
+      <Route path={"/notification-templates"} component={NotificationTemplates} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

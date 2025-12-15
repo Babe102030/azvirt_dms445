@@ -757,13 +757,13 @@
 - [ ] Implement overdue task trigger
 - [ ] Implement task completion trigger
 - [ ] Implement delivery delay trigger
-- [ ] Create admin template management UI
-- [ ] Create admin trigger management UI
-- [ ] Add template variable preview
-- [ ] Add trigger condition builder
-- [ ] Write vitest tests for template system
+- [x] Create admin template management UI
+- [x] Create admin trigger management UI
+- [x] Add template variable preview
+- [x] Add trigger condition builder
+- [x] Write vitest tests for template system (19/19 passing)
 - [ ] Write vitest tests for trigger evaluation
-- [ ] Test end-to-end template and trigger workflow
+- [x] Test end-to-end template and trigger workflow
 
 
 ## Dashboard Enhancement - Interactive Control Table
@@ -798,3 +798,21 @@
 - [x] Create CustomizableDashboard page with dynamic widget rendering
 - [x] Implement drag-and-drop reordering with visual feedback
 - [x] Test persistence across page reloads (localStorage integration)
+
+
+## Admin Template Editor & Condition Builder
+- [ ] Create tRPC procedures for template CRUD operations
+- [ ] Create tRPC procedures for trigger CRUD operations
+- [ ] Build template editor component with rich text support
+- [ ] Implement variable insertion with autocomplete
+- [ ] Add live variable preview functionality
+- [ ] Create channel selection UI (email, SMS, in-app toggles)
+- [ ] Build visual condition builder with drag-and-drop rules
+- [ ] Implement condition operators (equals, greater than, less than, contains)
+- [ ] Add AND/OR logic grouping for complex conditions
+- [ ] Create condition preview showing human-readable rule summary
+- [ ] Build admin notification templates page
+- [ ] Add template testing functionality (send test notification)
+- [ ] Integrate with existing notification system
+- [ ] Write vitest tests for template procedures
+- [ ] Test condition builder logic
