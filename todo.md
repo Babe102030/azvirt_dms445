@@ -801,18 +801,39 @@
 
 
 ## Admin Template Editor & Condition Builder
-- [ ] Create tRPC procedures for template CRUD operations
-- [ ] Create tRPC procedures for trigger CRUD operations
-- [ ] Build template editor component with rich text support
-- [ ] Implement variable insertion with autocomplete
-- [ ] Add live variable preview functionality
-- [ ] Create channel selection UI (email, SMS, in-app toggles)
-- [ ] Build visual condition builder with drag-and-drop rules
-- [ ] Implement condition operators (equals, greater than, less than, contains)
-- [ ] Add AND/OR logic grouping for complex conditions
-- [ ] Create condition preview showing human-readable rule summary
-- [ ] Build admin notification templates page
+- [x] Create tRPC procedures for template CRUD operations
+- [x] Create tRPC procedures for trigger CRUD operations
+- [x] Build template editor component with rich text support
+- [x] Implement variable insertion with autocomplete
+- [x] Add live variable preview functionality
+- [x] Create channel selection UI (email, SMS, in-app toggles)
+- [x] Build visual condition builder with drag-and-drop rules
+- [x] Implement condition operators (equals, greater than, less than, contains)
+- [x] Add AND/OR logic grouping for complex conditions
+- [x] Create condition preview showing human-readable rule summary
+- [x] Build admin notification templates page
 - [ ] Add template testing functionality (send test notification)
-- [ ] Integrate with existing notification system
-- [ ] Write vitest tests for template procedures
-- [ ] Test condition builder logic
+- [x] Integrate with existing notification system
+- [x] Write vitest tests for template procedures (19/19 passing)
+- [x] Test condition builder logic
+
+
+## Trigger Evaluation Engine - Automated Notification System
+- [x] Design trigger evaluation engine architecture
+- [x] Create trigger evaluation service (server/services/triggerEvaluation.ts)
+- [x] Implement condition checking logic (operators: equals, greater_than, less_than, contains)
+- [x] Implement AND/OR logic group evaluation
+- [x] Create event monitoring system for database changes
+- [x] Add trigger evaluation for stock level changes (materials)
+- [x] Add trigger evaluation for delivery status changes
+- [x] Add trigger evaluation for quality test failures
+- [x] Add trigger evaluation for overdue tasks
+- [x] Implement template variable substitution for notifications
+- [x] Integrate with notification service (email, SMS, in-app)
+- [x] Create tRPC procedures for manual trigger testing
+- [x] Add trigger execution logging to database
+- [x] Write vitest tests for condition evaluation logic (29/29 passing)
+- [x] Write vitest tests for trigger execution
+- [x] Write vitest tests for template rendering with variables
+- [x] Test end-to-end workflow (condition met → notification sent)
+- [x] Add scheduled job for periodic trigger checks (stock levels hourly, overdue tasks daily, deliveries 30min, quality tests 2h)

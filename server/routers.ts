@@ -10,6 +10,7 @@ import { aiAssistantRouter } from "./routers/aiAssistant";
 import { bulkImportRouter } from "./routers/bulkImport";
 import { notificationsRouter } from "./routers/notifications";
 import { notificationTemplatesRouter } from "./routers/notificationTemplates";
+import { triggerExecutionRouter } from "./routers/triggerExecution";
 
 export const appRouter = router({
   system: systemRouter,
@@ -17,6 +18,7 @@ export const appRouter = router({
   bulkImport: bulkImportRouter,
   notifications: notificationsRouter,
   notificationTemplates: notificationTemplatesRouter,
+  triggerExecution: triggerExecutionRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
