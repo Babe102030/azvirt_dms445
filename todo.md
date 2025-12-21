@@ -837,3 +837,11 @@
 - [x] Write vitest tests for template rendering with variables
 - [x] Test end-to-end workflow (condition met → notification sent)
 - [x] Add scheduled job for periodic trigger checks (stock levels hourly, overdue tasks daily, deliveries 30min, quality tests 2h)
+
+
+## Translation System Bug Fix
+- [x] Investigate why Azerbaijani language selection doesn't work (DashboardLayout had hardcoded text)
+- [x] Fix Azerbaijani translation implementation (updated to use t() function)
+- [x] Add missing navigation keys to all translations (forecasting, purchaseOrders, etc.)
+- [x] Add auth section to all translations (loginToContinue, loginDescription, login)
+- [x] Test language switching in UI (Azerbaijani now working correctly!)

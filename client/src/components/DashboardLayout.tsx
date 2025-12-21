@@ -27,26 +27,27 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { LanguageSwitcher } from "./LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Kontrolna tabla", path: "/" },
-  { icon: FileText, label: "Dokumenti", path: "/documents" },
-  { icon: Folder, label: "Projekti", path: "/projects" },
-  { icon: Package, label: "Materijali", path: "/materials" },
-  { icon: TrendingUp, label: "Prognoze zaliha", path: "/forecasting" },
-  { icon: ShoppingCart, label: "Narudžbenice", path: "/purchase-orders" },
-  { icon: Truck, label: "Isporuke", path: "/deliveries" },
-  { icon: Truck, label: "Vozač isporuke", path: "/driver-deliveries" },
-  { icon: FlaskConical, label: "Kontrola kvaliteta", path: "/quality" },
-  { icon: Users, label: "Radna snaga", path: "/employees" },
-  { icon: Cog, label: "Mašine", path: "/machines" },
-  { icon: Clock, label: "Evidencija rada", path: "/timesheets" },
-  { icon: TrendingUp, label: "Izvještaji", path: "/timesheet-summary" },
-  { icon: Mail, label: "Postavke izvještaja", path: "/report-settings" },
-  { icon: Palette, label: "Email branding", path: "/email-branding" },
-  { icon: Bot, label: "AI Asistent", path: "/ai-assistant" },
-  { icon: BellRing, label: "Šabloni obavještenja", path: "/notification-templates" },
-  { icon: Settings, label: "Podešavanja", path: "/settings" },
+const getMenuItems = (t: (key: string) => string) => [
+  { icon: LayoutDashboard, label: t("nav.dashboard"), path: "/" },
+  { icon: FileText, label: t("nav.documents"), path: "/documents" },
+  { icon: Folder, label: t("nav.projects"), path: "/projects" },
+  { icon: Package, label: t("nav.materials"), path: "/materials" },
+  { icon: TrendingUp, label: t("nav.forecasting"), path: "/forecasting" },
+  { icon: ShoppingCart, label: t("nav.purchaseOrders"), path: "/purchase-orders" },
+  { icon: Truck, label: t("nav.deliveries"), path: "/deliveries" },
+  { icon: Truck, label: t("nav.driverDeliveries"), path: "/driver-deliveries" },
+  { icon: FlaskConical, label: t("nav.qualityControl"), path: "/quality" },
+  { icon: Users, label: t("nav.workforce"), path: "/employees" },
+  { icon: Cog, label: t("nav.machines"), path: "/machines" },
+  { icon: Clock, label: t("nav.timesheets"), path: "/timesheets" },
+  { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
+  { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },
+  { icon: Palette, label: t("nav.emailBranding"), path: "/email-branding" },
+  { icon: Bot, label: t("nav.aiAssistant"), path: "/ai-assistant" },
+  { icon: BellRing, label: t("nav.notificationTemplates"), path: "/notification-templates" },
+  { icon: Settings, label: t("nav.settings"), path: "/settings" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -64,6 +65,7 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -79,10 +81,10 @@ export default function DashboardLayout({
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-6">
             <h1 className="text-2xl font-semibold tracking-tight text-center">
-              Prijavite se za nastavak
+              {t("auth.loginToContinue")}
             </h1>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Pristup kontrolnoj tabli zahtijeva autentifikaciju. Nastavite za pokretanje prijave.
+              {t("auth.loginDescription")}
             </p>
           </div>
           <Button
@@ -92,7 +94,7 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Prijavi se
+            {t("auth.login")}
           </Button>
         </div>
       </div>
@@ -124,11 +126,13 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const menuItems = getMenuItems(t);
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
 
@@ -241,7 +245,7 @@ function DashboardLayoutContent({
                   className="cursor-pointer text-destructive focus:text-destructive"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span>Odjavi se</span>
+                  <span>{t("nav.logout")}</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

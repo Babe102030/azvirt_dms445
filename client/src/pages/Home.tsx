@@ -14,9 +14,11 @@ import {
   AlertCircle, CheckCircle, Clock, Search, Filter, Download, Activity
 } from "lucide-react";
 import { Link } from "wouter";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function Home() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
@@ -27,7 +29,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white text-xl">Učitavanje...</div>
+        <div className="text-white text-xl">{t("common.loading")}</div>
       </div>
     );
   }
@@ -43,10 +45,10 @@ export default function Home() {
             AzVirt DMS
           </h1>
           <p className="text-xl md:text-2xl text-white mb-8 drop-shadow-lg">
-            Sistem za upravljanje dokumentima za izvrsnost u građevinarstvu
+            {t("dashboard.welcome")}
           </p>
           <Button asChild size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
-            <a href={getLoginUrl()}>Prijavite se za nastavak</a>
+            <a href={getLoginUrl()}>{t("auth.loginToContinue")}</a>
           </Button>
         </div>
       </div>
@@ -59,14 +61,14 @@ export default function Home() {
         {/* Enhanced Header with Search and Filters */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Kontrolna tabla</h1>
-            <p className="text-white/70">Dobrodošli u AzVirt sistem za upravljanje dokumentima</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t("dashboard.title")}</h1>
+            <p className="text-white/70">{t("dashboard.welcome")}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
             <div className="relative flex-1 md:flex-initial min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Pretraži..."
+                placeholder={t("common.search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-card/50 border-primary/20"
@@ -120,13 +122,13 @@ export default function Home() {
           <Link href="/projects">
             <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Aktivni projekti</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("dashboard.activeProjects")}</CardTitle>
                 <Folder className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.activeProjects ?? 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  {stats?.totalProjects ?? 0} ukupno projekata
+                  {stats?.totalProjects ?? 0} {t("dashboard.totalProjects")}
                 </p>
               </CardContent>
             </Card>
@@ -135,12 +137,12 @@ export default function Home() {
           <Link href="/documents">
             <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Dokumenti</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("dashboard.documents")}</CardTitle>
                 <FileText className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.totalDocuments ?? 0}</div>
-                <p className="text-xs text-muted-foreground">Ukupno sačuvanih fajlova</p>
+                <p className="text-xs text-muted-foreground">{t("dashboard.totalDocuments")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -152,12 +154,12 @@ export default function Home() {
                 : "border-primary/20 hover:border-primary/40"
             }`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Današnje isporuke</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("dashboard.todayDeliveries")}</CardTitle>
                 <Truck className={`h-4 w-4 ${(stats?.todayDeliveries ?? 0) > 0 ? "text-yellow-500" : "text-primary"}`} />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.todayDeliveries ?? 0}</div>
-                <p className="text-xs text-muted-foreground">Zakazano za danas</p>
+                <p className="text-xs text-muted-foreground">{t("dashboard.scheduledToday")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -169,12 +171,12 @@ export default function Home() {
                 : "border-primary/20 hover:border-primary/40"
             }`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Artikli sa niskim zalihama</CardTitle>
+                <CardTitle className="text-sm font-medium">{t("dashboard.lowStockItems")}</CardTitle>
                 <Package className={`h-4 w-4 ${(stats?.lowStockMaterials ?? 0) > 0 ? "text-red-500" : "text-primary"}`} />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats?.lowStockMaterials ?? 0}</div>
-                <p className="text-xs text-muted-foreground">Potrebna dopuna</p>
+                <p className="text-xs text-muted-foreground">{t("dashboard.needsReplenishment")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -184,31 +186,31 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Ukupno materijala</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.totalMaterials")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalMaterials ?? 0}</div>
-              <p className="text-xs text-muted-foreground">U skladištu</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.inStock")}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Testovi na čekanju</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.pendingTests")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-500">{stats?.pendingTests ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Čeka se obrada</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.awaitingProcessing")}</p>
             </CardContent>
           </Card>
 
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Ukupno isporuka</CardTitle>
+              <CardTitle className="text-sm font-medium">{t("dashboard.totalDeliveries")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.totalDeliveries ?? 0}</div>
-              <p className="text-xs text-muted-foreground">Sve isporuke</p>
+              <p className="text-xs text-muted-foreground">{t("dashboard.allDeliveries")}</p>
             </CardContent>
           </Card>
         </div>
@@ -216,31 +218,31 @@ export default function Home() {
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader>
-              <CardTitle>Brze akcije</CardTitle>
+              <CardTitle>{t("dashboard.quickActions")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <Link href="/documents">
                 <Button variant="outline" className="w-full justify-start" size="lg">
                   <FileText className="mr-2 h-5 w-5" />
-                  Otpremi dokument
+                  {t("dashboard.uploadDocument")}
                 </Button>
               </Link>
               <Link href="/deliveries">
                 <Button variant="outline" className="w-full justify-start" size="lg">
                   <Truck className="mr-2 h-5 w-5" />
-                  Zakaži isporuku
+                  {t("dashboard.scheduleDelivery")}
                 </Button>
               </Link>
               <Link href="/quality">
                 <Button variant="outline" className="w-full justify-start" size="lg">
                   <FlaskConical className="mr-2 h-5 w-5" />
-                  Zabilježi test kvaliteta
+                  {t("dashboard.recordQualityTest")}
                 </Button>
               </Link>
               <Link href="/materials">
                 <Button variant="outline" className="w-full justify-start" size="lg">
                   <Package className="mr-2 h-5 w-5" />
-                  Upravljaj zalihama
+                  {t("dashboard.manageInventory")}
                 </Button>
               </Link>
             </CardContent>
@@ -248,23 +250,23 @@ export default function Home() {
 
           <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-colors">
             <CardHeader>
-              <CardTitle>Pregled sistema</CardTitle>
+              <CardTitle>{t("dashboard.systemOverview")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm">Ukupno materijala</span>
+                <span className="text-sm">{t("dashboard.totalMaterials")}</span>
                 <span className="font-medium">{stats?.totalMaterials ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Ukupno isporuka</span>
+                <span className="text-sm">{t("dashboard.totalDeliveries")}</span>
                 <span className="font-medium">{stats?.totalDeliveries ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Testovi na čekanju</span>
+                <span className="text-sm">{t("dashboard.pendingTests")}</span>
                 <span className="font-medium">{stats?.pendingTests ?? 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Aktivni projekti</span>
+                <span className="text-sm">{t("dashboard.activeProjects")}</span>
                 <span className="font-medium">{stats?.activeProjects ?? 0}</span>
               </div>
             </CardContent>
