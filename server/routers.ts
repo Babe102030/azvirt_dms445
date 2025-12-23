@@ -42,6 +42,17 @@ export const appRouter = router({
         );
         return { success };
       }),
+    updateLanguagePreference: protectedProcedure
+      .input(z.object({
+        language: z.enum(["en", "bs", "az"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const success = await db.updateUserLanguagePreference(
+          ctx.user.id,
+          input.language
+        );
+        return { success };
+      }),
   }),
 
   documents: router({

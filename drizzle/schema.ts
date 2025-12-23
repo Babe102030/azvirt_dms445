@@ -12,6 +12,7 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   phoneNumber: varchar("phoneNumber", { length: 50 }),
   smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
+  languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

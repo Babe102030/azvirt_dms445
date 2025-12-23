@@ -1731,3 +1731,22 @@ export async function getTriggerExecutionLog(triggerId: number, limit = 100) {
   
   return db.select().from(triggerExecutionLog).where(eq(triggerExecutionLog.triggerId, triggerId)).limit(limit).orderBy(desc(triggerExecutionLog.executedAt));
 }
+
+export async function updateUserLanguagePreference(userId: number, language: string) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db
+      .update(users)
+      .set({
+        languagePreference: language,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("Failed to update language preference:", error);
+    return false;
+  }
+}

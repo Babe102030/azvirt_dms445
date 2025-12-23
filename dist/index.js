@@ -524,6 +524,7 @@ var users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   phoneNumber: varchar("phoneNumber", { length: 50 }),
   smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
+  languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
@@ -1778,6 +1779,20 @@ async function recordTriggerExecution(data) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   return db.insert(triggerExecutionLog).values(data);
+}
+async function updateUserLanguagePreference(userId, language) {
+  const db = await getDb();
+  if (!db) return false;
+  try {
+    await db.update(users).set({
+      languagePreference: language,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(users.id, userId));
+    return true;
+  } catch (error) {
+    console.error("Failed to update language preference:", error);
+    return false;
+  }
 }
 
 // server/_core/cookies.ts
@@ -5208,6 +5223,15 @@ var appRouter = router({
         ctx.user.id,
         input.phoneNumber,
         input.smsNotificationsEnabled
+      );
+      return { success };
+    }),
+    updateLanguagePreference: protectedProcedure.input(z7.object({
+      language: z7.enum(["en", "bs", "az"])
+    })).mutation(async ({ input, ctx }) => {
+      const success = await updateUserLanguagePreference(
+        ctx.user.id,
+        input.language
       );
       return { success };
     })

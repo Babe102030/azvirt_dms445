@@ -192,3 +192,91 @@
     }
   }
 }
+
+/* RTL (Right-to-Left) Support for Arabic, Persian, Hebrew, Urdu */
+html.rtl {
+  direction: rtl;
+  text-align: right;
+}
+
+html.rtl body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Flexbox RTL adjustments */
+html.rtl .flex {
+  flex-direction: row-reverse;
+}
+
+html.rtl .flex-col {
+  flex-direction: column;
+}
+
+html.rtl .flex-row {
+  flex-direction: row-reverse;
+}
+
+/* Margin and padding RTL adjustments */
+html.rtl [class*="ml-"],
+html.rtl [class*="mr-"] {
+  /* Swap left and right margins */
+}
+
+html.rtl [class*="pl-"],
+html.rtl [class*="pr-"] {
+  /* Swap left and right padding */
+}
+
+/* Text alignment RTL */
+html.rtl .text-left {
+  text-align: right;
+}
+
+html.rtl .text-right {
+  text-align: left;
+}
+
+/* Border radius RTL */
+html.rtl [class*="rounded-l-"] {
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+html.rtl [class*="rounded-r-"] {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+/* Transform RTL */
+html.rtl [class*="translate-x-"] {
+  transform: translateX(calc(-1 * var(--translate-x)));
+}
+
+/* Sidebar RTL */
+html.rtl .sidebar {
+  right: 0;
+  left: auto;
+}
+
+html.rtl [class*="sidebar"] {
+  direction: rtl;
+}
+
+/* Input and form RTL */
+html.rtl input,
+html.rtl textarea,
+html.rtl select {
+  text-align: right;
+  direction: rtl;
+}
+
+/* Icons and images RTL (mirror effect) */
+html.rtl .icon-mirror {
+  transform: scaleX(-1);
+}
+
+/* Transitions for smooth RTL switching */
+html,
+body,
+* {
+  transition: direction 0.2s ease, text-align 0.2s ease;
+}
