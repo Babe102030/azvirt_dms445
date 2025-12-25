@@ -667,3 +667,154 @@ export const triggerExecutionLog = mysqlTable("trigger_execution_log", {
 
 export type TriggerExecutionLog = typeof triggerExecutionLog.$inferSelect;
 export type InsertTriggerExecutionLog = typeof triggerExecutionLog.$inferInsert;
+
+
+/**
+ * Shift Templates table for recurring shift patterns
+ */
+export const shiftTemplates = mysqlTable("shift_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  startTime: varchar("startTime", { length: 5 }).notNull(), // HH:MM format
+  endTime: varchar("endTime", { length: 5 }).notNull(), // HH:MM format
+  breakDuration: int("breakDuration").default(0), // in minutes
+  daysOfWeek: json("daysOfWeek").$type<number[]>().notNull(), // 0-6 (Sunday-Saturday)
+  isActive: boolean("isActive").notNull().default(true),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ShiftTemplate = typeof shiftTemplates.$inferSelect;
+export type InsertShiftTemplate = typeof shiftTemplates.$inferInsert;
+
+/**
+ * Shifts table for scheduled work shifts
+ */
+export const shifts = mysqlTable("shifts", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  shiftDate: timestamp("shiftDate").notNull(),
+  startTime: timestamp("startTime").notNull(),
+  endTime: timestamp("endTime").notNull(),
+  breakDuration: int("breakDuration").default(0), // in minutes
+  projectId: int("projectId"),
+  status: mysqlEnum("status", ["scheduled", "in_progress", "completed", "cancelled", "no_show"]).default("scheduled").notNull(),
+  notes: text("notes"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Shift = typeof shifts.$inferSelect;
+export type InsertShift = typeof shifts.$inferInsert;
+
+/**
+ * Employee Availability table for scheduling
+ */
+export const employeeAvailability = mysqlTable("employee_availability", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  dayOfWeek: int("dayOfWeek").notNull(), // 0-6 (Sunday-Saturday)
+  isAvailable: boolean("isAvailable").notNull().default(true),
+  startTime: varchar("startTime", { length: 5 }), // HH:MM format
+  endTime: varchar("endTime", { length: 5 }), // HH:MM format
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EmployeeAvailability = typeof employeeAvailability.$inferSelect;
+export type InsertEmployeeAvailability = typeof employeeAvailability.$inferInsert;
+
+/**
+ * Break Rules table for compliance by jurisdiction
+ */
+export const breakRules = mysqlTable("break_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  jurisdiction: varchar("jurisdiction", { length: 100 }).notNull(), // e.g., "US-CA", "US-NY", "EU"
+  name: varchar("name", { length: 255 }).notNull(),
+  dailyWorkHours: int("dailyWorkHours").notNull(), // hours before break required
+  breakDuration: int("breakDuration").notNull(), // minutes
+  breakType: mysqlEnum("breakType", ["meal", "rest", "combined"]).notNull(),
+  isRequired: boolean("isRequired").notNull().default(true),
+  description: text("description"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BreakRule = typeof breakRules.$inferSelect;
+export type InsertBreakRule = typeof breakRules.$inferInsert;
+
+/**
+ * Break Records table for tracking actual breaks taken
+ */
+export const breakRecords = mysqlTable("break_records", {
+  id: int("id").autoincrement().primaryKey(),
+  workHourId: int("workHourId").notNull(),
+  employeeId: int("employeeId").notNull(),
+  breakStart: timestamp("breakStart").notNull(),
+  breakEnd: timestamp("breakEnd"),
+  breakDuration: int("breakDuration"), // in minutes
+  breakType: mysqlEnum("breakType", ["meal", "rest", "combined"]).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BreakRecord = typeof breakRecords.$inferSelect;
+export type InsertBreakRecord = typeof breakRecords.$inferInsert;
+
+/**
+ * Compliance Audit Trail table for wage & hour tracking
+ */
+export const complianceAuditTrail = mysqlTable("compliance_audit_trail", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  auditDate: timestamp("auditDate").notNull(),
+  auditType: mysqlEnum("auditType", ["daily_hours", "weekly_hours", "break_compliance", "overtime", "wage_calculation"]).notNull(),
+  status: mysqlEnum("status", ["compliant", "warning", "violation"]).notNull(),
+  details: json("details").$type<{
+    hoursWorked?: number;
+    maxAllowed?: number;
+    breaksTaken?: number;
+    breaksRequired?: number;
+    overtimeHours?: number;
+    jurisdiction?: string;
+  }>().notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high"]).default("low").notNull(),
+  actionTaken: text("actionTaken"),
+  resolvedAt: timestamp("resolvedAt"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ComplianceAuditTrail = typeof complianceAuditTrail.$inferSelect;
+export type InsertComplianceAuditTrail = typeof complianceAuditTrail.$inferInsert;
+
+/**
+ * Timesheet Offline Cache table for mobile offline support
+ */
+export const timesheetOfflineCache = mysqlTable("timesheet_offline_cache", {
+  id: int("id").autoincrement().primaryKey(),
+  employeeId: int("employeeId").notNull(),
+  deviceId: varchar("deviceId", { length: 255 }).notNull(),
+  entryData: json("entryData").$type<{
+    date: string;
+    startTime: string;
+    endTime: string;
+    projectId?: number;
+    notes?: string;
+  }>().notNull(),
+  syncStatus: mysqlEnum("syncStatus", ["pending", "syncing", "synced", "failed"]).default("pending").notNull(),
+  syncAttempts: int("syncAttempts").default(0),
+  lastSyncAttempt: timestamp("lastSyncAttempt"),
+  syncedAt: timestamp("syncedAt"),
+  errorMessage: text("errorMessage"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TimesheetOfflineCache = typeof timesheetOfflineCache.$inferSelect;
+export type InsertTimesheetOfflineCache = typeof timesheetOfflineCache.$inferInsert;

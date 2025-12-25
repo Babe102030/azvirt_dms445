@@ -1,4 +1,4 @@
-import { eq, desc, like, and, or, gte, lt, sql } from "drizzle-orm";
+import { eq, desc, like, and, or, gte, lte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { 
   InsertUser, users, 
@@ -26,7 +26,14 @@ import {
   emailTemplates,
   notificationTemplates,
   notificationTriggers,
-  triggerExecutionLog
+  triggerExecutionLog,
+  shiftTemplates, InsertShiftTemplate,
+  shifts, InsertShift,
+  employeeAvailability, InsertEmployeeAvailability,
+  breakRules, InsertBreakRule,
+  breakRecords, InsertBreakRecord,
+  complianceAuditTrail, InsertComplianceAuditTrail,
+  timesheetOfflineCache, InsertTimesheetOfflineCache
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1747,6 +1754,248 @@ export async function updateUserLanguagePreference(userId: number, language: str
     return true;
   } catch (error) {
     console.error("Failed to update language preference:", error);
+    return false;
+  }
+}
+
+
+// ============ SHIFT MANAGEMENT ============
+
+export async function createShift(shift: InsertShift): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.insert(shifts).values(shift);
+    return result[0].insertId as number;
+  } catch (error) {
+    console.error("Failed to create shift:", error);
+    return null;
+  }
+}
+
+export async function getShiftsByEmployee(employeeId: number, startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(shifts)
+      .where(
+        and(
+          eq(shifts.employeeId, employeeId),
+          gte(shifts.shiftDate, startDate),
+          lte(shifts.shiftDate, endDate)
+        )
+      );
+  } catch (error) {
+    console.error("Failed to get shifts:", error);
+    return [];
+  }
+}
+
+export async function updateShift(id: number, updates: Partial<InsertShift>) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db
+      .update(shifts)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(shifts.id, id));
+    return true;
+  } catch (error) {
+    console.error("Failed to update shift:", error);
+    return false;
+  }
+}
+
+// ============ SHIFT TEMPLATES ============
+
+export async function createShiftTemplate(template: InsertShiftTemplate): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.insert(shiftTemplates).values(template);
+    return result[0].insertId as number;
+  } catch (error) {
+    console.error("Failed to create shift template:", error);
+    return null;
+  }
+}
+
+export async function getShiftTemplates() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true));
+  } catch (error) {
+    console.error("Failed to get shift templates:", error);
+    return [];
+  }
+}
+
+// ============ EMPLOYEE AVAILABILITY ============
+
+export async function setEmployeeAvailability(availability: InsertEmployeeAvailability) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    // Delete existing availability for this employee and day
+    await db
+      .delete(employeeAvailability)
+      .where(
+        and(
+          eq(employeeAvailability.employeeId, availability.employeeId),
+          eq(employeeAvailability.dayOfWeek, availability.dayOfWeek)
+        )
+      );
+
+    // Insert new availability
+    await db.insert(employeeAvailability).values(availability);
+    return true;
+  } catch (error) {
+    console.error("Failed to set employee availability:", error);
+    return false;
+  }
+}
+
+export async function getEmployeeAvailability(employeeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(employeeAvailability)
+      .where(eq(employeeAvailability.employeeId, employeeId));
+  } catch (error) {
+    console.error("Failed to get employee availability:", error);
+    return [];
+  }
+}
+
+// ============ COMPLIANCE & AUDIT TRAIL ============
+
+export async function logComplianceAudit(audit: InsertComplianceAuditTrail) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db.insert(complianceAuditTrail).values(audit);
+    return true;
+  } catch (error) {
+    console.error("Failed to log compliance audit:", error);
+    return false;
+  }
+}
+
+export async function getComplianceAudits(employeeId: number, startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(complianceAuditTrail)
+      .where(
+        and(
+          eq(complianceAuditTrail.employeeId, employeeId),
+          gte(complianceAuditTrail.auditDate, startDate),
+          lte(complianceAuditTrail.auditDate, endDate)
+        )
+      );
+  } catch (error) {
+    console.error("Failed to get compliance audits:", error);
+    return [];
+  }
+}
+
+// ============ BREAK TRACKING ============
+
+export async function recordBreak(breakRecord: InsertBreakRecord) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db.insert(breakRecords).values(breakRecord);
+    return true;
+  } catch (error) {
+    console.error("Failed to record break:", error);
+    return false;
+  }
+}
+
+export async function getBreakRules(jurisdiction: string) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(breakRules)
+      .where(eq(breakRules.jurisdiction, jurisdiction));
+  } catch (error) {
+    console.error("Failed to get break rules:", error);
+    return [];
+  }
+}
+
+// ============ OFFLINE SYNC ============
+
+export async function cacheOfflineEntry(cache: InsertTimesheetOfflineCache) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db.insert(timesheetOfflineCache).values(cache);
+    return true;
+  } catch (error) {
+    console.error("Failed to cache offline entry:", error);
+    return false;
+  }
+}
+
+export async function getPendingOfflineEntries(employeeId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(timesheetOfflineCache)
+      .where(
+        and(
+          eq(timesheetOfflineCache.employeeId, employeeId),
+          eq(timesheetOfflineCache.syncStatus, "pending")
+        )
+      );
+  } catch (error) {
+    console.error("Failed to get pending offline entries:", error);
+    return [];
+  }
+}
+
+export async function updateOfflineSyncStatus(id: number, status: string, syncedAt?: Date) {
+  const db = await getDb();
+  if (!db) return false;
+
+  try {
+    await db
+      .update(timesheetOfflineCache)
+      .set({
+        syncStatus: status as any,
+        syncedAt: syncedAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(timesheetOfflineCache.id, id));
+    return true;
+  } catch (error) {
+    console.error("Failed to update offline sync status:", error);
     return false;
   }
 }
