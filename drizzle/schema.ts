@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, decimal } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -818,3 +818,92 @@ export const timesheetOfflineCache = mysqlTable("timesheet_offline_cache", {
 
 export type TimesheetOfflineCache = typeof timesheetOfflineCache.$inferSelect;
 export type InsertTimesheetOfflineCache = typeof timesheetOfflineCache.$inferInsert;
+
+
+/**
+ * Job Sites table for storing work location coordinates
+ */
+export const jobSites = mysqlTable("job_sites", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  geofenceRadius: int("geofenceRadius").default(100).notNull(), // in meters
+  address: varchar("address", { length: 500 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type JobSite = typeof jobSites.$inferSelect;
+export type InsertJobSite = typeof jobSites.$inferInsert;
+
+/**
+ * Geofences table for defining work area boundaries
+ */
+export const geofences = mysqlTable("geofences", {
+  id: int("id").autoincrement().primaryKey(),
+  jobSiteId: int("jobSiteId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  centerLatitude: decimal("centerLatitude", { precision: 10, scale: 8 }).notNull(),
+  centerLongitude: decimal("centerLongitude", { precision: 11, scale: 8 }).notNull(),
+  radiusMeters: int("radiusMeters").notNull(),
+  geofenceType: mysqlEnum("geofenceType", ["circular", "polygon"]).default("circular").notNull(),
+  polygonCoordinates: json("polygonCoordinates").$type<Array<{ lat: number; lng: number }>>(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Geofence = typeof geofences.$inferSelect;
+export type InsertGeofence = typeof geofences.$inferInsert;
+
+/**
+ * Location Logs table for tracking GPS check-ins and check-outs
+ */
+export const locationLogs = mysqlTable("location_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  shiftId: int("shiftId").notNull(),
+  employeeId: int("employeeId").notNull(),
+  jobSiteId: int("jobSiteId").notNull(),
+  eventType: mysqlEnum("eventType", ["check_in", "check_out", "location_update"]).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  accuracy: int("accuracy"), // GPS accuracy in meters
+  isWithinGeofence: boolean("isWithinGeofence").default(false).notNull(),
+  distanceFromGeofence: int("distanceFromGeofence"), // distance in meters if outside geofence
+  deviceId: varchar("deviceId", { length: 255 }),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type LocationLog = typeof locationLogs.$inferSelect;
+export type InsertLocationLog = typeof locationLogs.$inferInsert;
+
+/**
+ * Geofence Violations table for tracking out-of-bounds check-ins
+ */
+export const geofenceViolations = mysqlTable("geofence_violations", {
+  id: int("id").autoincrement().primaryKey(),
+  locationLogId: int("locationLogId").notNull(),
+  employeeId: int("employeeId").notNull(),
+  jobSiteId: int("jobSiteId").notNull(),
+  violationType: mysqlEnum("violationType", ["outside_geofence", "check_in_outside", "check_out_outside"]).notNull(),
+  distanceFromGeofence: int("distanceFromGeofence").notNull(), // distance in meters
+  severity: mysqlEnum("severity", ["warning", "violation"]).default("warning").notNull(),
+  isResolved: boolean("isResolved").default(false).notNull(),
+  resolvedBy: int("resolvedBy"),
+  resolutionNotes: text("resolutionNotes"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GeofenceViolation = typeof geofenceViolations.$inferSelect;
+export type InsertGeofenceViolation = typeof geofenceViolations.$inferInsert;

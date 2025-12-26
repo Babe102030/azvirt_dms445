@@ -33,7 +33,11 @@ import {
   breakRules, InsertBreakRule,
   breakRecords, InsertBreakRecord,
   complianceAuditTrail, InsertComplianceAuditTrail,
-  timesheetOfflineCache, InsertTimesheetOfflineCache
+  timesheetOfflineCache, InsertTimesheetOfflineCache,
+  jobSites, InsertJobSite,
+  geofences, InsertGeofence,
+  locationLogs, InsertLocationLog,
+  geofenceViolations, InsertGeofenceViolation
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1996,6 +2000,162 @@ export async function updateOfflineSyncStatus(id: number, status: string, synced
     return true;
   } catch (error) {
     console.error("Failed to update offline sync status:", error);
+    return false;
+  }
+}
+
+
+// ============ GEOLOCATION FUNCTIONS ============
+
+export async function createJobSite(input: {
+  projectId: number;
+  name: string;
+  description?: string;
+  latitude: number;
+  longitude: number;
+  geofenceRadius?: number;
+  address?: string;
+  createdBy: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(jobSites).values({
+    projectId: input.projectId,
+    name: input.name,
+    description: input.description,
+    latitude: input.latitude.toString() as any,
+    longitude: input.longitude.toString() as any,
+    geofenceRadius: input.geofenceRadius || 100,
+    address: input.address,
+    createdBy: input.createdBy,
+  });
+  
+  return result[0].insertId;
+}
+
+export async function getJobSites(projectId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  if (projectId) {
+    return await db.select().from(jobSites).where(eq(jobSites.projectId, projectId));
+  }
+  
+  return await db.select().from(jobSites);
+}
+
+export async function createLocationLog(input: {
+  shiftId: number;
+  employeeId: number;
+  jobSiteId: number;
+  eventType: "check_in" | "check_out" | "location_update";
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  isWithinGeofence: boolean;
+  distanceFromGeofence?: number;
+  deviceId?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(locationLogs).values({
+    shiftId: input.shiftId,
+    employeeId: input.employeeId,
+    jobSiteId: input.jobSiteId,
+    eventType: input.eventType,
+    latitude: input.latitude.toString() as any,
+    longitude: input.longitude.toString() as any,
+    accuracy: input.accuracy,
+    isWithinGeofence: input.isWithinGeofence,
+    distanceFromGeofence: input.distanceFromGeofence,
+    deviceId: input.deviceId,
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent,
+  });
+  
+  return result[0].insertId;
+}
+
+export async function recordGeofenceViolation(input: {
+  locationLogId: number;
+  employeeId: number;
+  jobSiteId: number;
+  violationType: "outside_geofence" | "check_in_outside" | "check_out_outside";
+  distanceFromGeofence: number;
+  severity?: "warning" | "violation";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(geofenceViolations).values({
+    locationLogId: input.locationLogId,
+    employeeId: input.employeeId,
+    jobSiteId: input.jobSiteId,
+    violationType: input.violationType,
+    distanceFromGeofence: input.distanceFromGeofence,
+    severity: input.severity || "warning",
+  });
+  
+  return result[0].insertId;
+}
+
+export async function getLocationHistory(employeeId: number, limit: number = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db
+    .select()
+    .from(locationLogs)
+    .where(eq(locationLogs.employeeId, employeeId))
+    .orderBy(desc(locationLogs.timestamp))
+    .limit(limit);
+}
+
+export async function getGeofenceViolations(employeeId?: number, resolved?: boolean) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const conditions = [];
+  
+  if (employeeId) {
+    conditions.push(eq(geofenceViolations.employeeId, employeeId));
+  }
+  
+  if (resolved !== undefined) {
+    conditions.push(eq(geofenceViolations.isResolved, resolved));
+  }
+  
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  
+  return await db
+    .select()
+    .from(geofenceViolations)
+    .where(whereClause)
+    .orderBy(desc(geofenceViolations.timestamp))
+}
+
+export async function resolveGeofenceViolation(violationId: number, resolvedBy: number, notes?: string) {
+  const db = await getDb();
+  if (!db) return false;
+  
+  try {
+    await db
+      .update(geofenceViolations)
+      .set({
+        isResolved: true,
+        resolvedBy,
+        resolutionNotes: notes,
+        resolvedAt: new Date(),
+      })
+      .where(eq(geofenceViolations.id, violationId));
+    
+    return true;
+  } catch (error) {
+    console.error("Failed to resolve geofence violation:", error);
     return false;
   }
 }

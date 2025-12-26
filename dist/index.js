@@ -514,7 +514,7 @@ import { eq, desc, like, and, or, gte, lte, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 
 // drizzle/schema.ts
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, decimal } from "drizzle-orm/mysql-core";
 var users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
@@ -1064,6 +1064,70 @@ var timesheetOfflineCache = mysqlTable("timesheet_offline_cache", {
   errorMessage: text("errorMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var jobSites = mysqlTable("job_sites", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  geofenceRadius: int("geofenceRadius").default(100).notNull(),
+  // in meters
+  address: varchar("address", { length: 500 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var geofences = mysqlTable("geofences", {
+  id: int("id").autoincrement().primaryKey(),
+  jobSiteId: int("jobSiteId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  centerLatitude: decimal("centerLatitude", { precision: 10, scale: 8 }).notNull(),
+  centerLongitude: decimal("centerLongitude", { precision: 11, scale: 8 }).notNull(),
+  radiusMeters: int("radiusMeters").notNull(),
+  geofenceType: mysqlEnum("geofenceType", ["circular", "polygon"]).default("circular").notNull(),
+  polygonCoordinates: json("polygonCoordinates").$type(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
+var locationLogs = mysqlTable("location_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  shiftId: int("shiftId").notNull(),
+  employeeId: int("employeeId").notNull(),
+  jobSiteId: int("jobSiteId").notNull(),
+  eventType: mysqlEnum("eventType", ["check_in", "check_out", "location_update"]).notNull(),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
+  accuracy: int("accuracy"),
+  // GPS accuracy in meters
+  isWithinGeofence: boolean("isWithinGeofence").default(false).notNull(),
+  distanceFromGeofence: int("distanceFromGeofence"),
+  // distance in meters if outside geofence
+  deviceId: varchar("deviceId", { length: 255 }),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  userAgent: text("userAgent"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
+});
+var geofenceViolations = mysqlTable("geofence_violations", {
+  id: int("id").autoincrement().primaryKey(),
+  locationLogId: int("locationLogId").notNull(),
+  employeeId: int("employeeId").notNull(),
+  jobSiteId: int("jobSiteId").notNull(),
+  violationType: mysqlEnum("violationType", ["outside_geofence", "check_in_outside", "check_out_outside"]).notNull(),
+  distanceFromGeofence: int("distanceFromGeofence").notNull(),
+  // distance in meters
+  severity: mysqlEnum("severity", ["warning", "violation"]).default("warning").notNull(),
+  isResolved: boolean("isResolved").default(false).notNull(),
+  resolvedBy: int("resolvedBy"),
+  resolutionNotes: text("resolutionNotes"),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull()
 });
 
 // server/db.ts

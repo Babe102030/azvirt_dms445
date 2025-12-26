@@ -882,3 +882,28 @@
 - [x] Write vitest tests for offline sync logic
 - [x] Test mobile responsiveness on various devices
 - [x] Test offline functionality and data sync
+
+
+## Geolocation Check-In System - GPS Verification & Geofencing
+- [x] Design geolocation database schema (job_sites, geofences, location_logs)
+- [x] Add job_sites table with coordinates and geofence radius
+- [x] Add geofences table for defining work area boundaries
+- [x] Add location_logs table for tracking all GPS check-ins/check-outs
+- [x] Implement geofence validation logic (haversine formula for distance calculation)
+- [x] Create geofence management database functions
+- [x] Build mobile geolocation component with GPS tracking
+- [x] Implement permission handling for location access on mobile
+- [x] Add GPS accuracy indicator to mobile UI
+- [ ] Create check-in/check-out with location verification tRPC procedures
+- [ ] Implement location logging for all time entries
+- [ ] Add geofence violation detection and alerts
+- [ ] Create geofence admin UI for job site configuration
+- [ ] Add map visualization for geofence boundaries
+- [ ] Implement geofence radius adjustment controls
+- [ ] Build location history view for employees
+- [ ] Add geolocation analytics (check-in accuracy, violations by employee)
+- [ ] Write vitest tests for geofence calculations
+- [ ] Write vitest tests for location validation
+- [ ] Write vitest tests for geofence procedures
+- [ ] Test GPS accuracy and edge cases
+- [ ] Test geofence violation scenarios
