@@ -1003,3 +1003,20 @@
 - [x] Fix TypeError: w.map is not a function in production build (ForecastingDashboard.tsx)
 - [x] Debug minified code to identify source component
 - [x] Add null/array type checks before .map() calls
+
+
+## Batch Import/Export System
+- [x] Create CSV import service with validation (materials, employees, projects)
+- [x] Implement error handling and validation reporting
+- [ ] Create Excel export service with multiple sheet support
+- [ ] Add customizable column selection for exports
+- [ ] Build import progress tracking and status reporting
+- [ ] Create tRPC procedures for import operations
+- [ ] Create tRPC procedures for export operations
+- [ ] Build import UI component with file upload
+- [ ] Build export UI component with column selector
+- [ ] Add data preview before import
+- [x] Implement duplicate detection and conflict resolution
+- [ ] Write vitest tests for CSV import
+- [ ] Write vitest tests for Excel export
+- [ ] Test end-to-end import/export workflows
