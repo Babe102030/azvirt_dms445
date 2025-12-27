@@ -2159,3 +2159,17 @@ export async function resolveGeofenceViolation(violationId: number, resolvedBy: 
     return false;
   }
 }
+
+
+export async function getShiftById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const result = await db.select().from(shifts).where(eq(shifts.id, id)).limit(1);
+    return result.length > 0 ? result[0] : null;
+  } catch (error) {
+    console.error("Failed to get shift by id:", error);
+    return null;
+  }
+}

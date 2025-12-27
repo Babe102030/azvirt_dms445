@@ -894,9 +894,12 @@
 - [x] Build mobile geolocation component with GPS tracking
 - [x] Implement permission handling for location access on mobile
 - [x] Add GPS accuracy indicator to mobile UI
-- [ ] Create check-in/check-out with location verification tRPC procedures
-- [ ] Implement location logging for all time entries
-- [ ] Add geofence violation detection and alerts
+- [x] Create check-in/check-out with location verification tRPC procedures
+- [x] Implement location logging for all time entries
+- [x] Add geofence violation detection and alerts
+- [x] Create geolocation tRPC router with mutations
+- [x] Implement automatic geofence violation detection
+- [x] Write vitest tests for check-in/check-out procedures (13/13 passing)
 - [ ] Create geofence admin UI for job site configuration
 - [ ] Add map visualization for geofence boundaries
 - [ ] Implement geofence radius adjustment controls
