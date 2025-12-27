@@ -160,7 +160,7 @@ export default function ForecastingDashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {forecasts.map((forecast) => {
+                        {forecasts && Array.isArray(forecasts) && forecasts.map((forecast) => {
                           const material = materials?.find(m => m.id === forecast.materialId);
                           const daysLeft = forecast.daysUntilStockout || 999;
                           const status = daysLeft < 7 ? 'critical' : daysLeft < 14 ? 'warning' : 'ok';
@@ -197,6 +197,7 @@ export default function ForecastingDashboard() {
                             </tr>
                           );
                         })}
+
                       </tbody>
                     </table>
                   </div>
