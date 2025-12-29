@@ -2537,7 +2537,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
-import { z as z9 } from "zod";
+import { z as z10 } from "zod";
 
 // server/storage.ts
 init_env();
@@ -6254,6 +6254,423 @@ var geolocationRouter = router({
   })
 });
 
+// server/routers/export.ts
+import { z as z9 } from "zod";
+
+// server/services/excelExport.ts
+import ExcelJS from "exceljs";
+async function exportMaterialsToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Materials");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "name", header: "Material Name", width: 30 },
+    { key: "category", header: "Category", width: 15 },
+    { key: "unit", header: "Unit", width: 10 },
+    { key: "quantity", header: "Quantity", width: 12 },
+    { key: "minStock", header: "Min Stock", width: 12 },
+    { key: "criticalThreshold", header: "Critical Threshold", width: 18 },
+    { key: "supplier", header: "Supplier", width: 25 },
+    { key: "unitPrice", header: "Unit Price", width: 12 },
+    { key: "supplierEmail", header: "Supplier Email", width: 30 },
+    { key: "createdAt", header: "Created At", width: 20 },
+    { key: "updatedAt", header: "Updated At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF4472C4" }
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const materials2 = await getMaterials();
+  materials2.forEach((material) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = material[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportEmployeesToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Employees");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "firstName", header: "First Name", width: 20 },
+    { key: "lastName", header: "Last Name", width: 20 },
+    { key: "employeeNumber", header: "Employee Number", width: 18 },
+    { key: "position", header: "Position", width: 25 },
+    { key: "department", header: "Department", width: 20 },
+    { key: "phoneNumber", header: "Phone", width: 18 },
+    { key: "email", header: "Email", width: 30 },
+    { key: "hourlyRate", header: "Hourly Rate", width: 15 },
+    { key: "status", header: "Status", width: 12 },
+    { key: "hireDate", header: "Hire Date", width: 15 },
+    { key: "createdAt", header: "Created At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF70AD47" }
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const employees2 = await getEmployees();
+  employees2.forEach((employee) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = employee[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportProjectsToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Projects");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "name", header: "Project Name", width: 30 },
+    { key: "location", header: "Location", width: 30 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "startDate", header: "Start Date", width: 15 },
+    { key: "endDate", header: "End Date", width: 15 },
+    { key: "createdBy", header: "Created By", width: 15 },
+    { key: "createdAt", header: "Created At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFFFC000" }
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const projects2 = await getProjects();
+  projects2.forEach((project) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = project[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportDeliveriesToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Deliveries");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "projectId", header: "Project ID", width: 12 },
+    { key: "materialId", header: "Material ID", width: 12 },
+    { key: "quantity", header: "Quantity", width: 12 },
+    { key: "deliveryDate", header: "Delivery Date", width: 18 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "supplier", header: "Supplier", width: 25 },
+    { key: "notes", header: "Notes", width: 40 },
+    { key: "createdAt", header: "Created At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFED7D31" }
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const deliveries2 = await getDeliveries();
+  deliveries2.forEach((delivery) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = delivery[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportTimesheetsToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Timesheets");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "employeeId", header: "Employee ID", width: 15 },
+    { key: "projectId", header: "Project ID", width: 12 },
+    { key: "date", header: "Date", width: 15 },
+    { key: "hoursWorked", header: "Hours Worked", width: 15 },
+    { key: "overtimeHours", header: "Overtime Hours", width: 15 },
+    { key: "breakMinutes", header: "Break Minutes", width: 15 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "notes", header: "Notes", width: 40 },
+    { key: "createdAt", header: "Created At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF5B9BD5" }
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const timesheets = await getWorkHours();
+  timesheets.forEach((timesheet) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = timesheet[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportAllDataToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const materialsSheet = workbook.addWorksheet("Materials");
+  const materialsColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "name", header: "Material Name", width: 30 },
+    { key: "category", header: "Category", width: 15 },
+    { key: "unit", header: "Unit", width: 10 },
+    { key: "quantity", header: "Quantity", width: 12 },
+    { key: "minStock", header: "Min Stock", width: 12 }
+  ];
+  materialsSheet.columns = materialsColumns;
+  materialsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  materialsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+  const materials2 = await getMaterials();
+  materials2.forEach((m) => materialsSheet.addRow(m));
+  const employeesSheet = workbook.addWorksheet("Employees");
+  const employeesColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "firstName", header: "First Name", width: 20 },
+    { key: "lastName", header: "Last Name", width: 20 },
+    { key: "employeeNumber", header: "Employee Number", width: 18 },
+    { key: "position", header: "Position", width: 25 },
+    { key: "department", header: "Department", width: 20 }
+  ];
+  employeesSheet.columns = employeesColumns;
+  employeesSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  employeesSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF70AD47" } };
+  const employees2 = await getEmployees();
+  employees2.forEach((e) => employeesSheet.addRow(e));
+  const projectsSheet = workbook.addWorksheet("Projects");
+  const projectsColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "name", header: "Project Name", width: 30 },
+    { key: "location", header: "Location", width: 30 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "startDate", header: "Start Date", width: 15 }
+  ];
+  projectsSheet.columns = projectsColumns;
+  projectsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  projectsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFC000" } };
+  const projects2 = await getProjects();
+  projects2.forEach((p) => projectsSheet.addRow(p));
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+// server/routers/export.ts
+var exportRouter = router({
+  /**
+   * Export materials to Excel
+   */
+  materials: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportMaterialsToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `materials_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export employees to Excel
+   */
+  employees: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportEmployeesToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `employees_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export projects to Excel
+   */
+  projects: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportProjectsToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `projects_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export deliveries to Excel
+   */
+  deliveries: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportDeliveriesToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `deliveries_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export timesheets to Excel
+   */
+  timesheets: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportTimesheetsToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `timesheets_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export all data to a single Excel file with multiple sheets
+   */
+  all: publicProcedure.mutation(async () => {
+    const buffer = await exportAllDataToExcel();
+    return {
+      data: buffer.toString("base64"),
+      filename: `azvirt_dms_export_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Get available columns for each export type
+   */
+  getAvailableColumns: publicProcedure.input(z9.enum(["materials", "employees", "projects", "deliveries", "timesheets"])).query(({ input }) => {
+    const columnDefinitions = {
+      materials: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Material Name" },
+        { key: "category", label: "Category" },
+        { key: "unit", label: "Unit" },
+        { key: "quantity", label: "Quantity" },
+        { key: "minStock", label: "Min Stock" },
+        { key: "criticalThreshold", label: "Critical Threshold" },
+        { key: "supplier", label: "Supplier" },
+        { key: "unitPrice", label: "Unit Price" },
+        { key: "supplierEmail", label: "Supplier Email" },
+        { key: "createdAt", label: "Created At" },
+        { key: "updatedAt", label: "Updated At" }
+      ],
+      employees: [
+        { key: "id", label: "ID" },
+        { key: "firstName", label: "First Name" },
+        { key: "lastName", label: "Last Name" },
+        { key: "employeeNumber", label: "Employee Number" },
+        { key: "position", label: "Position" },
+        { key: "department", label: "Department" },
+        { key: "phoneNumber", label: "Phone" },
+        { key: "email", label: "Email" },
+        { key: "hourlyRate", label: "Hourly Rate" },
+        { key: "status", label: "Status" },
+        { key: "hireDate", label: "Hire Date" },
+        { key: "createdAt", label: "Created At" }
+      ],
+      projects: [
+        { key: "id", label: "ID" },
+        { key: "name", label: "Project Name" },
+        { key: "location", label: "Location" },
+        { key: "status", label: "Status" },
+        { key: "startDate", label: "Start Date" },
+        { key: "endDate", label: "End Date" },
+        { key: "createdBy", label: "Created By" },
+        { key: "createdAt", label: "Created At" }
+      ],
+      deliveries: [
+        { key: "id", label: "ID" },
+        { key: "projectId", label: "Project ID" },
+        { key: "materialId", label: "Material ID" },
+        { key: "quantity", label: "Quantity" },
+        { key: "deliveryDate", label: "Delivery Date" },
+        { key: "status", label: "Status" },
+        { key: "supplier", label: "Supplier" },
+        { key: "notes", label: "Notes" },
+        { key: "createdAt", label: "Created At" }
+      ],
+      timesheets: [
+        { key: "id", label: "ID" },
+        { key: "employeeId", label: "Employee ID" },
+        { key: "projectId", label: "Project ID" },
+        { key: "date", label: "Date" },
+        { key: "hoursWorked", label: "Hours Worked" },
+        { key: "overtimeHours", label: "Overtime Hours" },
+        { key: "breakMinutes", label: "Break Minutes" },
+        { key: "status", label: "Status" },
+        { key: "notes", label: "Notes" },
+        { key: "createdAt", label: "Created At" }
+      ]
+    };
+    return columnDefinitions[input];
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -6264,6 +6681,7 @@ var appRouter = router({
   triggerExecution: triggerExecutionRouter,
   timesheets: timesheetsRouter,
   geolocation: geolocationRouter,
+  export: exportRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -6273,9 +6691,9 @@ var appRouter = router({
         success: true
       };
     }),
-    updateSMSSettings: protectedProcedure.input(z9.object({
-      phoneNumber: z9.string().min(1),
-      smsNotificationsEnabled: z9.boolean()
+    updateSMSSettings: protectedProcedure.input(z10.object({
+      phoneNumber: z10.string().min(1),
+      smsNotificationsEnabled: z10.boolean()
     })).mutation(async ({ input, ctx }) => {
       const success = await updateUserSMSSettings(
         ctx.user.id,
@@ -6284,8 +6702,8 @@ var appRouter = router({
       );
       return { success };
     }),
-    updateLanguagePreference: protectedProcedure.input(z9.object({
-      language: z9.enum(["en", "bs", "az"])
+    updateLanguagePreference: protectedProcedure.input(z10.object({
+      language: z10.enum(["en", "bs", "az"])
     })).mutation(async ({ input, ctx }) => {
       const success = await updateUserLanguagePreference(
         ctx.user.id,
@@ -6295,21 +6713,21 @@ var appRouter = router({
     })
   }),
   documents: router({
-    list: protectedProcedure.input(z9.object({
-      projectId: z9.number().optional(),
-      category: z9.string().optional(),
-      search: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      projectId: z10.number().optional(),
+      category: z10.string().optional(),
+      search: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDocuments(input);
     }),
-    upload: protectedProcedure.input(z9.object({
-      name: z9.string(),
-      description: z9.string().optional(),
-      fileData: z9.string(),
-      mimeType: z9.string(),
-      fileSize: z9.number(),
-      category: z9.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
-      projectId: z9.number().optional()
+    upload: protectedProcedure.input(z10.object({
+      name: z10.string(),
+      description: z10.string().optional(),
+      fileData: z10.string(),
+      mimeType: z10.string(),
+      fileSize: z10.number(),
+      category: z10.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
+      projectId: z10.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const fileBuffer = Buffer.from(input.fileData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "bin";
@@ -6328,7 +6746,7 @@ var appRouter = router({
       });
       return { success: true, url };
     }),
-    delete: protectedProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
       await deleteDocument(input.id);
       return { success: true };
     })
@@ -6337,13 +6755,13 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getProjects();
     }),
-    create: protectedProcedure.input(z9.object({
-      name: z9.string(),
-      description: z9.string().optional(),
-      location: z9.string().optional(),
-      status: z9.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
-      startDate: z9.date().optional(),
-      endDate: z9.date().optional()
+    create: protectedProcedure.input(z10.object({
+      name: z10.string(),
+      description: z10.string().optional(),
+      location: z10.string().optional(),
+      status: z10.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
+      startDate: z10.date().optional(),
+      endDate: z10.date().optional()
     })).mutation(async ({ input, ctx }) => {
       await createProject({
         ...input,
@@ -6351,14 +6769,14 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      name: z9.string().optional(),
-      description: z9.string().optional(),
-      location: z9.string().optional(),
-      status: z9.enum(["planning", "active", "completed", "on_hold"]).optional(),
-      startDate: z9.date().optional(),
-      endDate: z9.date().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      name: z10.string().optional(),
+      description: z10.string().optional(),
+      location: z10.string().optional(),
+      status: z10.enum(["planning", "active", "completed", "on_hold"]).optional(),
+      startDate: z10.date().optional(),
+      endDate: z10.date().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateProject(id, data);
@@ -6369,55 +6787,55 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getMaterials();
     }),
-    create: protectedProcedure.input(z9.object({
-      name: z9.string(),
-      category: z9.enum(["cement", "aggregate", "admixture", "water", "other"]),
-      unit: z9.string(),
-      quantity: z9.number().default(0),
-      minStock: z9.number().default(0),
-      criticalThreshold: z9.number().default(0),
-      supplier: z9.string().optional(),
-      unitPrice: z9.number().optional()
+    create: protectedProcedure.input(z10.object({
+      name: z10.string(),
+      category: z10.enum(["cement", "aggregate", "admixture", "water", "other"]),
+      unit: z10.string(),
+      quantity: z10.number().default(0),
+      minStock: z10.number().default(0),
+      criticalThreshold: z10.number().default(0),
+      supplier: z10.string().optional(),
+      unitPrice: z10.number().optional()
     })).mutation(async ({ input }) => {
       await createMaterial(input);
       return { success: true };
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      name: z9.string().optional(),
-      category: z9.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
-      unit: z9.string().optional(),
-      quantity: z9.number().optional(),
-      minStock: z9.number().optional(),
-      criticalThreshold: z9.number().optional(),
-      supplier: z9.string().optional(),
-      unitPrice: z9.number().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      name: z10.string().optional(),
+      category: z10.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
+      unit: z10.string().optional(),
+      quantity: z10.number().optional(),
+      minStock: z10.number().optional(),
+      criticalThreshold: z10.number().optional(),
+      supplier: z10.string().optional(),
+      unitPrice: z10.number().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateMaterial(id, data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
       await deleteMaterial(input.id);
       return { success: true };
     }),
     checkLowStock: protectedProcedure.query(async () => {
       return await getLowStockMaterials();
     }),
-    recordConsumption: protectedProcedure.input(z9.object({
-      materialId: z9.number(),
-      quantity: z9.number(),
-      consumptionDate: z9.date(),
-      projectId: z9.number().optional(),
-      deliveryId: z9.number().optional(),
-      notes: z9.string().optional()
+    recordConsumption: protectedProcedure.input(z10.object({
+      materialId: z10.number(),
+      quantity: z10.number(),
+      consumptionDate: z10.date(),
+      projectId: z10.number().optional(),
+      deliveryId: z10.number().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input }) => {
       await recordConsumption(input);
       return { success: true };
     }),
-    getConsumptionHistory: protectedProcedure.input(z9.object({
-      materialId: z9.number().optional(),
-      days: z9.number().default(30)
+    getConsumptionHistory: protectedProcedure.input(z10.object({
+      materialId: z10.number().optional(),
+      days: z10.number().default(30)
     })).query(async ({ input }) => {
       return await getConsumptionHistory(input.materialId, input.days);
     }),
@@ -6488,30 +6906,30 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   deliveries: router({
-    list: protectedProcedure.input(z9.object({
-      projectId: z9.number().optional(),
-      status: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      projectId: z10.number().optional(),
+      status: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDeliveries(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      projectId: z9.number().optional(),
-      projectName: z9.string(),
-      concreteType: z9.string(),
-      volume: z9.number(),
-      scheduledTime: z9.date(),
-      status: z9.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
-      driverName: z9.string().optional(),
-      vehicleNumber: z9.string().optional(),
-      notes: z9.string().optional(),
-      gpsLocation: z9.string().optional(),
-      deliveryPhotos: z9.string().optional(),
-      estimatedArrival: z9.number().optional(),
-      actualArrivalTime: z9.number().optional(),
-      actualDeliveryTime: z9.number().optional(),
-      driverNotes: z9.string().optional(),
-      customerName: z9.string().optional(),
-      customerPhone: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      projectId: z10.number().optional(),
+      projectName: z10.string(),
+      concreteType: z10.string(),
+      volume: z10.number(),
+      scheduledTime: z10.date(),
+      status: z10.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
+      driverName: z10.string().optional(),
+      vehicleNumber: z10.string().optional(),
+      notes: z10.string().optional(),
+      gpsLocation: z10.string().optional(),
+      deliveryPhotos: z10.string().optional(),
+      estimatedArrival: z10.number().optional(),
+      actualArrivalTime: z10.number().optional(),
+      actualDeliveryTime: z10.number().optional(),
+      driverNotes: z10.string().optional(),
+      customerName: z10.string().optional(),
+      customerPhone: z10.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createDelivery({
         ...input,
@@ -6519,36 +6937,36 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      projectId: z9.number().optional(),
-      projectName: z9.string().optional(),
-      concreteType: z9.string().optional(),
-      volume: z9.number().optional(),
-      scheduledTime: z9.date().optional(),
-      actualTime: z9.date().optional(),
-      status: z9.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
-      driverName: z9.string().optional(),
-      vehicleNumber: z9.string().optional(),
-      notes: z9.string().optional(),
-      gpsLocation: z9.string().optional(),
-      deliveryPhotos: z9.string().optional(),
-      estimatedArrival: z9.number().optional(),
-      actualArrivalTime: z9.number().optional(),
-      actualDeliveryTime: z9.number().optional(),
-      driverNotes: z9.string().optional(),
-      customerName: z9.string().optional(),
-      customerPhone: z9.string().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      projectId: z10.number().optional(),
+      projectName: z10.string().optional(),
+      concreteType: z10.string().optional(),
+      volume: z10.number().optional(),
+      scheduledTime: z10.date().optional(),
+      actualTime: z10.date().optional(),
+      status: z10.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
+      driverName: z10.string().optional(),
+      vehicleNumber: z10.string().optional(),
+      notes: z10.string().optional(),
+      gpsLocation: z10.string().optional(),
+      deliveryPhotos: z10.string().optional(),
+      estimatedArrival: z10.number().optional(),
+      actualArrivalTime: z10.number().optional(),
+      actualDeliveryTime: z10.number().optional(),
+      driverNotes: z10.string().optional(),
+      customerName: z10.string().optional(),
+      customerPhone: z10.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateDelivery(id, data);
       return { success: true };
     }),
-    updateStatus: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      status: z9.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
-      gpsLocation: z9.string().optional(),
-      driverNotes: z9.string().optional()
+    updateStatus: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      status: z10.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+      gpsLocation: z10.string().optional(),
+      driverNotes: z10.string().optional()
     })).mutation(async ({ input }) => {
       const { id, status, gpsLocation, driverNotes } = input;
       const updateData = { status };
@@ -6560,10 +6978,10 @@ Please reorder these materials to avoid project delays.`;
       await updateDelivery(id, updateData);
       return { success: true };
     }),
-    uploadDeliveryPhoto: protectedProcedure.input(z9.object({
-      deliveryId: z9.number(),
-      photoData: z9.string(),
-      mimeType: z9.string()
+    uploadDeliveryPhoto: protectedProcedure.input(z10.object({
+      deliveryId: z10.number(),
+      photoData: z10.string(),
+      mimeType: z10.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -6584,9 +7002,9 @@ Please reorder these materials to avoid project delays.`;
         (d) => ["loaded", "en_route", "arrived", "delivered"].includes(d.status)
       );
     }),
-    sendCustomerNotification: protectedProcedure.input(z9.object({
-      deliveryId: z9.number(),
-      message: z9.string()
+    sendCustomerNotification: protectedProcedure.input(z10.object({
+      deliveryId: z10.number(),
+      message: z10.string()
     })).mutation(async ({ input }) => {
       const allDeliveries = await getDeliveries();
       const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
@@ -6599,37 +7017,37 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   qualityTests: router({
-    list: protectedProcedure.input(z9.object({
-      projectId: z9.number().optional(),
-      deliveryId: z9.number().optional()
+    list: protectedProcedure.input(z10.object({
+      projectId: z10.number().optional(),
+      deliveryId: z10.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getQualityTests(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      testName: z9.string(),
-      testType: z9.enum(["slump", "strength", "air_content", "temperature", "other"]),
-      result: z9.string(),
-      unit: z9.string().optional(),
-      status: z9.enum(["pass", "fail", "pending"]).default("pending"),
-      deliveryId: z9.number().optional(),
-      projectId: z9.number().optional(),
-      testedBy: z9.string().optional(),
-      notes: z9.string().optional(),
-      photoUrls: z9.string().optional(),
+    create: protectedProcedure.input(z10.object({
+      testName: z10.string(),
+      testType: z10.enum(["slump", "strength", "air_content", "temperature", "other"]),
+      result: z10.string(),
+      unit: z10.string().optional(),
+      status: z10.enum(["pass", "fail", "pending"]).default("pending"),
+      deliveryId: z10.number().optional(),
+      projectId: z10.number().optional(),
+      testedBy: z10.string().optional(),
+      notes: z10.string().optional(),
+      photoUrls: z10.string().optional(),
       // JSON array
-      inspectorSignature: z9.string().optional(),
-      supervisorSignature: z9.string().optional(),
-      testLocation: z9.string().optional(),
-      complianceStandard: z9.string().optional(),
-      offlineSyncStatus: z9.enum(["synced", "pending", "failed"]).default("synced").optional()
+      inspectorSignature: z10.string().optional(),
+      supervisorSignature: z10.string().optional(),
+      testLocation: z10.string().optional(),
+      complianceStandard: z10.string().optional(),
+      offlineSyncStatus: z10.enum(["synced", "pending", "failed"]).default("synced").optional()
     })).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
     }),
-    uploadPhoto: protectedProcedure.input(z9.object({
-      photoData: z9.string(),
+    uploadPhoto: protectedProcedure.input(z10.object({
+      photoData: z10.string(),
       // Base64 encoded image
-      mimeType: z9.string()
+      mimeType: z10.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -6637,22 +7055,22 @@ Please reorder these materials to avoid project delays.`;
       const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
       return { success: true, url };
     }),
-    syncOfflineTests: protectedProcedure.input(z9.object({
-      tests: z9.array(z9.object({
-        testName: z9.string(),
-        testType: z9.enum(["slump", "strength", "air_content", "temperature", "other"]),
-        result: z9.string(),
-        unit: z9.string().optional(),
-        status: z9.enum(["pass", "fail", "pending"]),
-        deliveryId: z9.number().optional(),
-        projectId: z9.number().optional(),
-        testedBy: z9.string().optional(),
-        notes: z9.string().optional(),
-        photoUrls: z9.string().optional(),
-        inspectorSignature: z9.string().optional(),
-        supervisorSignature: z9.string().optional(),
-        testLocation: z9.string().optional(),
-        complianceStandard: z9.string().optional()
+    syncOfflineTests: protectedProcedure.input(z10.object({
+      tests: z10.array(z10.object({
+        testName: z10.string(),
+        testType: z10.enum(["slump", "strength", "air_content", "temperature", "other"]),
+        result: z10.string(),
+        unit: z10.string().optional(),
+        status: z10.enum(["pass", "fail", "pending"]),
+        deliveryId: z10.number().optional(),
+        projectId: z10.number().optional(),
+        testedBy: z10.string().optional(),
+        notes: z10.string().optional(),
+        photoUrls: z10.string().optional(),
+        inspectorSignature: z10.string().optional(),
+        supervisorSignature: z10.string().optional(),
+        testLocation: z10.string().optional(),
+        complianceStandard: z10.string().optional()
       }))
     })).mutation(async ({ input }) => {
       for (const test of input.tests) {
@@ -6660,33 +7078,33 @@ Please reorder these materials to avoid project delays.`;
       }
       return { success: true, syncedCount: input.tests.length };
     }),
-    getFailedTests: protectedProcedure.input(z9.object({
-      days: z9.number().default(30)
+    getFailedTests: protectedProcedure.input(z10.object({
+      days: z10.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getFailedQualityTests(input?.days || 30);
     }),
-    getTrends: protectedProcedure.input(z9.object({
-      days: z9.number().default(30)
+    getTrends: protectedProcedure.input(z10.object({
+      days: z10.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getQualityTestTrends(input?.days || 30);
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      testName: z9.string().optional(),
-      testType: z9.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
-      result: z9.string().optional(),
-      unit: z9.string().optional(),
-      status: z9.enum(["pass", "fail", "pending"]).optional(),
-      deliveryId: z9.number().optional(),
-      projectId: z9.number().optional(),
-      testedBy: z9.string().optional(),
-      notes: z9.string().optional(),
-      photoUrls: z9.string().optional(),
-      inspectorSignature: z9.string().optional(),
-      supervisorSignature: z9.string().optional(),
-      testLocation: z9.string().optional(),
-      complianceStandard: z9.string().optional(),
-      offlineSyncStatus: z9.enum(["synced", "pending", "failed"]).optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      testName: z10.string().optional(),
+      testType: z10.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
+      result: z10.string().optional(),
+      unit: z10.string().optional(),
+      status: z10.enum(["pass", "fail", "pending"]).optional(),
+      deliveryId: z10.number().optional(),
+      projectId: z10.number().optional(),
+      testedBy: z10.string().optional(),
+      notes: z10.string().optional(),
+      photoUrls: z10.string().optional(),
+      inspectorSignature: z10.string().optional(),
+      supervisorSignature: z10.string().optional(),
+      testLocation: z10.string().optional(),
+      complianceStandard: z10.string().optional(),
+      offlineSyncStatus: z10.enum(["synced", "pending", "failed"]).optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateQualityTest(id, data);
@@ -6754,78 +7172,78 @@ Please reorder these materials to avoid project delays.`;
   }),
   // Workforce Management
   employees: router({
-    list: protectedProcedure.input(z9.object({
-      department: z9.string().optional(),
-      status: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      department: z10.string().optional(),
+      status: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getEmployees(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      firstName: z9.string(),
-      lastName: z9.string(),
-      employeeNumber: z9.string(),
-      position: z9.string(),
-      department: z9.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
-      phoneNumber: z9.string().optional(),
-      email: z9.string().optional(),
-      hourlyRate: z9.number().optional(),
-      status: z9.enum(["active", "inactive", "on_leave"]).default("active"),
-      hireDate: z9.date().optional()
+    create: protectedProcedure.input(z10.object({
+      firstName: z10.string(),
+      lastName: z10.string(),
+      employeeNumber: z10.string(),
+      position: z10.string(),
+      department: z10.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
+      phoneNumber: z10.string().optional(),
+      email: z10.string().optional(),
+      hourlyRate: z10.number().optional(),
+      status: z10.enum(["active", "inactive", "on_leave"]).default("active"),
+      hireDate: z10.date().optional()
     })).mutation(async ({ input }) => {
       return await createEmployee(input);
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      data: z9.object({
-        firstName: z9.string().optional(),
-        lastName: z9.string().optional(),
-        position: z9.string().optional(),
-        department: z9.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
-        phoneNumber: z9.string().optional(),
-        email: z9.string().optional(),
-        hourlyRate: z9.number().optional(),
-        status: z9.enum(["active", "inactive", "on_leave"]).optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      data: z10.object({
+        firstName: z10.string().optional(),
+        lastName: z10.string().optional(),
+        position: z10.string().optional(),
+        department: z10.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
+        phoneNumber: z10.string().optional(),
+        email: z10.string().optional(),
+        hourlyRate: z10.number().optional(),
+        status: z10.enum(["active", "inactive", "on_leave"]).optional()
       })
     })).mutation(async ({ input }) => {
       await updateEmployee(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
       await deleteEmployee(input.id);
       return { success: true };
     })
   }),
   workHours: router({
-    list: protectedProcedure.input(z9.object({
-      employeeId: z9.number().optional(),
-      projectId: z9.number().optional(),
-      status: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      employeeId: z10.number().optional(),
+      projectId: z10.number().optional(),
+      status: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getWorkHours(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      employeeId: z9.number(),
-      projectId: z9.number().optional(),
-      date: z9.date(),
-      startTime: z9.date(),
-      endTime: z9.date().optional(),
-      hoursWorked: z9.number().optional(),
-      overtimeHours: z9.number().optional(),
-      workType: z9.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
-      notes: z9.string().optional(),
-      status: z9.enum(["pending", "approved", "rejected"]).default("pending")
+    create: protectedProcedure.input(z10.object({
+      employeeId: z10.number(),
+      projectId: z10.number().optional(),
+      date: z10.date(),
+      startTime: z10.date(),
+      endTime: z10.date().optional(),
+      hoursWorked: z10.number().optional(),
+      overtimeHours: z10.number().optional(),
+      workType: z10.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+      notes: z10.string().optional(),
+      status: z10.enum(["pending", "approved", "rejected"]).default("pending")
     })).mutation(async ({ input, ctx }) => {
       return await createWorkHour(input);
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      data: z9.object({
-        endTime: z9.date().optional(),
-        hoursWorked: z9.number().optional(),
-        overtimeHours: z9.number().optional(),
-        notes: z9.string().optional(),
-        status: z9.enum(["pending", "approved", "rejected"]).optional(),
-        approvedBy: z9.number().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      data: z10.object({
+        endTime: z10.date().optional(),
+        hoursWorked: z10.number().optional(),
+        overtimeHours: z10.number().optional(),
+        notes: z10.string().optional(),
+        status: z10.enum(["pending", "approved", "rejected"]).optional(),
+        approvedBy: z10.number().optional()
       })
     })).mutation(async ({ input }) => {
       await updateWorkHour(input.id, input.data);
@@ -6837,25 +7255,25 @@ Please reorder these materials to avoid project delays.`;
     list: protectedProcedure.query(async () => {
       return await getConcreteBases();
     }),
-    create: protectedProcedure.input(z9.object({
-      name: z9.string(),
-      location: z9.string(),
-      capacity: z9.number(),
-      status: z9.enum(["operational", "maintenance", "inactive"]).default("operational"),
-      managerName: z9.string().optional(),
-      phoneNumber: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      name: z10.string(),
+      location: z10.string(),
+      capacity: z10.number(),
+      status: z10.enum(["operational", "maintenance", "inactive"]).default("operational"),
+      managerName: z10.string().optional(),
+      phoneNumber: z10.string().optional()
     })).mutation(async ({ input }) => {
       return await createConcreteBase(input);
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      data: z9.object({
-        name: z9.string().optional(),
-        location: z9.string().optional(),
-        capacity: z9.number().optional(),
-        status: z9.enum(["operational", "maintenance", "inactive"]).optional(),
-        managerName: z9.string().optional(),
-        phoneNumber: z9.string().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      data: z10.object({
+        name: z10.string().optional(),
+        location: z10.string().optional(),
+        capacity: z10.number().optional(),
+        status: z10.enum(["operational", "maintenance", "inactive"]).optional(),
+        managerName: z10.string().optional(),
+        phoneNumber: z10.string().optional()
       })
     })).mutation(async ({ input }) => {
       await updateConcreteBase(input.id, input.data);
@@ -6863,127 +7281,127 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   machines: router({
-    list: protectedProcedure.input(z9.object({
-      concreteBaseId: z9.number().optional(),
-      type: z9.string().optional(),
-      status: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      concreteBaseId: z10.number().optional(),
+      type: z10.string().optional(),
+      status: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachines(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      name: z9.string(),
-      machineNumber: z9.string(),
-      type: z9.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
-      manufacturer: z9.string().optional(),
-      model: z9.string().optional(),
-      year: z9.number().optional(),
-      concreteBaseId: z9.number().optional(),
-      status: z9.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+    create: protectedProcedure.input(z10.object({
+      name: z10.string(),
+      machineNumber: z10.string(),
+      type: z10.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
+      manufacturer: z10.string().optional(),
+      model: z10.string().optional(),
+      year: z10.number().optional(),
+      concreteBaseId: z10.number().optional(),
+      status: z10.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
     })).mutation(async ({ input }) => {
       return await createMachine(input);
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      data: z9.object({
-        name: z9.string().optional(),
-        type: z9.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
-        status: z9.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
-        totalWorkingHours: z9.number().optional(),
-        lastMaintenanceDate: z9.date().optional(),
-        nextMaintenanceDate: z9.date().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      data: z10.object({
+        name: z10.string().optional(),
+        type: z10.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+        status: z10.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+        totalWorkingHours: z10.number().optional(),
+        lastMaintenanceDate: z10.date().optional(),
+        nextMaintenanceDate: z10.date().optional()
       })
     })).mutation(async ({ input }) => {
       await updateMachine(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z9.object({ id: z9.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
       await deleteMachine(input.id);
       return { success: true };
     })
   }),
   machineMaintenance: router({
-    list: protectedProcedure.input(z9.object({
-      machineId: z9.number().optional(),
-      maintenanceType: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      machineId: z10.number().optional(),
+      maintenanceType: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineMaintenance(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      machineId: z9.number(),
-      date: z9.date(),
-      maintenanceType: z9.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
-      description: z9.string().optional(),
-      lubricationType: z9.string().optional(),
-      lubricationAmount: z9.number().optional(),
-      fuelType: z9.string().optional(),
-      fuelAmount: z9.number().optional(),
-      cost: z9.number().optional(),
-      performedBy: z9.string().optional(),
-      hoursAtMaintenance: z9.number().optional(),
-      notes: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      machineId: z10.number(),
+      date: z10.date(),
+      maintenanceType: z10.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
+      description: z10.string().optional(),
+      lubricationType: z10.string().optional(),
+      lubricationAmount: z10.number().optional(),
+      fuelType: z10.string().optional(),
+      fuelAmount: z10.number().optional(),
+      cost: z10.number().optional(),
+      performedBy: z10.string().optional(),
+      hoursAtMaintenance: z10.number().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineMaintenance(input);
     })
   }),
   machineWorkHours: router({
-    list: protectedProcedure.input(z9.object({
-      machineId: z9.number().optional(),
-      projectId: z9.number().optional()
+    list: protectedProcedure.input(z10.object({
+      machineId: z10.number().optional(),
+      projectId: z10.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineWorkHours(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      machineId: z9.number(),
-      projectId: z9.number().optional(),
-      date: z9.date(),
-      startTime: z9.date(),
-      endTime: z9.date().optional(),
-      hoursWorked: z9.number().optional(),
-      operatorId: z9.number().optional(),
-      operatorName: z9.string().optional(),
-      notes: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      machineId: z10.number(),
+      projectId: z10.number().optional(),
+      date: z10.date(),
+      startTime: z10.date(),
+      endTime: z10.date().optional(),
+      hoursWorked: z10.number().optional(),
+      operatorId: z10.number().optional(),
+      operatorName: z10.string().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineWorkHour(input);
     })
   }),
   aggregateInputs: router({
-    list: protectedProcedure.input(z9.object({
-      concreteBaseId: z9.number().optional(),
-      materialType: z9.string().optional()
+    list: protectedProcedure.input(z10.object({
+      concreteBaseId: z10.number().optional(),
+      materialType: z10.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getAggregateInputs(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      concreteBaseId: z9.number(),
-      date: z9.date(),
-      materialType: z9.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
-      materialName: z9.string(),
-      quantity: z9.number(),
-      unit: z9.string(),
-      supplier: z9.string().optional(),
-      batchNumber: z9.string().optional(),
-      receivedBy: z9.string().optional(),
-      notes: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      concreteBaseId: z10.number(),
+      date: z10.date(),
+      materialType: z10.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
+      materialName: z10.string(),
+      quantity: z10.number(),
+      unit: z10.string(),
+      supplier: z10.string().optional(),
+      batchNumber: z10.string().optional(),
+      receivedBy: z10.string().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input }) => {
       return await createAggregateInput(input);
     })
   }),
   purchaseOrders: router({
-    list: protectedProcedure.input(z9.object({
-      status: z9.string().optional(),
-      materialId: z9.number().optional()
+    list: protectedProcedure.input(z10.object({
+      status: z10.string().optional(),
+      materialId: z10.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getPurchaseOrders(input);
     }),
-    create: protectedProcedure.input(z9.object({
-      materialId: z9.number(),
-      materialName: z9.string(),
-      quantity: z9.number(),
-      supplier: z9.string().optional(),
-      supplierEmail: z9.string().optional(),
-      expectedDelivery: z9.date().optional(),
-      totalCost: z9.number().optional(),
-      notes: z9.string().optional()
+    create: protectedProcedure.input(z10.object({
+      materialId: z10.number(),
+      materialName: z10.string(),
+      quantity: z10.number(),
+      supplier: z10.string().optional(),
+      supplierEmail: z10.string().optional(),
+      expectedDelivery: z10.date().optional(),
+      totalCost: z10.number().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createPurchaseOrder({
         ...input,
@@ -6992,20 +7410,20 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z9.object({
-      id: z9.number(),
-      status: z9.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
-      expectedDelivery: z9.date().optional(),
-      actualDelivery: z9.date().optional(),
-      totalCost: z9.number().optional(),
-      notes: z9.string().optional()
+    update: protectedProcedure.input(z10.object({
+      id: z10.number(),
+      status: z10.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
+      expectedDelivery: z10.date().optional(),
+      actualDelivery: z10.date().optional(),
+      totalCost: z10.number().optional(),
+      notes: z10.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updatePurchaseOrder(id, data);
       return { success: true };
     }),
-    sendToSupplier: protectedProcedure.input(z9.object({
-      orderId: z9.number()
+    sendToSupplier: protectedProcedure.input(z10.object({
+      orderId: z10.number()
     })).mutation(async ({ input }) => {
       const orders = await getPurchaseOrders();
       const order = orders.find((o) => o.id === input.orderId);
@@ -7038,8 +7456,8 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   reports: router({
-    dailyProduction: protectedProcedure.input(z9.object({
-      date: z9.string()
+    dailyProduction: protectedProcedure.input(z10.object({
+      date: z10.string()
       // YYYY-MM-DD format
     })).query(async ({ input }) => {
       const targetDate = new Date(input.date);
@@ -7084,9 +7502,9 @@ Please reorder these materials to avoid project delays.`;
         qualityTests: qualityTests2
       };
     }),
-    sendDailyProductionEmail: protectedProcedure.input(z9.object({
-      date: z9.string(),
-      recipientEmail: z9.string()
+    sendDailyProductionEmail: protectedProcedure.input(z10.object({
+      date: z10.string(),
+      recipientEmail: z10.string()
     })).mutation(async ({ input }) => {
       const targetDate = new Date(input.date);
       const nextDay = new Date(targetDate);
@@ -7148,21 +7566,21 @@ Please reorder these materials to avoid project delays.`;
     get: protectedProcedure.query(async () => {
       return await getEmailBranding();
     }),
-    update: protectedProcedure.input(z9.object({
-      logoUrl: z9.string().optional(),
-      primaryColor: z9.string().optional(),
-      secondaryColor: z9.string().optional(),
-      companyName: z9.string().optional(),
-      footerText: z9.string().optional()
+    update: protectedProcedure.input(z10.object({
+      logoUrl: z10.string().optional(),
+      primaryColor: z10.string().optional(),
+      secondaryColor: z10.string().optional(),
+      companyName: z10.string().optional(),
+      footerText: z10.string().optional()
     })).mutation(async ({ input }) => {
       await upsertEmailBranding(input);
       return { success: true };
     }),
-    uploadLogo: protectedProcedure.input(z9.object({
-      fileData: z9.string(),
+    uploadLogo: protectedProcedure.input(z10.object({
+      fileData: z10.string(),
       // base64 encoded image
-      fileName: z9.string(),
-      mimeType: z9.string()
+      fileName: z10.string(),
+      mimeType: z10.string()
     })).mutation(async ({ input }) => {
       const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
       if (!allowedTypes.includes(input.mimeType)) {

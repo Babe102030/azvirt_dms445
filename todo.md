@@ -1008,11 +1008,17 @@
 ## Batch Import/Export System
 - [x] Create CSV import service with validation (materials, employees, projects)
 - [x] Implement error handling and validation reporting
-- [ ] Create Excel export service with multiple sheet support
-- [ ] Add customizable column selection for exports
+- [x] Create Excel export service with multiple sheet support
+- [x] Implement Excel export for materials with customizable columns
+- [x] Implement Excel export for employees with customizable columns
+- [x] Implement Excel export for projects with customizable columns
+- [x] Implement Excel export for timesheets with customizable columns
+- [x] Implement Excel export for deliveries with customizable columns
+- [x] Add customizable column selection for exports
+- [x] Add styling and formatting to Excel sheets (colored headers, filters, widths)
 - [ ] Build import progress tracking and status reporting
 - [ ] Create tRPC procedures for import operations
-- [ ] Create tRPC procedures for export operations
+- [x] Create tRPC procedures for export operations (6 procedures)
 - [ ] Build import UI component with file upload
 - [ ] Build export UI component with column selector
 - [ ] Add data preview before import

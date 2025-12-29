@@ -13,6 +13,7 @@ import { notificationTemplatesRouter } from "./routers/notificationTemplates";
 import { triggerExecutionRouter } from "./routers/triggerExecution";
 import { timesheetsRouter } from "./routers/timesheets";
 import { geolocationRouter } from "./routers/geolocation";
+import { exportRouter } from "./routers/export";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   triggerExecution: triggerExecutionRouter,
   timesheets: timesheetsRouter,
   geolocation: geolocationRouter,
+  export: exportRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
