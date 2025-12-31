@@ -20,12 +20,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FolderPlus, Folder } from "lucide-react";
+import { FolderPlus, Folder, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function Projects() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: projects, isLoading, refetch } = trpc.projects.list.useQuery();
 
@@ -39,6 +42,32 @@ export default function Projects() {
       toast.error(`Failed to create project: ${error.message}`);
     },
   });
+
+  const exportMutation = trpc.export.projects.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("projects"));
+      toast.success("Projekti uspješno izvezeni");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "name", label: "Naziv", enabled: true },
+    { key: "description", label: "Opis", enabled: true },
+    { key: "location", label: "Lokacija", enabled: true },
+    { key: "status", label: "Status", enabled: true },
+    { key: "startDate", label: "Datum početka", enabled: false },
+    { key: "endDate", label: "Datum završetka", enabled: false },
+    { key: "createdAt", label: "Datum kreiranja", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -73,13 +102,22 @@ export default function Projects() {
             <h1 className="text-3xl font-bold text-white">Projects</h1>
             <p className="text-white/70">Manage construction projects</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <FolderPlus className="mr-2 h-5 w-5" />
-                New Project
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-3">
+            <Button 
+              size="lg"
+              variant="outline"
+              onClick={() => setExportOpen(true)}
+            >
+              <FileDown className="mr-2 h-5 w-5" />
+              Izvezi u Excel
+            </Button>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg">
+                  <FolderPlus className="mr-2 h-5 w-5" />
+                  New Project
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card/95 backdrop-blur">
               <DialogHeader>
                 <DialogTitle>Create New Project</DialogTitle>
@@ -118,6 +156,7 @@ export default function Projects() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
@@ -168,6 +207,16 @@ export default function Projects() {
           </CardContent>
         </Card>
       </div>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi projekte"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </DashboardLayout>
   );
 }

@@ -27,13 +27,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Clock, Play, Square, Check, X, Plus } from "lucide-react";
+import { Clock, Play, Square, Check, X, Plus, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function Timesheets() {
   const { user } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
@@ -95,6 +98,35 @@ export default function Timesheets() {
     },
   });
 
+  const exportMutation = trpc.export.timesheets.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("timesheets"));
+      toast.success("Evidencije uspješno izvezene");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "employeeId", label: "ID zaposlenog", enabled: true },
+    { key: "employeeName", label: "Zaposleni", enabled: true },
+    { key: "projectId", label: "ID projekta", enabled: false },
+    { key: "projectName", label: "Projekat", enabled: true },
+    { key: "startTime", label: "Početak", enabled: true },
+    { key: "endTime", label: "Kraj", enabled: true },
+    { key: "hoursWorked", label: "Sati rada", enabled: true },
+    { key: "status", label: "Status", enabled: true },
+    { key: "notes", label: "Napomene", enabled: false },
+    { key: "createdAt", label: "Datum kreiranja", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
+
   const handleClockIn = (employeeId: number, projectId?: number) => {
     clockInMutation.mutate({ employeeId, projectId });
   };
@@ -149,6 +181,13 @@ export default function Timesheets() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setExportOpen(true)}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Izvezi u Excel
+          </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline">
@@ -381,6 +420,16 @@ export default function Timesheets() {
           </TableBody>
         </Table>
       </Card>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi evidencije"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </div>
   );
 }

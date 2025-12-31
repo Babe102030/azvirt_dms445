@@ -20,11 +20,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Package, Plus, AlertTriangle, Bell } from "lucide-react";
+import { Package, Plus, AlertTriangle, Bell, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function Materials() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: materials, isLoading, refetch } = trpc.materials.list.useQuery();
 
@@ -52,6 +55,34 @@ export default function Materials() {
     },
   });
 
+  const exportMutation = trpc.export.materials.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("materials"));
+      toast.success("Materijali uspješno izvezeni");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "name", label: "Naziv", enabled: true },
+    { key: "category", label: "Kategorija", enabled: true },
+    { key: "quantity", label: "Količina", enabled: true },
+    { key: "unit", label: "Jedinica", enabled: true },
+    { key: "minStock", label: "Min. zalihe", enabled: true },
+    { key: "criticalThreshold", label: "Kritični prag", enabled: false },
+    { key: "supplier", label: "Dobavljač", enabled: true },
+    { key: "unitPrice", label: "Cijena", enabled: false },
+    { key: "createdAt", label: "Datum kreiranja", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
+
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -77,6 +108,14 @@ export default function Materials() {
             <p className="text-white/70">Upravljajte zalihama i nivoima zaliha</p>
           </div>
           <div className="flex gap-3">
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => setExportOpen(true)}
+            >
+              <FileDown className="mr-2 h-5 w-5" />
+              Izvezi u Excel
+            </Button>
             <Button 
               size="lg" 
               variant="outline"
@@ -226,6 +265,16 @@ export default function Materials() {
           </CardContent>
         </Card>
       </div>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi materijale"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </DashboardLayout>
   );
 }

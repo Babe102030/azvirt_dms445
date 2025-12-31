@@ -1026,3 +1026,17 @@
 - [ ] Write vitest tests for CSV import
 - [ ] Write vitest tests for Excel export
 - [ ] Test end-to-end import/export workflows
+
+
+## Export UI Component (NEW)
+- [x] Create ExportDialog component with column selection checkboxes
+- [x] Add column preview functionality
+- [x] Implement download button with tRPC mutation trigger
+- [x] Add loading states and progress indicators
+- [x] Integrate export dialog into Materials page
+- [x] Integrate export dialog into Employees page
+- [x] Integrate export dialog into Projects page
+- [x] Integrate export dialog into Deliveries page
+- [x] Integrate export dialog into Timesheets page
+- [ ] Add export all data functionality with multi-sheet support
+- [x] Test export workflow end-to-end

@@ -26,11 +26,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { UserPlus, Trash2, Edit, Users } from "lucide-react";
+import { UserPlus, Trash2, Edit, Users, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   
   const { data: employees, isLoading, refetch } = trpc.employees.list.useQuery(
@@ -47,6 +50,33 @@ export default function Employees() {
       toast.error(`Failed to add employee: ${error.message}`);
     },
   });
+
+  const exportMutation = trpc.export.employees.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("employees"));
+      toast.success("Zaposleni uspješno izvezeni");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "name", label: "Ime", enabled: true },
+    { key: "position", label: "Pozicija", enabled: true },
+    { key: "department", label: "Odjel", enabled: true },
+    { key: "email", label: "Email", enabled: true },
+    { key: "phone", label: "Telefon", enabled: true },
+    { key: "hourlyRate", label: "Satnica", enabled: true },
+    { key: "hireDate", label: "Datum zapošljavanja", enabled: false },
+    { key: "createdAt", label: "Datum kreiranja", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
 
   const deleteMutation = trpc.employees.delete.useMutation({
     onSuccess: () => {
@@ -87,13 +117,21 @@ export default function Employees() {
             Manage employees and track workforce
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Employee
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-3">
+          <Button 
+            variant="outline"
+            onClick={() => setExportOpen(true)}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            Izvezi u Excel
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90">
+                <UserPlus className="mr-2 h-4 w-4" />
+                Add Employee
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Add New Employee</DialogTitle>
@@ -164,6 +202,7 @@ export default function Employees() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <Card className="p-4 border-l-4 border-l-primary">
@@ -254,6 +293,16 @@ export default function Employees() {
           </TableBody>
         </Table>
       </Card>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi zaposlene"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </div>
   );
 }

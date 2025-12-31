@@ -20,14 +20,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { Truck, Plus, Printer } from "lucide-react";
+import { Truck, Plus, Printer, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { DeliveryNote } from "@/components/DeliveryNote";
 import { LiveDeliveryMap } from "@/components/LiveDeliveryMap";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function Deliveries() {
   const [createOpen, setCreateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
   const [showLiveTracking, setShowLiveTracking] = useState(true);
 
@@ -43,6 +46,34 @@ export default function Deliveries() {
       toast.error(`Failed to schedule delivery: ${error.message}`);
     },
   });
+
+  const exportMutation = trpc.export.deliveries.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("deliveries"));
+      toast.success("Isporuke uspješno izvezene");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "projectName", label: "Projekat", enabled: true },
+    { key: "concreteType", label: "Tip betona", enabled: true },
+    { key: "volume", label: "Volumen (m³)", enabled: true },
+    { key: "scheduledTime", label: "Zakazano vrijeme", enabled: true },
+    { key: "status", label: "Status", enabled: true },
+    { key: "driverName", label: "Vozač", enabled: true },
+    { key: "vehicleNumber", label: "Vozilo", enabled: true },
+    { key: "notes", label: "Napomene", enabled: false },
+    { key: "createdAt", label: "Datum kreiranja", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,13 +111,22 @@ export default function Deliveries() {
             <h1 className="text-3xl font-bold text-white">Deliveries</h1>
             <p className="text-white/70">Track concrete deliveries</p>
           </div>
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Plus className="mr-2 h-5 w-5" />
-                Schedule Delivery
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-3">
+            <Button 
+              size="lg"
+              variant="outline"
+              onClick={() => setExportOpen(true)}
+            >
+              <FileDown className="mr-2 h-5 w-5" />
+              Izvezi u Excel
+            </Button>
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Schedule Delivery
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card/95 backdrop-blur">
               <DialogHeader>
                 <DialogTitle>Schedule New Delivery</DialogTitle>
@@ -127,6 +167,7 @@ export default function Deliveries() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Live Delivery Tracking */}
@@ -220,6 +261,16 @@ export default function Deliveries() {
           </CardContent>
         </Card>
       </div>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi isporuke"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </DashboardLayout>
   );
 }
