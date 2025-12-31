@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO materials (name, category, unit, quantity, minStock, criticalThreshold, supplier, unitPrice, supplierEmail, createdAt, updatedAt) VALUES\n('Additiv MC-ZIMSKI', 'admixture', 'L', 900, 200, 100, 'Additive Supplier', 50, 'additives@supplier.com', NOW(), NOW()),\n('Aggregate 0-4', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 4-8', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 8-16', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 16-32', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute INSERT INTO materials (name, category, unit, quantity, minStock, criticalThreshold, supplier, unitPrice, supplierEmail, createdAt, updatedAt) VALUES\n('Additiv MC-ZIMSKI', 'admixture', 'L', 900, 200, 100, 'Additive Supplier', 50, 'additives@supplier.com', NOW(), NOW()),\n('Aggregate 0-4', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 4-8', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 8-16', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW()),\n('Aggregate 16-32', 'aggregate', 'kg', 0, 5000, 2000, 'Aggregate Supplier', 20, 'aggregate@supplier.com', NOW(), NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 59
+}

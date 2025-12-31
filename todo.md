@@ -1044,3 +1044,13 @@
   - [x] Add "Export All Data" button to dashboard
   - [x] Test multi-sheet export functionality
 - [x] Test export workflow end-to-end
+
+
+## Real Concrete Materials Input (NEW)
+- [x] Add cement silos (Silos 1 and Silos 2) with capacities and current quantities
+- [x] Add additive (Additiv MC-ZIMSKI) with current quantity
+- [x] Add aggregate 0-4 to materials
+- [x] Add aggregate 4-8 to materials
+- [x] Add aggregate 8-16 to materials
+- [x] Add aggregate 16-32 to materials
+- [x] Verify all materials display correctly in the system
