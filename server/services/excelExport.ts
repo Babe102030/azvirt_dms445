@@ -366,6 +366,42 @@ export async function exportAllDataToExcel(options: Record<string, ExportOptions
   const projects = await db.getProjects();
   projects.forEach(p => projectsSheet.addRow(p));
 
+  // Add deliveries sheet
+  const deliveriesSheet = workbook.addWorksheet('Deliveries');
+  const deliveriesColumns: ExportColumn[] = [
+    { key: 'id', header: 'ID', width: 10 },
+    { key: 'projectName', header: 'Project', width: 30 },
+    { key: 'concreteType', header: 'Concrete Type', width: 20 },
+    { key: 'volume', header: 'Volume (m³)', width: 15 },
+    { key: 'scheduledTime', header: 'Scheduled Time', width: 20 },
+    { key: 'status', header: 'Status', width: 15 },
+    { key: 'driverName', header: 'Driver', width: 20 },
+    { key: 'vehicleNumber', header: 'Vehicle', width: 15 },
+  ];
+  deliveriesSheet.columns = deliveriesColumns;
+  deliveriesSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  deliveriesSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED7D31' } };
+  const deliveries = await db.getDeliveries();
+  deliveries.forEach(d => deliveriesSheet.addRow(d));
+
+  // Add timesheets sheet
+  const timesheetsSheet = workbook.addWorksheet('Timesheets');
+  const timesheetsColumns: ExportColumn[] = [
+    { key: 'id', header: 'ID', width: 10 },
+    { key: 'employeeId', header: 'Employee ID', width: 15 },
+    { key: 'projectId', header: 'Project ID', width: 15 },
+    { key: 'shiftDate', header: 'Date', width: 15 },
+    { key: 'startTime', header: 'Start Time', width: 20 },
+    { key: 'endTime', header: 'End Time', width: 20 },
+    { key: 'breakDuration', header: 'Break (min)', width: 15 },
+    { key: 'status', header: 'Status', width: 15 },
+  ];
+  timesheetsSheet.columns = timesheetsColumns;
+  timesheetsSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  timesheetsSheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5B9BD5' } };
+  const timesheets = await db.getAllShifts();
+  timesheets.forEach(t => timesheetsSheet.addRow(t));
+
   // Generate buffer
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

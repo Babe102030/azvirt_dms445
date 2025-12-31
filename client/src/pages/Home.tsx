@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
+import { toast } from "sonner";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -22,6 +24,20 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
+  
+  const exportAllMutation = trpc.export.all.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("azvirt_dms_all_data"));
+      toast.success("Svi podaci uspješno izvezeni");
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+  
+  const handleExportAll = () => {
+    exportAllMutation.mutate();
+  };
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, {
     enabled: !!user,
   });
@@ -81,8 +97,13 @@ export default function Home() {
             >
               <Filter className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon">
-              <Download className="h-4 w-4" />
+            <Button 
+              variant="outline" 
+              onClick={handleExportAll}
+              disabled={exportAllMutation.isPending}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {exportAllMutation.isPending ? "Izvoz..." : "Izvezi sve podatke"}
             </Button>
           </div>
         </div>

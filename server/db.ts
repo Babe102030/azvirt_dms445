@@ -1778,6 +1778,21 @@ export async function createShift(shift: InsertShift): Promise<number | null> {
   }
 }
 
+export async function getAllShifts() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return await db
+      .select()
+      .from(shifts)
+      .orderBy(shifts.shiftDate);
+  } catch (error) {
+    console.error("Failed to get all shifts:", error);
+    return [];
+  }
+}
+
 export async function getShiftsByEmployee(employeeId: number, startDate: Date, endDate: Date) {
   const db = await getDb();
   if (!db) return [];

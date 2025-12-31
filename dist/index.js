@@ -1923,6 +1923,16 @@ async function createShift(shift) {
     return null;
   }
 }
+async function getAllShifts() {
+  const db = await getDb();
+  if (!db) return [];
+  try {
+    return await db.select().from(shifts).orderBy(shifts.shiftDate);
+  } catch (error) {
+    console.error("Failed to get all shifts:", error);
+    return [];
+  }
+}
 async function getShiftsByEmployee(employeeId, startDate, endDate) {
   const db = await getDb();
   if (!db) return [];
@@ -6498,6 +6508,38 @@ async function exportAllDataToExcel(options = {}) {
   projectsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFC000" } };
   const projects2 = await getProjects();
   projects2.forEach((p) => projectsSheet.addRow(p));
+  const deliveriesSheet = workbook.addWorksheet("Deliveries");
+  const deliveriesColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "projectName", header: "Project", width: 30 },
+    { key: "concreteType", header: "Concrete Type", width: 20 },
+    { key: "volume", header: "Volume (m\xB3)", width: 15 },
+    { key: "scheduledTime", header: "Scheduled Time", width: 20 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "driverName", header: "Driver", width: 20 },
+    { key: "vehicleNumber", header: "Vehicle", width: 15 }
+  ];
+  deliveriesSheet.columns = deliveriesColumns;
+  deliveriesSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  deliveriesSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFED7D31" } };
+  const deliveries2 = await getDeliveries();
+  deliveries2.forEach((d) => deliveriesSheet.addRow(d));
+  const timesheetsSheet = workbook.addWorksheet("Timesheets");
+  const timesheetsColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "employeeId", header: "Employee ID", width: 15 },
+    { key: "projectId", header: "Project ID", width: 15 },
+    { key: "shiftDate", header: "Date", width: 15 },
+    { key: "startTime", header: "Start Time", width: 20 },
+    { key: "endTime", header: "End Time", width: 20 },
+    { key: "breakDuration", header: "Break (min)", width: 15 },
+    { key: "status", header: "Status", width: 15 }
+  ];
+  timesheetsSheet.columns = timesheetsColumns;
+  timesheetsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  timesheetsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF5B9BD5" } };
+  const timesheets = await getAllShifts();
+  timesheets.forEach((t2) => timesheetsSheet.addRow(t2));
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }

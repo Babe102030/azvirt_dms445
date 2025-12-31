@@ -1038,5 +1038,9 @@
 - [x] Integrate export dialog into Projects page
 - [x] Integrate export dialog into Deliveries page
 - [x] Integrate export dialog into Timesheets page
-- [ ] Add export all data functionality with multi-sheet support
+- [x] Add export all data functionality with multi-sheet support
+  - [x] Create backend tRPC mutation for multi-sheet export
+  - [x] Generate Excel with separate sheets for each data type
+  - [x] Add "Export All Data" button to dashboard
+  - [x] Test multi-sheet export functionality
 - [x] Test export workflow end-to-end
