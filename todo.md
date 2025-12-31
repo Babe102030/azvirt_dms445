@@ -1054,3 +1054,16 @@
 - [x] Add aggregate 8-16 to materials
 - [x] Add aggregate 16-32 to materials
 - [x] Verify all materials display correctly in the system
+
+
+## Concrete Mix Recipe System (NEW)
+- [x] Create database schema for concrete recipes table
+- [x] Create database schema for recipe ingredients table
+- [x] Add Torket formula recipe to database
+- [x] Build backend tRPC procedures for recipe CRUD operations
+- [x] Build backend calculator for material quantities based on volume
+- [x] Create Recipes page in frontend with list view
+- [x] Add recipe detail view with ingredient breakdown
+- [x] Add volume calculator that shows required materials
+- [x] Test recipe calculations with Torket formula
+- [ ] Add ability to create new recipes from UI

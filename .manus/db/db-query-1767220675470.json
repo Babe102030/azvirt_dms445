@@ -1,0 +1,26 @@
+{
+  "query": "SELECT id, name FROM materials WHERE name IN ('Cement - Silos 1', 'Aggregate 0-4', 'Aggregate 4-8', 'Additiv MC-ZIMSKI');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute SELECT id, name FROM materials WHERE name IN ('Cement - Silos 1', 'Aggregate 0-4', 'Aggregate 4-8', 'Additiv MC-ZIMSKI');",
+  "rows": [
+    {
+      "id": "210001",
+      "name": "Cement - Silos 1"
+    },
+    {
+      "id": "210003",
+      "name": "Additiv MC-ZIMSKI"
+    },
+    {
+      "id": "210004",
+      "name": "Aggregate 0-4"
+    },
+    {
+      "id": "210005",
+      "name": "Aggregate 4-8"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n210001\tCement - Silos 1\n210003\tAdditiv MC-ZIMSKI\n210004\tAggregate 0-4\n210005\tAggregate 4-8\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

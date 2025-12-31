@@ -907,3 +907,36 @@ export const geofenceViolations = mysqlTable("geofence_violations", {
 
 export type GeofenceViolation = typeof geofenceViolations.$inferSelect;
 export type InsertGeofenceViolation = typeof geofenceViolations.$inferInsert;
+
+/**
+ * Concrete Recipes table for storing mix formulas
+ */
+export const concreteRecipes = mysqlTable("concrete_recipes", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  concreteType: varchar("concreteType", { length: 100 }), // e.g., C25/30, C30/37, Torket
+  yieldVolume: int("yieldVolume").notNull().default(1000), // Volume in liters (1 m³ = 1000 L)
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ConcreteRecipe = typeof concreteRecipes.$inferSelect;
+export type InsertConcreteRecipe = typeof concreteRecipes.$inferInsert;
+
+/**
+ * Recipe Ingredients table for storing material quantities in recipes
+ */
+export const recipeIngredients = mysqlTable("recipe_ingredients", {
+  id: int("id").autoincrement().primaryKey(),
+  recipeId: int("recipeId").notNull(),
+  materialId: int("materialId"), // Reference to materials table (null for water)
+  materialName: varchar("materialName", { length: 255 }).notNull(), // Name for display
+  quantity: int("quantity").notNull(), // Quantity in base unit (kg or L)
+  unit: varchar("unit", { length: 50 }).notNull(), // kg, L, etc.
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
+export type InsertRecipeIngredient = typeof recipeIngredients.$inferInsert;

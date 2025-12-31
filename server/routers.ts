@@ -14,6 +14,7 @@ import { triggerExecutionRouter } from "./routers/triggerExecution";
 import { timesheetsRouter } from "./routers/timesheets";
 import { geolocationRouter } from "./routers/geolocation";
 import { exportRouter } from "./routers/export";
+import { recipesRouter } from "./routers/recipes";
 
 export const appRouter = router({
   system: systemRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   timesheets: timesheetsRouter,
   geolocation: geolocationRouter,
   export: exportRouter,
+  recipes: recipesRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

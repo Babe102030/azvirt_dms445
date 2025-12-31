@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO concrete_recipes (name, description, concreteType, yieldVolume, createdBy) VALUES\n('Torket', 'Torket concrete mix formula for shotcrete applications', 'Torket', 1000, 1);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute INSERT INTO concrete_recipes (name, description, concreteType, yieldVolume, createdBy) VALUES\n('Torket', 'Torket concrete mix formula for shotcrete applications', 'Torket', 1000, 1);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 60
+}

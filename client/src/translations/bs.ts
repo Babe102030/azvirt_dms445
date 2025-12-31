@@ -5,6 +5,7 @@ export const bs = {
     documents: "Dokumenti",
     projects: "Projekti",
     materials: "Materijali",
+    recipes: "Recepti betona",
     forecasting: "Prognoze zaliha",
     purchaseOrders: "Narudžbenice",
     deliveries: "Isporuke",
