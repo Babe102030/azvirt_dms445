@@ -24,6 +24,7 @@ import AIAssistant from "./pages/AIAssistant";
 import CustomizableDashboard from "./pages/CustomizableDashboard";
 import NotificationTemplates from "./pages/NotificationTemplates";
 import Recipes from "./pages/Recipes";
+import MixingLog from "./pages/MixingLog";
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <Route path={"/projects"} component={Projects} />
       <Route path={"/materials"} component={Materials} />
       <Route path={"/recipes"} component={Recipes} />
+      <Route path={"/mixing-log"} component={MixingLog} />
       <Route path={"/forecasting"} component={ForecastingDashboard} />
       <Route path={"/purchase-orders"} component={PurchaseOrders} />
       <Route path={"/deliveries"} component={Deliveries} />

@@ -940,3 +940,47 @@ export const recipeIngredients = mysqlTable("recipe_ingredients", {
 
 export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
 export type InsertRecipeIngredient = typeof recipeIngredients.$inferInsert;
+
+/**
+ * Mixing logs table for tracking concrete batch production
+ */
+export const mixingLogs = mysqlTable("mixing_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(), // e.g., BATCH-2025-001
+  recipeId: int("recipeId").notNull(), // Reference to concrete_recipes
+  recipeName: varchar("recipeName", { length: 255 }).notNull(), // Recipe name for quick reference
+  volume: int("volume").notNull(), // Volume in liters (1 m³ = 1000 L)
+  volumeM3: decimal("volumeM3", { precision: 10, scale: 2 }).notNull(), // Volume in m³
+  status: mysqlEnum("status", ["planned", "in_progress", "completed", "rejected"]).default("planned").notNull(),
+  projectId: int("projectId"), // Optional: associated project
+  deliveryId: int("deliveryId"), // Optional: associated delivery
+  startTime: timestamp("startTime"),
+  endTime: timestamp("endTime"),
+  producedBy: int("producedBy"), // User ID who created the batch
+  approvedBy: int("approvedBy"), // User ID who approved the batch
+  notes: text("notes"), // Additional notes about the batch
+  qualityNotes: text("qualityNotes"), // Quality control notes
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MixingLog = typeof mixingLogs.$inferSelect;
+export type InsertMixingLog = typeof mixingLogs.$inferInsert;
+
+/**
+ * Batch ingredients table - tracks actual materials used in each batch
+ */
+export const batchIngredients = mysqlTable("batch_ingredients", {
+  id: int("id").autoincrement().primaryKey(),
+  batchId: int("batchId").notNull(), // Reference to mixing_logs
+  materialId: int("materialId"), // Reference to materials table (null for water)
+  materialName: varchar("materialName", { length: 255 }).notNull(), // Material name
+  plannedQuantity: int("plannedQuantity").notNull(), // Planned quantity based on recipe
+  actualQuantity: int("actualQuantity"), // Actual quantity used (null if not completed)
+  unit: varchar("unit", { length: 50 }).notNull(), // kg, L, etc.
+  inventoryDeducted: boolean("inventoryDeducted").default(false).notNull(), // Whether inventory was deducted
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type BatchIngredient = typeof batchIngredients.$inferSelect;
+export type InsertBatchIngredient = typeof batchIngredients.$inferInsert;

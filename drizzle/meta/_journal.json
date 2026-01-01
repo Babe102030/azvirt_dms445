@@ -127,6 +127,13 @@
       "when": 1767220580215,
       "tag": "0017_salty_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1767227096302,
+      "tag": "0018_gigantic_hercules",
+      "breakpoints": true
     }
   ]
 }

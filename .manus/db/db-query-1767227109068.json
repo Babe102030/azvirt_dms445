@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS batch_ingredients (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  batchId INT NOT NULL,\n  materialId INT,\n  materialName VARCHAR(255) NOT NULL,\n  plannedQuantity INT NOT NULL,\n  actualQuantity INT,\n  unit VARCHAR(50) NOT NULL,\n  inventoryDeducted BOOLEAN DEFAULT FALSE NOT NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS batch_ingredients (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  batchId INT NOT NULL,\n  materialId INT,\n  materialName VARCHAR(255) NOT NULL,\n  plannedQuantity INT NOT NULL,\n  actualQuantity INT,\n  unit VARCHAR(50) NOT NULL,\n  inventoryDeducted BOOLEAN DEFAULT FALSE NOT NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 182
+}

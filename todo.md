@@ -1067,3 +1067,17 @@
 - [x] Add volume calculator that shows required materials
 - [x] Test recipe calculations with Torket formula
 - [ ] Add ability to create new recipes from UI
+
+
+## Production Tracking & Mixing Log (NEW)
+- [x] Create database schema for mixing logs table
+- [x] Create database schema for batch ingredients table
+- [x] Build backend API for creating new batches
+- [x] Implement automatic inventory deduction on batch creation
+- [x] Add batch status tracking (planned, in_progress, completed, rejected)
+- [x] Create Mixing Log page with batch list and history
+- [x] Add batch creation form with recipe selection and volume input
+- [x] Add batch detail view with ingredient breakdown and status
+- [x] Implement project/delivery association for batches
+- [x] Add batch filtering by project, delivery, and status
+- [x] Test production tracking workflow end-to-end

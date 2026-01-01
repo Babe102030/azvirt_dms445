@@ -35,6 +35,7 @@ const getMenuItems = (t: (key: string) => string) => [
   { icon: Folder, label: t("nav.projects"), path: "/projects" },
   { icon: Package, label: t("nav.materials"), path: "/materials" },
   { icon: Beaker, label: t("nav.recipes"), path: "/recipes" },
+  { icon: Beaker, label: t("nav.mixingLog"), path: "/mixing-log" },
   { icon: TrendingUp, label: t("nav.forecasting"), path: "/forecasting" },
   { icon: ShoppingCart, label: t("nav.purchaseOrders"), path: "/purchase-orders" },
   { icon: Truck, label: t("nav.deliveries"), path: "/deliveries" },

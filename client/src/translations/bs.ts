@@ -6,6 +6,7 @@ export const bs = {
     projects: "Projekti",
     materials: "Materijali",
     recipes: "Recepti betona",
+    mixingLog: "Dnevnik miješanja",
     forecasting: "Prognoze zaliha",
     purchaseOrders: "Narudžbenice",
     deliveries: "Isporuke",
