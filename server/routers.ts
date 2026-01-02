@@ -16,6 +16,7 @@ import { geolocationRouter } from "./routers/geolocation";
 import { exportRouter } from "./routers/export";
 import { recipesRouter } from "./routers/recipes";
 import { mixingLogsRouter } from "./routers/mixingLogs";
+import { productionAnalyticsRouter } from "./routers/productionAnalytics";
 
 export const appRouter = router({
   system: systemRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   export: exportRouter,
   recipes: recipesRouter,
   mixingLogs: mixingLogsRouter,
+  productionAnalytics: productionAnalyticsRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

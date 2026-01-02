@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot, BellRing, Beaker } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot, BellRing, Beaker, BarChart3 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -36,6 +36,7 @@ const getMenuItems = (t: (key: string) => string) => [
   { icon: Package, label: t("nav.materials"), path: "/materials" },
   { icon: Beaker, label: t("nav.recipes"), path: "/recipes" },
   { icon: Beaker, label: t("nav.mixingLog"), path: "/mixing-log" },
+  { icon: BarChart3, label: t("nav.productionAnalytics"), path: "/production-analytics" },
   { icon: TrendingUp, label: t("nav.forecasting"), path: "/forecasting" },
   { icon: ShoppingCart, label: t("nav.purchaseOrders"), path: "/purchase-orders" },
   { icon: Truck, label: t("nav.deliveries"), path: "/deliveries" },
