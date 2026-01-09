@@ -984,3 +984,21 @@ export const batchIngredients = mysqlTable("batch_ingredients", {
 
 export type BatchIngredient = typeof batchIngredients.$inferSelect;
 export type InsertBatchIngredient = typeof batchIngredients.$inferInsert;
+
+/**
+ * Timesheet approvals table - tracks approval workflow for timesheets
+ */
+export const timesheetApprovals = mysqlTable("timesheet_approvals", {
+  id: int("id").autoincrement().primaryKey(),
+  timesheetId: int("timesheetId").notNull(),
+  approverId: int("approverId").notNull(), // Manager ID
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  comments: text("comments"),
+  rejectionReason: text("rejectionReason"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TimesheetApproval = typeof timesheetApprovals.$inferSelect;
+export type InsertTimesheetApproval = typeof timesheetApprovals.$inferInsert;

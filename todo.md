@@ -1093,3 +1093,20 @@
 - [x] Add efficiency metrics cards (avg batch time, success rate, utilization)
 - [x] Add date range selector for analytics filtering
 - [x] Test analytics dashboard with real data
+
+
+## Shift Management & Timesheet Approval (NEW)
+- [ ] Create shift_templates table (name, start_time, end_time, duration)
+- [ ] Create employee_shifts table (employee_id, shift_id, date, status)
+- [ ] Create shift_swaps table (from_employee, to_employee, date, status)
+- [ ] Create timesheet_approvals table (timesheet_id, approver_id, status, comments)
+- [ ] Build backend procedures for shift CRUD operations
+- [ ] Build backend procedures for shift assignment and swap management
+- [ ] Build backend procedures for timesheet approval workflow
+- [ ] Create Shift Management page with shift template creation
+- [ ] Add shift assignment interface for assigning employees to shifts
+- [ ] Add shift swap request and approval interface
+- [ ] Create Timesheet Approval page for managers
+- [ ] Add timesheet review, approval, and rejection functionality
+- [ ] Add overtime calculation based on shift assignments
+- [ ] Test shift management and timesheet approval workflow

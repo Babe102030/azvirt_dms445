@@ -26,6 +26,7 @@ import NotificationTemplates from "./pages/NotificationTemplates";
 import Recipes from "./pages/Recipes";
 import MixingLog from "./pages/MixingLog";
 import ProductionAnalytics from "./pages/ProductionAnalytics";
+import TimesheetApproval from "./pages/TimesheetApproval";
 
 function Router() {
   return (
@@ -44,8 +45,8 @@ function Router() {
       <Route path={"/quality"} component={QualityControl} />
       <Route path={"/employees"} component={Employees} />
       <Route path={"/machines"} component={Machines} />
-      <Route path={"/timesheets"} component={Timesheets} />
-      <Route path={"/timesheet-summary"} component={TimesheetSummary} />
+      <Route path={"/timesheets"} component={Timesheets} />      <Route path={"/timesheet-summary"} component={TimesheetSummary} />
+      <Route path={"/timesheet-approval"} component={TimesheetApproval} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />

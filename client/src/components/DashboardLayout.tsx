@@ -45,6 +45,7 @@ const getMenuItems = (t: (key: string) => string) => [
   { icon: Users, label: t("nav.workforce"), path: "/employees" },
   { icon: Cog, label: t("nav.machines"), path: "/machines" },
   { icon: Clock, label: t("nav.timesheets"), path: "/timesheets" },
+  { icon: CheckCircle2, label: t("nav.timesheetApproval"), path: "/timesheet-approval" },
   { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
   { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },
   { icon: Palette, label: t("nav.emailBranding"), path: "/email-branding" },

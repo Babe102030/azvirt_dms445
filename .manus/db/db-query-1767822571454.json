@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS timesheet_approvals (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  timesheetId INT NOT NULL,\n  approverId INT NOT NULL,\n  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' NOT NULL,\n  comments TEXT,\n  rejectionReason TEXT,\n  approvedAt TIMESTAMP NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,\n  FOREIGN KEY (timesheetId) REFERENCES workHours(id),\n  FOREIGN KEY (approverId) REFERENCES users(id)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS timesheet_approvals (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  timesheetId INT NOT NULL,\n  approverId INT NOT NULL,\n  status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending' NOT NULL,\n  comments TEXT,\n  rejectionReason TEXT,\n  approvedAt TIMESTAMP NULL,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,\n  FOREIGN KEY (timesheetId) REFERENCES workHours(id),\n  FOREIGN KEY (approverId) REFERENCES users(id)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 998
+}

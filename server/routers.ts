@@ -17,6 +17,7 @@ import { exportRouter } from "./routers/export";
 import { recipesRouter } from "./routers/recipes";
 import { mixingLogsRouter } from "./routers/mixingLogs";
 import { productionAnalyticsRouter } from "./routers/productionAnalytics";
+import { timesheetApprovalsRouter } from "./routers/timesheetApprovals";
 
 export const appRouter = router({
   system: systemRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   recipes: recipesRouter,
   mixingLogs: mixingLogsRouter,
   productionAnalytics: productionAnalyticsRouter,
+  timesheetApprovals: timesheetApprovalsRouter,
   
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),

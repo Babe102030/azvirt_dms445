@@ -17,6 +17,7 @@ export const bs = {
     employees: "Zaposlenici",
     machines: "Mašine",
     timesheets: "Evidencija rada",
+    timesheetApproval: "Odobravanje vremenskih listova",
     reports: "Izvještaji",
     reportSettings: "Postavke izvještaja",
     emailBranding: "Email branding",
@@ -202,6 +203,30 @@ export const bs = {
     pending: "Na čekanju",
     approved: "Odobreno",
     rejected: "Odbijeno",
+  },
+
+  // Timesheet Approval
+  timesheetApproval: {
+    title: "Odobravanje vremenskih listova",
+    description: "Pregledajte i odobrite vremenske listove zaposlenih",
+    pendingApproval: "Na čekanju odobrenja",
+    yourRole: "Vaša uloga",
+    actionRequired: "Akcija obavezna",
+    allCaughtUp: "Sve je urađeno!",
+    noTimesheetsPending: "Nema vremenskih listova na čekanju odobrenja",
+    approve: "Odobri",
+    reject: "Odbij",
+    approveTimesheet: "Odobri vremenski list",
+    rejectTimesheet: "Odbij vremenski list",
+    optionalComments: "Opcionalni komentari",
+    rejectionReason: "Razlog odbijanja",
+    confirmApproval: "Potvrdi odobrenje",
+    confirmRejection: "Potvrdi odbijanje",
+    approving: "Odobravanja...",
+    rejecting: "Odbijanja...",
+    manager: "Menadžer",
+    approver: "Odobravač",
+    itemsNeedingAttention: "Stavke koje trebaju pažnju",
   },
 
   // Common

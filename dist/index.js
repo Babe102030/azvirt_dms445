@@ -1202,6 +1202,18 @@ var batchIngredients = mysqlTable("batch_ingredients", {
   // Whether inventory was deducted
   createdAt: timestamp("createdAt").defaultNow().notNull()
 });
+var timesheetApprovals = mysqlTable("timesheet_approvals", {
+  id: int("id").autoincrement().primaryKey(),
+  timesheetId: int("timesheetId").notNull(),
+  approverId: int("approverId").notNull(),
+  // Manager ID
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  comments: text("comments"),
+  rejectionReason: text("rejectionReason"),
+  approvedAt: timestamp("approvedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+});
 
 // server/db.ts
 init_env();
@@ -2620,7 +2632,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
-import { z as z13 } from "zod";
+import { z as z14 } from "zod";
 
 // server/storage.ts
 init_env();
@@ -7404,6 +7416,134 @@ var productionAnalyticsRouter = router({
   })
 });
 
+// server/routers/timesheetApprovals.ts
+import { z as z13 } from "zod";
+
+// server/db/timesheetApprovals.ts
+import { eq as eq6, and as and3 } from "drizzle-orm";
+async function getPendingTimesheets(approverId) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select({
+    id: workHours.id,
+    employeeId: workHours.employeeId,
+    employeeName: users.name,
+    date: workHours.date,
+    hoursWorked: workHours.hoursWorked,
+    status: workHours.status,
+    notes: workHours.notes,
+    approvalStatus: timesheetApprovals.status,
+    approvalId: timesheetApprovals.id
+  }).from(workHours).leftJoin(timesheetApprovals, eq6(workHours.id, timesheetApprovals.timesheetId)).leftJoin(users, eq6(workHours.employeeId, users.id)).where(
+    and3(
+      eq6(workHours.status, "pending"),
+      eq6(timesheetApprovals.approverId, approverId),
+      eq6(timesheetApprovals.status, "pending")
+    )
+  );
+}
+async function getEmployeeTimesheets(employeeId) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select({
+    id: workHours.id,
+    date: workHours.date,
+    hoursWorked: workHours.hoursWorked,
+    status: workHours.status,
+    notes: workHours.notes,
+    approvalStatus: timesheetApprovals.status,
+    approvalComments: timesheetApprovals.comments,
+    rejectionReason: timesheetApprovals.rejectionReason
+  }).from(workHours).leftJoin(timesheetApprovals, eq6(workHours.id, timesheetApprovals.timesheetId)).where(eq6(workHours.employeeId, employeeId));
+}
+async function approveTimesheet(timesheetId, approverId, comments) {
+  const db = await getDb();
+  if (!db) return { success: false, message: "Database connection failed" };
+  await db.update(timesheetApprovals).set({
+    status: "approved",
+    approvedAt: /* @__PURE__ */ new Date(),
+    comments
+  }).where(eq6(timesheetApprovals.timesheetId, timesheetId));
+  await db.update(workHours).set({ status: "approved" }).where(eq6(workHours.id, timesheetId));
+  return { success: true, message: "Timesheet approved" };
+}
+async function rejectTimesheet(timesheetId, approverId, rejectionReason) {
+  const db = await getDb();
+  if (!db) return { success: false, message: "Database connection failed" };
+  await db.update(timesheetApprovals).set({
+    status: "rejected",
+    rejectionReason
+  }).where(eq6(timesheetApprovals.timesheetId, timesheetId));
+  await db.update(workHours).set({ status: "rejected" }).where(eq6(workHours.id, timesheetId));
+  return { success: true, message: "Timesheet rejected" };
+}
+async function getTimesheetApprovalDetails(timesheetId) {
+  const db = await getDb();
+  if (!db) return null;
+  const approval = await db.select({
+    id: timesheetApprovals.id,
+    status: timesheetApprovals.status,
+    comments: timesheetApprovals.comments,
+    rejectionReason: timesheetApprovals.rejectionReason,
+    approvedAt: timesheetApprovals.approvedAt,
+    approverName: users.name,
+    approverEmail: users.email
+  }).from(timesheetApprovals).leftJoin(users, eq6(timesheetApprovals.approverId, users.id)).where(eq6(timesheetApprovals.timesheetId, timesheetId)).limit(1);
+  return approval[0] || null;
+}
+
+// server/routers/timesheetApprovals.ts
+var timesheetApprovalsRouter = router({
+  /**
+   * Get all pending timesheets for the current manager
+   */
+  getPendingForApproval: protectedProcedure.query(async ({ ctx }) => {
+    return await getPendingTimesheets(ctx.user.id);
+  }),
+  /**
+   * Get all timesheets for an employee
+   */
+  getEmployeeTimesheets: protectedProcedure.input(z13.object({ employeeId: z13.number() })).query(async ({ input }) => {
+    return await getEmployeeTimesheets(input.employeeId);
+  }),
+  /**
+   * Approve a timesheet
+   */
+  approve: protectedProcedure.input(
+    z13.object({
+      timesheetId: z13.number(),
+      comments: z13.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    return await approveTimesheet(
+      input.timesheetId,
+      ctx.user.id,
+      input.comments
+    );
+  }),
+  /**
+   * Reject a timesheet
+   */
+  reject: protectedProcedure.input(
+    z13.object({
+      timesheetId: z13.number(),
+      rejectionReason: z13.string()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    return await rejectTimesheet(
+      input.timesheetId,
+      ctx.user.id,
+      input.rejectionReason
+    );
+  }),
+  /**
+   * Get approval details for a timesheet
+   */
+  getApprovalDetails: protectedProcedure.input(z13.object({ timesheetId: z13.number() })).query(async ({ input }) => {
+    return await getTimesheetApprovalDetails(input.timesheetId);
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -7418,6 +7558,7 @@ var appRouter = router({
   recipes: recipesRouter,
   mixingLogs: mixingLogsRouter,
   productionAnalytics: productionAnalyticsRouter,
+  timesheetApprovals: timesheetApprovalsRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -7427,9 +7568,9 @@ var appRouter = router({
         success: true
       };
     }),
-    updateSMSSettings: protectedProcedure.input(z13.object({
-      phoneNumber: z13.string().min(1),
-      smsNotificationsEnabled: z13.boolean()
+    updateSMSSettings: protectedProcedure.input(z14.object({
+      phoneNumber: z14.string().min(1),
+      smsNotificationsEnabled: z14.boolean()
     })).mutation(async ({ input, ctx }) => {
       const success = await updateUserSMSSettings(
         ctx.user.id,
@@ -7438,8 +7579,8 @@ var appRouter = router({
       );
       return { success };
     }),
-    updateLanguagePreference: protectedProcedure.input(z13.object({
-      language: z13.enum(["en", "bs", "az"])
+    updateLanguagePreference: protectedProcedure.input(z14.object({
+      language: z14.enum(["en", "bs", "az"])
     })).mutation(async ({ input, ctx }) => {
       const success = await updateUserLanguagePreference(
         ctx.user.id,
@@ -7449,21 +7590,21 @@ var appRouter = router({
     })
   }),
   documents: router({
-    list: protectedProcedure.input(z13.object({
-      projectId: z13.number().optional(),
-      category: z13.string().optional(),
-      search: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      projectId: z14.number().optional(),
+      category: z14.string().optional(),
+      search: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDocuments(input);
     }),
-    upload: protectedProcedure.input(z13.object({
-      name: z13.string(),
-      description: z13.string().optional(),
-      fileData: z13.string(),
-      mimeType: z13.string(),
-      fileSize: z13.number(),
-      category: z13.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
-      projectId: z13.number().optional()
+    upload: protectedProcedure.input(z14.object({
+      name: z14.string(),
+      description: z14.string().optional(),
+      fileData: z14.string(),
+      mimeType: z14.string(),
+      fileSize: z14.number(),
+      category: z14.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
+      projectId: z14.number().optional()
     })).mutation(async ({ input, ctx }) => {
       const fileBuffer = Buffer.from(input.fileData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "bin";
@@ -7482,7 +7623,7 @@ var appRouter = router({
       });
       return { success: true, url };
     }),
-    delete: protectedProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
       await deleteDocument(input.id);
       return { success: true };
     })
@@ -7491,13 +7632,13 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getProjects();
     }),
-    create: protectedProcedure.input(z13.object({
-      name: z13.string(),
-      description: z13.string().optional(),
-      location: z13.string().optional(),
-      status: z13.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
-      startDate: z13.date().optional(),
-      endDate: z13.date().optional()
+    create: protectedProcedure.input(z14.object({
+      name: z14.string(),
+      description: z14.string().optional(),
+      location: z14.string().optional(),
+      status: z14.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
+      startDate: z14.date().optional(),
+      endDate: z14.date().optional()
     })).mutation(async ({ input, ctx }) => {
       await createProject({
         ...input,
@@ -7505,14 +7646,14 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      name: z13.string().optional(),
-      description: z13.string().optional(),
-      location: z13.string().optional(),
-      status: z13.enum(["planning", "active", "completed", "on_hold"]).optional(),
-      startDate: z13.date().optional(),
-      endDate: z13.date().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      name: z14.string().optional(),
+      description: z14.string().optional(),
+      location: z14.string().optional(),
+      status: z14.enum(["planning", "active", "completed", "on_hold"]).optional(),
+      startDate: z14.date().optional(),
+      endDate: z14.date().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateProject(id, data);
@@ -7523,55 +7664,55 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getMaterials();
     }),
-    create: protectedProcedure.input(z13.object({
-      name: z13.string(),
-      category: z13.enum(["cement", "aggregate", "admixture", "water", "other"]),
-      unit: z13.string(),
-      quantity: z13.number().default(0),
-      minStock: z13.number().default(0),
-      criticalThreshold: z13.number().default(0),
-      supplier: z13.string().optional(),
-      unitPrice: z13.number().optional()
+    create: protectedProcedure.input(z14.object({
+      name: z14.string(),
+      category: z14.enum(["cement", "aggregate", "admixture", "water", "other"]),
+      unit: z14.string(),
+      quantity: z14.number().default(0),
+      minStock: z14.number().default(0),
+      criticalThreshold: z14.number().default(0),
+      supplier: z14.string().optional(),
+      unitPrice: z14.number().optional()
     })).mutation(async ({ input }) => {
       await createMaterial(input);
       return { success: true };
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      name: z13.string().optional(),
-      category: z13.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
-      unit: z13.string().optional(),
-      quantity: z13.number().optional(),
-      minStock: z13.number().optional(),
-      criticalThreshold: z13.number().optional(),
-      supplier: z13.string().optional(),
-      unitPrice: z13.number().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      name: z14.string().optional(),
+      category: z14.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
+      unit: z14.string().optional(),
+      quantity: z14.number().optional(),
+      minStock: z14.number().optional(),
+      criticalThreshold: z14.number().optional(),
+      supplier: z14.string().optional(),
+      unitPrice: z14.number().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateMaterial(id, data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
       await deleteMaterial(input.id);
       return { success: true };
     }),
     checkLowStock: protectedProcedure.query(async () => {
       return await getLowStockMaterials();
     }),
-    recordConsumption: protectedProcedure.input(z13.object({
-      materialId: z13.number(),
-      quantity: z13.number(),
-      consumptionDate: z13.date(),
-      projectId: z13.number().optional(),
-      deliveryId: z13.number().optional(),
-      notes: z13.string().optional()
+    recordConsumption: protectedProcedure.input(z14.object({
+      materialId: z14.number(),
+      quantity: z14.number(),
+      consumptionDate: z14.date(),
+      projectId: z14.number().optional(),
+      deliveryId: z14.number().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input }) => {
       await recordConsumption(input);
       return { success: true };
     }),
-    getConsumptionHistory: protectedProcedure.input(z13.object({
-      materialId: z13.number().optional(),
-      days: z13.number().default(30)
+    getConsumptionHistory: protectedProcedure.input(z14.object({
+      materialId: z14.number().optional(),
+      days: z14.number().default(30)
     })).query(async ({ input }) => {
       return await getConsumptionHistory(input.materialId, input.days);
     }),
@@ -7642,30 +7783,30 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   deliveries: router({
-    list: protectedProcedure.input(z13.object({
-      projectId: z13.number().optional(),
-      status: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      projectId: z14.number().optional(),
+      status: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getDeliveries(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      projectId: z13.number().optional(),
-      projectName: z13.string(),
-      concreteType: z13.string(),
-      volume: z13.number(),
-      scheduledTime: z13.date(),
-      status: z13.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
-      driverName: z13.string().optional(),
-      vehicleNumber: z13.string().optional(),
-      notes: z13.string().optional(),
-      gpsLocation: z13.string().optional(),
-      deliveryPhotos: z13.string().optional(),
-      estimatedArrival: z13.number().optional(),
-      actualArrivalTime: z13.number().optional(),
-      actualDeliveryTime: z13.number().optional(),
-      driverNotes: z13.string().optional(),
-      customerName: z13.string().optional(),
-      customerPhone: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      projectId: z14.number().optional(),
+      projectName: z14.string(),
+      concreteType: z14.string(),
+      volume: z14.number(),
+      scheduledTime: z14.date(),
+      status: z14.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
+      driverName: z14.string().optional(),
+      vehicleNumber: z14.string().optional(),
+      notes: z14.string().optional(),
+      gpsLocation: z14.string().optional(),
+      deliveryPhotos: z14.string().optional(),
+      estimatedArrival: z14.number().optional(),
+      actualArrivalTime: z14.number().optional(),
+      actualDeliveryTime: z14.number().optional(),
+      driverNotes: z14.string().optional(),
+      customerName: z14.string().optional(),
+      customerPhone: z14.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createDelivery({
         ...input,
@@ -7673,36 +7814,36 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      projectId: z13.number().optional(),
-      projectName: z13.string().optional(),
-      concreteType: z13.string().optional(),
-      volume: z13.number().optional(),
-      scheduledTime: z13.date().optional(),
-      actualTime: z13.date().optional(),
-      status: z13.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
-      driverName: z13.string().optional(),
-      vehicleNumber: z13.string().optional(),
-      notes: z13.string().optional(),
-      gpsLocation: z13.string().optional(),
-      deliveryPhotos: z13.string().optional(),
-      estimatedArrival: z13.number().optional(),
-      actualArrivalTime: z13.number().optional(),
-      actualDeliveryTime: z13.number().optional(),
-      driverNotes: z13.string().optional(),
-      customerName: z13.string().optional(),
-      customerPhone: z13.string().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      projectId: z14.number().optional(),
+      projectName: z14.string().optional(),
+      concreteType: z14.string().optional(),
+      volume: z14.number().optional(),
+      scheduledTime: z14.date().optional(),
+      actualTime: z14.date().optional(),
+      status: z14.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
+      driverName: z14.string().optional(),
+      vehicleNumber: z14.string().optional(),
+      notes: z14.string().optional(),
+      gpsLocation: z14.string().optional(),
+      deliveryPhotos: z14.string().optional(),
+      estimatedArrival: z14.number().optional(),
+      actualArrivalTime: z14.number().optional(),
+      actualDeliveryTime: z14.number().optional(),
+      driverNotes: z14.string().optional(),
+      customerName: z14.string().optional(),
+      customerPhone: z14.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateDelivery(id, data);
       return { success: true };
     }),
-    updateStatus: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      status: z13.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
-      gpsLocation: z13.string().optional(),
-      driverNotes: z13.string().optional()
+    updateStatus: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      status: z14.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+      gpsLocation: z14.string().optional(),
+      driverNotes: z14.string().optional()
     })).mutation(async ({ input }) => {
       const { id, status, gpsLocation, driverNotes } = input;
       const updateData = { status };
@@ -7714,10 +7855,10 @@ Please reorder these materials to avoid project delays.`;
       await updateDelivery(id, updateData);
       return { success: true };
     }),
-    uploadDeliveryPhoto: protectedProcedure.input(z13.object({
-      deliveryId: z13.number(),
-      photoData: z13.string(),
-      mimeType: z13.string()
+    uploadDeliveryPhoto: protectedProcedure.input(z14.object({
+      deliveryId: z14.number(),
+      photoData: z14.string(),
+      mimeType: z14.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -7738,9 +7879,9 @@ Please reorder these materials to avoid project delays.`;
         (d) => ["loaded", "en_route", "arrived", "delivered"].includes(d.status)
       );
     }),
-    sendCustomerNotification: protectedProcedure.input(z13.object({
-      deliveryId: z13.number(),
-      message: z13.string()
+    sendCustomerNotification: protectedProcedure.input(z14.object({
+      deliveryId: z14.number(),
+      message: z14.string()
     })).mutation(async ({ input }) => {
       const allDeliveries = await getDeliveries();
       const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
@@ -7753,37 +7894,37 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   qualityTests: router({
-    list: protectedProcedure.input(z13.object({
-      projectId: z13.number().optional(),
-      deliveryId: z13.number().optional()
+    list: protectedProcedure.input(z14.object({
+      projectId: z14.number().optional(),
+      deliveryId: z14.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getQualityTests(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      testName: z13.string(),
-      testType: z13.enum(["slump", "strength", "air_content", "temperature", "other"]),
-      result: z13.string(),
-      unit: z13.string().optional(),
-      status: z13.enum(["pass", "fail", "pending"]).default("pending"),
-      deliveryId: z13.number().optional(),
-      projectId: z13.number().optional(),
-      testedBy: z13.string().optional(),
-      notes: z13.string().optional(),
-      photoUrls: z13.string().optional(),
+    create: protectedProcedure.input(z14.object({
+      testName: z14.string(),
+      testType: z14.enum(["slump", "strength", "air_content", "temperature", "other"]),
+      result: z14.string(),
+      unit: z14.string().optional(),
+      status: z14.enum(["pass", "fail", "pending"]).default("pending"),
+      deliveryId: z14.number().optional(),
+      projectId: z14.number().optional(),
+      testedBy: z14.string().optional(),
+      notes: z14.string().optional(),
+      photoUrls: z14.string().optional(),
       // JSON array
-      inspectorSignature: z13.string().optional(),
-      supervisorSignature: z13.string().optional(),
-      testLocation: z13.string().optional(),
-      complianceStandard: z13.string().optional(),
-      offlineSyncStatus: z13.enum(["synced", "pending", "failed"]).default("synced").optional()
+      inspectorSignature: z14.string().optional(),
+      supervisorSignature: z14.string().optional(),
+      testLocation: z14.string().optional(),
+      complianceStandard: z14.string().optional(),
+      offlineSyncStatus: z14.enum(["synced", "pending", "failed"]).default("synced").optional()
     })).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
     }),
-    uploadPhoto: protectedProcedure.input(z13.object({
-      photoData: z13.string(),
+    uploadPhoto: protectedProcedure.input(z14.object({
+      photoData: z14.string(),
       // Base64 encoded image
-      mimeType: z13.string()
+      mimeType: z14.string()
     })).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
@@ -7791,22 +7932,22 @@ Please reorder these materials to avoid project delays.`;
       const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
       return { success: true, url };
     }),
-    syncOfflineTests: protectedProcedure.input(z13.object({
-      tests: z13.array(z13.object({
-        testName: z13.string(),
-        testType: z13.enum(["slump", "strength", "air_content", "temperature", "other"]),
-        result: z13.string(),
-        unit: z13.string().optional(),
-        status: z13.enum(["pass", "fail", "pending"]),
-        deliveryId: z13.number().optional(),
-        projectId: z13.number().optional(),
-        testedBy: z13.string().optional(),
-        notes: z13.string().optional(),
-        photoUrls: z13.string().optional(),
-        inspectorSignature: z13.string().optional(),
-        supervisorSignature: z13.string().optional(),
-        testLocation: z13.string().optional(),
-        complianceStandard: z13.string().optional()
+    syncOfflineTests: protectedProcedure.input(z14.object({
+      tests: z14.array(z14.object({
+        testName: z14.string(),
+        testType: z14.enum(["slump", "strength", "air_content", "temperature", "other"]),
+        result: z14.string(),
+        unit: z14.string().optional(),
+        status: z14.enum(["pass", "fail", "pending"]),
+        deliveryId: z14.number().optional(),
+        projectId: z14.number().optional(),
+        testedBy: z14.string().optional(),
+        notes: z14.string().optional(),
+        photoUrls: z14.string().optional(),
+        inspectorSignature: z14.string().optional(),
+        supervisorSignature: z14.string().optional(),
+        testLocation: z14.string().optional(),
+        complianceStandard: z14.string().optional()
       }))
     })).mutation(async ({ input }) => {
       for (const test of input.tests) {
@@ -7814,33 +7955,33 @@ Please reorder these materials to avoid project delays.`;
       }
       return { success: true, syncedCount: input.tests.length };
     }),
-    getFailedTests: protectedProcedure.input(z13.object({
-      days: z13.number().default(30)
+    getFailedTests: protectedProcedure.input(z14.object({
+      days: z14.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getFailedQualityTests(input?.days || 30);
     }),
-    getTrends: protectedProcedure.input(z13.object({
-      days: z13.number().default(30)
+    getTrends: protectedProcedure.input(z14.object({
+      days: z14.number().default(30)
     }).optional()).query(async ({ input }) => {
       return await getQualityTestTrends(input?.days || 30);
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      testName: z13.string().optional(),
-      testType: z13.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
-      result: z13.string().optional(),
-      unit: z13.string().optional(),
-      status: z13.enum(["pass", "fail", "pending"]).optional(),
-      deliveryId: z13.number().optional(),
-      projectId: z13.number().optional(),
-      testedBy: z13.string().optional(),
-      notes: z13.string().optional(),
-      photoUrls: z13.string().optional(),
-      inspectorSignature: z13.string().optional(),
-      supervisorSignature: z13.string().optional(),
-      testLocation: z13.string().optional(),
-      complianceStandard: z13.string().optional(),
-      offlineSyncStatus: z13.enum(["synced", "pending", "failed"]).optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      testName: z14.string().optional(),
+      testType: z14.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
+      result: z14.string().optional(),
+      unit: z14.string().optional(),
+      status: z14.enum(["pass", "fail", "pending"]).optional(),
+      deliveryId: z14.number().optional(),
+      projectId: z14.number().optional(),
+      testedBy: z14.string().optional(),
+      notes: z14.string().optional(),
+      photoUrls: z14.string().optional(),
+      inspectorSignature: z14.string().optional(),
+      supervisorSignature: z14.string().optional(),
+      testLocation: z14.string().optional(),
+      complianceStandard: z14.string().optional(),
+      offlineSyncStatus: z14.enum(["synced", "pending", "failed"]).optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateQualityTest(id, data);
@@ -7908,78 +8049,78 @@ Please reorder these materials to avoid project delays.`;
   }),
   // Workforce Management
   employees: router({
-    list: protectedProcedure.input(z13.object({
-      department: z13.string().optional(),
-      status: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      department: z14.string().optional(),
+      status: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getEmployees(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      firstName: z13.string(),
-      lastName: z13.string(),
-      employeeNumber: z13.string(),
-      position: z13.string(),
-      department: z13.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
-      phoneNumber: z13.string().optional(),
-      email: z13.string().optional(),
-      hourlyRate: z13.number().optional(),
-      status: z13.enum(["active", "inactive", "on_leave"]).default("active"),
-      hireDate: z13.date().optional()
+    create: protectedProcedure.input(z14.object({
+      firstName: z14.string(),
+      lastName: z14.string(),
+      employeeNumber: z14.string(),
+      position: z14.string(),
+      department: z14.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
+      phoneNumber: z14.string().optional(),
+      email: z14.string().optional(),
+      hourlyRate: z14.number().optional(),
+      status: z14.enum(["active", "inactive", "on_leave"]).default("active"),
+      hireDate: z14.date().optional()
     })).mutation(async ({ input }) => {
       return await createEmployee(input);
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      data: z13.object({
-        firstName: z13.string().optional(),
-        lastName: z13.string().optional(),
-        position: z13.string().optional(),
-        department: z13.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
-        phoneNumber: z13.string().optional(),
-        email: z13.string().optional(),
-        hourlyRate: z13.number().optional(),
-        status: z13.enum(["active", "inactive", "on_leave"]).optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      data: z14.object({
+        firstName: z14.string().optional(),
+        lastName: z14.string().optional(),
+        position: z14.string().optional(),
+        department: z14.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
+        phoneNumber: z14.string().optional(),
+        email: z14.string().optional(),
+        hourlyRate: z14.number().optional(),
+        status: z14.enum(["active", "inactive", "on_leave"]).optional()
       })
     })).mutation(async ({ input }) => {
       await updateEmployee(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
       await deleteEmployee(input.id);
       return { success: true };
     })
   }),
   workHours: router({
-    list: protectedProcedure.input(z13.object({
-      employeeId: z13.number().optional(),
-      projectId: z13.number().optional(),
-      status: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      employeeId: z14.number().optional(),
+      projectId: z14.number().optional(),
+      status: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getWorkHours(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      employeeId: z13.number(),
-      projectId: z13.number().optional(),
-      date: z13.date(),
-      startTime: z13.date(),
-      endTime: z13.date().optional(),
-      hoursWorked: z13.number().optional(),
-      overtimeHours: z13.number().optional(),
-      workType: z13.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
-      notes: z13.string().optional(),
-      status: z13.enum(["pending", "approved", "rejected"]).default("pending")
+    create: protectedProcedure.input(z14.object({
+      employeeId: z14.number(),
+      projectId: z14.number().optional(),
+      date: z14.date(),
+      startTime: z14.date(),
+      endTime: z14.date().optional(),
+      hoursWorked: z14.number().optional(),
+      overtimeHours: z14.number().optional(),
+      workType: z14.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+      notes: z14.string().optional(),
+      status: z14.enum(["pending", "approved", "rejected"]).default("pending")
     })).mutation(async ({ input, ctx }) => {
       return await createWorkHour(input);
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      data: z13.object({
-        endTime: z13.date().optional(),
-        hoursWorked: z13.number().optional(),
-        overtimeHours: z13.number().optional(),
-        notes: z13.string().optional(),
-        status: z13.enum(["pending", "approved", "rejected"]).optional(),
-        approvedBy: z13.number().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      data: z14.object({
+        endTime: z14.date().optional(),
+        hoursWorked: z14.number().optional(),
+        overtimeHours: z14.number().optional(),
+        notes: z14.string().optional(),
+        status: z14.enum(["pending", "approved", "rejected"]).optional(),
+        approvedBy: z14.number().optional()
       })
     })).mutation(async ({ input }) => {
       await updateWorkHour(input.id, input.data);
@@ -7991,25 +8132,25 @@ Please reorder these materials to avoid project delays.`;
     list: protectedProcedure.query(async () => {
       return await getConcreteBases();
     }),
-    create: protectedProcedure.input(z13.object({
-      name: z13.string(),
-      location: z13.string(),
-      capacity: z13.number(),
-      status: z13.enum(["operational", "maintenance", "inactive"]).default("operational"),
-      managerName: z13.string().optional(),
-      phoneNumber: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      name: z14.string(),
+      location: z14.string(),
+      capacity: z14.number(),
+      status: z14.enum(["operational", "maintenance", "inactive"]).default("operational"),
+      managerName: z14.string().optional(),
+      phoneNumber: z14.string().optional()
     })).mutation(async ({ input }) => {
       return await createConcreteBase(input);
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      data: z13.object({
-        name: z13.string().optional(),
-        location: z13.string().optional(),
-        capacity: z13.number().optional(),
-        status: z13.enum(["operational", "maintenance", "inactive"]).optional(),
-        managerName: z13.string().optional(),
-        phoneNumber: z13.string().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      data: z14.object({
+        name: z14.string().optional(),
+        location: z14.string().optional(),
+        capacity: z14.number().optional(),
+        status: z14.enum(["operational", "maintenance", "inactive"]).optional(),
+        managerName: z14.string().optional(),
+        phoneNumber: z14.string().optional()
       })
     })).mutation(async ({ input }) => {
       await updateConcreteBase(input.id, input.data);
@@ -8017,127 +8158,127 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   machines: router({
-    list: protectedProcedure.input(z13.object({
-      concreteBaseId: z13.number().optional(),
-      type: z13.string().optional(),
-      status: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      concreteBaseId: z14.number().optional(),
+      type: z14.string().optional(),
+      status: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachines(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      name: z13.string(),
-      machineNumber: z13.string(),
-      type: z13.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
-      manufacturer: z13.string().optional(),
-      model: z13.string().optional(),
-      year: z13.number().optional(),
-      concreteBaseId: z13.number().optional(),
-      status: z13.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+    create: protectedProcedure.input(z14.object({
+      name: z14.string(),
+      machineNumber: z14.string(),
+      type: z14.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
+      manufacturer: z14.string().optional(),
+      model: z14.string().optional(),
+      year: z14.number().optional(),
+      concreteBaseId: z14.number().optional(),
+      status: z14.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
     })).mutation(async ({ input }) => {
       return await createMachine(input);
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      data: z13.object({
-        name: z13.string().optional(),
-        type: z13.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
-        status: z13.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
-        totalWorkingHours: z13.number().optional(),
-        lastMaintenanceDate: z13.date().optional(),
-        nextMaintenanceDate: z13.date().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      data: z14.object({
+        name: z14.string().optional(),
+        type: z14.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+        status: z14.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+        totalWorkingHours: z14.number().optional(),
+        lastMaintenanceDate: z14.date().optional(),
+        nextMaintenanceDate: z14.date().optional()
       })
     })).mutation(async ({ input }) => {
       await updateMachine(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z13.object({ id: z13.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z14.object({ id: z14.number() })).mutation(async ({ input }) => {
       await deleteMachine(input.id);
       return { success: true };
     })
   }),
   machineMaintenance: router({
-    list: protectedProcedure.input(z13.object({
-      machineId: z13.number().optional(),
-      maintenanceType: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      machineId: z14.number().optional(),
+      maintenanceType: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineMaintenance(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      machineId: z13.number(),
-      date: z13.date(),
-      maintenanceType: z13.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
-      description: z13.string().optional(),
-      lubricationType: z13.string().optional(),
-      lubricationAmount: z13.number().optional(),
-      fuelType: z13.string().optional(),
-      fuelAmount: z13.number().optional(),
-      cost: z13.number().optional(),
-      performedBy: z13.string().optional(),
-      hoursAtMaintenance: z13.number().optional(),
-      notes: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      machineId: z14.number(),
+      date: z14.date(),
+      maintenanceType: z14.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
+      description: z14.string().optional(),
+      lubricationType: z14.string().optional(),
+      lubricationAmount: z14.number().optional(),
+      fuelType: z14.string().optional(),
+      fuelAmount: z14.number().optional(),
+      cost: z14.number().optional(),
+      performedBy: z14.string().optional(),
+      hoursAtMaintenance: z14.number().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineMaintenance(input);
     })
   }),
   machineWorkHours: router({
-    list: protectedProcedure.input(z13.object({
-      machineId: z13.number().optional(),
-      projectId: z13.number().optional()
+    list: protectedProcedure.input(z14.object({
+      machineId: z14.number().optional(),
+      projectId: z14.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getMachineWorkHours(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      machineId: z13.number(),
-      projectId: z13.number().optional(),
-      date: z13.date(),
-      startTime: z13.date(),
-      endTime: z13.date().optional(),
-      hoursWorked: z13.number().optional(),
-      operatorId: z13.number().optional(),
-      operatorName: z13.string().optional(),
-      notes: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      machineId: z14.number(),
+      projectId: z14.number().optional(),
+      date: z14.date(),
+      startTime: z14.date(),
+      endTime: z14.date().optional(),
+      hoursWorked: z14.number().optional(),
+      operatorId: z14.number().optional(),
+      operatorName: z14.string().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input }) => {
       return await createMachineWorkHour(input);
     })
   }),
   aggregateInputs: router({
-    list: protectedProcedure.input(z13.object({
-      concreteBaseId: z13.number().optional(),
-      materialType: z13.string().optional()
+    list: protectedProcedure.input(z14.object({
+      concreteBaseId: z14.number().optional(),
+      materialType: z14.string().optional()
     }).optional()).query(async ({ input }) => {
       return await getAggregateInputs(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      concreteBaseId: z13.number(),
-      date: z13.date(),
-      materialType: z13.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
-      materialName: z13.string(),
-      quantity: z13.number(),
-      unit: z13.string(),
-      supplier: z13.string().optional(),
-      batchNumber: z13.string().optional(),
-      receivedBy: z13.string().optional(),
-      notes: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      concreteBaseId: z14.number(),
+      date: z14.date(),
+      materialType: z14.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
+      materialName: z14.string(),
+      quantity: z14.number(),
+      unit: z14.string(),
+      supplier: z14.string().optional(),
+      batchNumber: z14.string().optional(),
+      receivedBy: z14.string().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input }) => {
       return await createAggregateInput(input);
     })
   }),
   purchaseOrders: router({
-    list: protectedProcedure.input(z13.object({
-      status: z13.string().optional(),
-      materialId: z13.number().optional()
+    list: protectedProcedure.input(z14.object({
+      status: z14.string().optional(),
+      materialId: z14.number().optional()
     }).optional()).query(async ({ input }) => {
       return await getPurchaseOrders(input);
     }),
-    create: protectedProcedure.input(z13.object({
-      materialId: z13.number(),
-      materialName: z13.string(),
-      quantity: z13.number(),
-      supplier: z13.string().optional(),
-      supplierEmail: z13.string().optional(),
-      expectedDelivery: z13.date().optional(),
-      totalCost: z13.number().optional(),
-      notes: z13.string().optional()
+    create: protectedProcedure.input(z14.object({
+      materialId: z14.number(),
+      materialName: z14.string(),
+      quantity: z14.number(),
+      supplier: z14.string().optional(),
+      supplierEmail: z14.string().optional(),
+      expectedDelivery: z14.date().optional(),
+      totalCost: z14.number().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input, ctx }) => {
       await createPurchaseOrder({
         ...input,
@@ -8146,20 +8287,20 @@ Please reorder these materials to avoid project delays.`;
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z13.object({
-      id: z13.number(),
-      status: z13.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
-      expectedDelivery: z13.date().optional(),
-      actualDelivery: z13.date().optional(),
-      totalCost: z13.number().optional(),
-      notes: z13.string().optional()
+    update: protectedProcedure.input(z14.object({
+      id: z14.number(),
+      status: z14.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
+      expectedDelivery: z14.date().optional(),
+      actualDelivery: z14.date().optional(),
+      totalCost: z14.number().optional(),
+      notes: z14.string().optional()
     })).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updatePurchaseOrder(id, data);
       return { success: true };
     }),
-    sendToSupplier: protectedProcedure.input(z13.object({
-      orderId: z13.number()
+    sendToSupplier: protectedProcedure.input(z14.object({
+      orderId: z14.number()
     })).mutation(async ({ input }) => {
       const orders = await getPurchaseOrders();
       const order = orders.find((o) => o.id === input.orderId);
@@ -8192,8 +8333,8 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   reports: router({
-    dailyProduction: protectedProcedure.input(z13.object({
-      date: z13.string()
+    dailyProduction: protectedProcedure.input(z14.object({
+      date: z14.string()
       // YYYY-MM-DD format
     })).query(async ({ input }) => {
       const targetDate = new Date(input.date);
@@ -8238,9 +8379,9 @@ Please reorder these materials to avoid project delays.`;
         qualityTests: qualityTests2
       };
     }),
-    sendDailyProductionEmail: protectedProcedure.input(z13.object({
-      date: z13.string(),
-      recipientEmail: z13.string()
+    sendDailyProductionEmail: protectedProcedure.input(z14.object({
+      date: z14.string(),
+      recipientEmail: z14.string()
     })).mutation(async ({ input }) => {
       const targetDate = new Date(input.date);
       const nextDay = new Date(targetDate);
@@ -8302,21 +8443,21 @@ Please reorder these materials to avoid project delays.`;
     get: protectedProcedure.query(async () => {
       return await getEmailBranding();
     }),
-    update: protectedProcedure.input(z13.object({
-      logoUrl: z13.string().optional(),
-      primaryColor: z13.string().optional(),
-      secondaryColor: z13.string().optional(),
-      companyName: z13.string().optional(),
-      footerText: z13.string().optional()
+    update: protectedProcedure.input(z14.object({
+      logoUrl: z14.string().optional(),
+      primaryColor: z14.string().optional(),
+      secondaryColor: z14.string().optional(),
+      companyName: z14.string().optional(),
+      footerText: z14.string().optional()
     })).mutation(async ({ input }) => {
       await upsertEmailBranding(input);
       return { success: true };
     }),
-    uploadLogo: protectedProcedure.input(z13.object({
-      fileData: z13.string(),
+    uploadLogo: protectedProcedure.input(z14.object({
+      fileData: z14.string(),
       // base64 encoded image
-      fileName: z13.string(),
-      mimeType: z13.string()
+      fileName: z14.string(),
+      mimeType: z14.string()
     })).mutation(async ({ input }) => {
       const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
       if (!allowedTypes.includes(input.mimeType)) {
