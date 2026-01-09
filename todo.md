@@ -1110,3 +1110,13 @@
 - [ ] Add timesheet review, approval, and rejection functionality
 - [ ] Add overtime calculation based on shift assignments
 - [ ] Test shift management and timesheet approval workflow
+
+
+## Shift Assignment UI with Calendar (NEW)
+- [ ] Create shift templates (Morning 7-19, Daily 7-17)
+- [ ] Build backend API for employee shift assignments
+- [ ] Create Shift Assignment page with calendar view
+- [ ] Add drag-and-drop employee assignment to shifts
+- [ ] Implement shift conflict detection
+- [ ] Add shift swap request functionality
+- [ ] Test shift assignment workflow

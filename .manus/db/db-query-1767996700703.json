@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO shift_templates (name, startTime, endTime, daysOfWeek, createdBy, isActive) VALUES\n('Morning Shift', '07:00', '19:00', '[1,2,3,4,5,6,7]', 1, true),\n('Daily Shift', '07:00', '17:00', '[1,2,3,4,5,6,7]', 1, true);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute INSERT INTO shift_templates (name, startTime, endTime, daysOfWeek, createdBy, isActive) VALUES\n('Morning Shift', '07:00', '19:00', '[1,2,3,4,5,6,7]', 1, true),\n('Daily Shift', '07:00', '17:00', '[1,2,3,4,5,6,7]', 1, true);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 62
+}
