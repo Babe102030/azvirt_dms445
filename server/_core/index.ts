@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+import { registerClerkRoutes, clerkAuthMiddleware } from "./clerk";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -34,8 +34,16 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // Clerk authentication routes
+  registerClerkRoutes(app);
+
+  // Apply Clerk auth middleware to all API routes except health checks
+  app.use("/api/*", (req, res, next) => {
+    if (req.path === "/api/clerk/health" || req.path === "/api/clerk/webhook") {
+      return next();
+    }
+    clerkAuthMiddleware(req, res, next);
+  });
   // tRPC API
   app.use(
     "/api/trpc",
