@@ -511,7 +511,7 @@ var NOT_ADMIN_ERR_MSG = "You do not have required permission (10002)";
 
 // server/db.ts
 import { eq, desc, like, and, or, gte, lte, lt, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/libsql";
 
 // drizzle/schema.ts
 import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, decimal } from "drizzle-orm/mysql-core";
@@ -1222,7 +1222,11 @@ var _db = null;
 async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const { createClient } = await import("@libsql/client");
+      const client = createClient({
+        url: process.env.DATABASE_URL
+      });
+      _db = drizzle(client);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
