@@ -1,4 +1,4 @@
-import { requireAuth, clerkClient } from "@clerk/express";
+import { requireAuth, clerkMiddleware, clerkClient } from "@clerk/express";
 import type { Express, Request, Response, NextFunction } from "express";
 import * as db from "../db";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
@@ -11,6 +11,11 @@ const clerk = clerkClient;
  * Middleware to protect routes with Clerk authentication
  */
 export const clerkAuthMiddleware = requireAuth();
+
+/**
+ * Middleware to populate auth object without enforcing authentication
+ */
+export const clerkBaseMiddleware = clerkMiddleware();
 
 /**
  * Get user from Clerk session

@@ -3,7 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerClerkRoutes, clerkAuthMiddleware } from "./clerk";
+import { registerClerkRoutes, clerkAuthMiddleware, clerkBaseMiddleware } from "./clerk";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -36,20 +36,16 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  // Request logger for debugging
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-  });
   // Clerk authentication routes
   registerClerkRoutes(app);
 
-  // Apply Clerk auth middleware to all API routes except health checks
+  // Apply Clerk middleware to all API routes to populate auth context
   app.use("/api/*", (req, res, next) => {
-    if (req.path === "/api/clerk/health" || req.path === "/api/clerk/webhook") {
+    const url = req.originalUrl || req.url;
+    if (url === "/api/clerk/health" || url === "/api/clerk/webhook") {
       return next();
     }
-    clerkAuthMiddleware(req, res, next);
+    clerkBaseMiddleware(req, res, next);
   });
 
   // tRPC API
