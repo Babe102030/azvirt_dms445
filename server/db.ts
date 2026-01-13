@@ -444,482 +444,953 @@ export async function updateDelivery(id: number, data: Partial<InsertDelivery>) 
 
 // Quality Tests
 export async function createQualityTest(test: InsertQualityTest) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (q:QualityTest {
+        id: toInteger(timestamp()),
+        testName: $testName,
+        testType: $testType,
+        result: $result,
+        unit: $unit,
+        status: $status,
+        deliveryId: $deliveryId,
+        projectId: $projectId,
+        testedBy: $testedBy,
+        notes: $notes,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH q
+      OPTIONAL MATCH (d:Delivery {id: $deliveryId})
+      FOREACH (_ IN CASE WHEN d IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (d)-[:HAS_TEST]->(q)
+      )
+      WITH q
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (p)-[:HAS_TEST]->(q)
+      )
+      RETURN q
+    `;
 
-  const result = await db.insert(qualityTests).values(test);
-  return result;
+    await session.run(query, {
+      testName: test.testName,
+      testType: test.testType,
+      result: test.result,
+      unit: test.unit || '',
+      status: test.status,
+      deliveryId: test.deliveryId || null,
+      projectId: test.projectId || null,
+      testedBy: test.testedBy || '',
+      notes: test.notes || ''
+    });
+  } catch (e) {
+    console.error("Failed to create quality test", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getQualityTests(filters?: { projectId?: number; deliveryId?: number }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (q:QualityTest)';
+    let params: any = {};
+    let where = [];
 
-  let conditions: any[] = [];
+    if (filters?.projectId) {
+      where.push('q.projectId = $projectId');
+      params.projectId = filters.projectId;
+    }
+    if (filters?.deliveryId) {
+      where.push('q.deliveryId = $deliveryId');
+      params.deliveryId = filters.deliveryId;
+    }
 
-  if (filters?.projectId) {
-    conditions.push(eq(qualityTests.projectId, filters.projectId));
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+
+    query += ' RETURN q ORDER BY q.createdAt DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'q'));
+  } finally {
+    await session.close();
   }
-
-  if (filters?.deliveryId) {
-    conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const result = await db
-    .select()
-    .from(qualityTests)
-    .where(whereClause)
-    .orderBy(desc(qualityTests.createdAt));
-
-  return result;
 }
 
 export async function updateQualityTest(id: number, data: Partial<InsertQualityTest>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(qualityTests).set(data).where(eq(qualityTests.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      sets.push(`q.${key} = $${key}`);
+      params[key] = data[key];
+    });
+
+    sets.push('q.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (q:QualityTest {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getFailedQualityTests(days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-
-  const result = await db
-    .select()
-    .from(qualityTests)
-    .where(
-      and(
-        eq(qualityTests.status, 'fail'),
-        gte(qualityTests.createdAt, cutoffDate)
-      )
-    )
-    .orderBy(desc(qualityTests.createdAt));
-
-  return result;
+  const session = getSession();
+  try {
+    const result = await session.run(`
+        MATCH (q:QualityTest) 
+        WHERE q.status = 'fail' AND q.createdAt >= datetime() - duration({days: $days})
+        RETURN q ORDER BY q.createdAt DESC
+    `, { days });
+    return result.records.map(r => recordToObj(r, 'q'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getQualityTestTrends(days: number = 30) {
-  const db = await getDb();
-  if (!db) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+  const session = getSession();
+  try {
+    const query = `
+        MATCH (q:QualityTest)
+        WHERE q.createdAt >= datetime() - duration({days: $days})
+        RETURN 
+          count(q) as total,
+          sum(CASE WHEN q.status = 'pass' THEN 1 ELSE 0 END) as passed,
+          sum(CASE WHEN q.status = 'fail' THEN 1 ELSE 0 END) as failed,
+          sum(CASE WHEN q.status = 'pending' THEN 1 ELSE 0 END) as pending,
+          q.testType as type,
+          count(q.testType) as typeCount
+    `;
+    // Aggregation logic in Neo4j is slightly different, better to fetch raw and aggregate in JS for complex object structure match
+    // Or simplified: fetch all and aggregate.
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
+    const result = await session.run(`
+        MATCH (q:QualityTest)
+        WHERE q.createdAt >= datetime() - duration({days: $days})
+        RETURN q.status as status, q.testType as testType
+    `, { days });
 
-  const allTests = await db
-    .select()
-    .from(qualityTests)
-    .where(gte(qualityTests.createdAt, cutoffDate));
+    const records = result.records.map(r => ({ status: r.get('status'), testType: r.get('testType') }));
+    const totalTests = records.length;
+    if (totalTests === 0) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
 
-  const totalTests = allTests.length;
-  if (totalTests === 0) {
-    return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+    const passCount = records.filter(t => t.status === 'pass').length;
+    const failCount = records.filter(t => t.status === 'fail').length;
+    const pendingCount = records.filter(t => t.status === 'pending').length;
+
+    const byTypeMap = new Map();
+    records.forEach(r => {
+      const type = r.testType || 'other';
+      byTypeMap.set(type, (byTypeMap.get(type) || 0) + 1);
+    });
+
+    const byType = Array.from(byTypeMap.entries()).map(([type, total]) => ({ type, total }));
+
+    return {
+      passRate: (passCount / totalTests) * 100,
+      failRate: (failCount / totalTests) * 100,
+      pendingRate: (pendingCount / totalTests) * 100,
+      totalTests,
+      byType
+    };
+  } finally {
+    await session.close();
   }
-
-  const passCount = allTests.filter(t => t.status === 'pass').length;
-  const failCount = allTests.filter(t => t.status === 'fail').length;
-  const pendingCount = allTests.filter(t => t.status === 'pending').length;
-
-  const byType = [
-    { type: 'slump', total: allTests.filter(t => t.testType === 'slump').length },
-    { type: 'strength', total: allTests.filter(t => t.testType === 'strength').length },
-    { type: 'air_content', total: allTests.filter(t => t.testType === 'air_content').length },
-    { type: 'temperature', total: allTests.filter(t => t.testType === 'temperature').length },
-    { type: 'other', total: allTests.filter(t => t.testType === 'other').length },
-  ];
-
-  return {
-    passRate: (passCount / totalTests) * 100,
-    failRate: (failCount / totalTests) * 100,
-    pendingRate: (pendingCount / totalTests) * 100,
-    totalTests,
-    byType,
-  };
 }
 
 // ============ Employees ============
 export async function createEmployee(employee: InsertEmployee) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(employees).values(employee);
-  return result;
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (e:Employee {
+        id: toInteger(timestamp()),
+        firstName: $firstName,
+        lastName: $lastName,
+        employeeNumber: $employeeNumber,
+        position: $position,
+        department: $department,
+        phoneNumber: $phoneNumber,
+        email: $email,
+        hourlyRate: toInteger($hourlyRate),
+        status: $status,
+        hireDate: datetime($hireDate),
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+    `, {
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      employeeNumber: employee.employeeNumber,
+      position: employee.position,
+      department: employee.department,
+      phoneNumber: employee.phoneNumber || '',
+      email: employee.email || '',
+      hourlyRate: employee.hourlyRate || 0,
+      status: employee.status,
+      hireDate: employee.hireDate ? employee.hireDate.toISOString() : null
+    });
+  } catch (e) {
+    console.error("Failed to create employee", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getEmployees(filters?: { department?: string; status?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (e:Employee)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.department) {
-    conditions.push(eq(employees.department, filters.department as any));
+    if (filters?.department) {
+      where.push('e.department = $department');
+      params.department = filters.department;
+    }
+    if (filters?.status) {
+      where.push('e.status = $status');
+      params.status = filters.status;
+    }
+
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN e ORDER BY e.createdAt DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'e'));
+  } finally {
+    await session.close();
   }
-  if (filters?.status) {
-    conditions.push(eq(employees.status, filters.status as any));
-  }
-
-  const result = conditions.length > 0
-    ? await db.select().from(employees).where(and(...conditions)).orderBy(desc(employees.createdAt))
-    : await db.select().from(employees).orderBy(desc(employees.createdAt));
-
-  return result;
 }
 
 export async function getEmployeeById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (e:Employee {id: $id}) RETURN e', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'e');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateEmployee(id: number, data: Partial<InsertEmployee>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(employees).set(data).where(eq(employees.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (key === 'hourlyRate') {
+        sets.push(`e.${key} = toInteger($${key})`);
+      } else if (data[key] instanceof Date) {
+        sets.push(`e.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        sets.push(`e.${key} = $${key}`);
+      }
+      if (!(data[key] instanceof Date)) params[key] = data[key];
+    });
+
+    sets.push('e.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (e:Employee {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteEmployee(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.delete(employees).where(eq(employees.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (e:Employee {id: $id}) DETACH DELETE e', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // ============ Work Hours ============
 export async function createWorkHour(workHour: InsertWorkHour) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (w:WorkHour {
+        id: toInteger(timestamp()),
+        employeeId: $employeeId,
+        projectId: $projectId,
+        date: datetime($date),
+        startTime: datetime($startTime),
+        endTime: datetime($endTime),
+        hoursWorked: toInteger($hoursWorked),
+        overtimeHours: toInteger($overtimeHours),
+        workType: $workType,
+        notes: $notes,
+        status: $status,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH w
+      MATCH (e:Employee {id: $employeeId})
+      MERGE (e)-[:LOGGED]->(w)
+      WITH w
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (w)-[:LOGGED_FOR]->(p)
+      )
+      RETURN w
+    `;
 
-  const result = await db.insert(workHours).values(workHour);
-  return result;
+    await session.run(query, {
+      employeeId: workHour.employeeId,
+      projectId: workHour.projectId || null,
+      date: workHour.date.toISOString(),
+      startTime: workHour.startTime.toISOString(),
+      endTime: workHour.endTime ? workHour.endTime.toISOString() : null,
+      hoursWorked: workHour.hoursWorked || 0,
+      overtimeHours: workHour.overtimeHours || 0,
+      workType: workHour.workType,
+      notes: workHour.notes || '',
+      status: workHour.status
+    });
+  } catch (e) {
+    console.error("Failed to create work hour", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getWorkHours(filters?: { employeeId?: number; projectId?: number; status?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (w:WorkHour)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.employeeId) {
-    conditions.push(eq(workHours.employeeId, filters.employeeId));
-  }
-  if (filters?.projectId) {
-    conditions.push(eq(workHours.projectId, filters.projectId));
-  }
-  if (filters?.status) {
-    conditions.push(eq(workHours.status, filters.status as any));
-  }
+    if (filters?.employeeId) {
+      where.push('w.employeeId = $employeeId');
+      params.employeeId = filters.employeeId;
+    }
+    if (filters?.projectId) {
+      where.push('w.projectId = $projectId');
+      params.projectId = filters.projectId;
+    }
+    if (filters?.status) {
+      where.push('w.status = $status');
+      params.status = filters.status;
+    }
 
-  const result = conditions.length > 0
-    ? await db.select().from(workHours).where(and(...conditions)).orderBy(desc(workHours.date))
-    : await db.select().from(workHours).orderBy(desc(workHours.date));
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
 
-  return result;
+    query += ' RETURN w ORDER BY w.date DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'w'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateWorkHour(id: number, data: Partial<InsertWorkHour>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(workHours).set(data).where(eq(workHours.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (['hoursWorked', 'overtimeHours'].includes(key)) {
+        sets.push(`w.${key} = toInteger($${key})`);
+      } else if (data[key] instanceof Date) {
+        sets.push(`w.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        sets.push(`w.${key} = $${key}`);
+      }
+      if (!(data[key] instanceof Date)) params[key] = data[key];
+    });
+
+    sets.push('w.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (w:WorkHour {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 // ============ Concrete Bases ============
 export async function createConcreteBase(base: InsertConcreteBase) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(concreteBases).values(base);
-  return result;
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (c:ConcreteBase {
+        id: toInteger(timestamp()),
+        name: $name,
+        location: $location,
+        status: $status,
+        capacity: toInteger($capacity),
+        isActive: $isActive,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+    `, {
+      name: base.name,
+      location: base.location || '',
+      status: base.status || 'active',
+      capacity: base.capacity || 0,
+      isActive: base.isActive
+    });
+  } catch (e) {
+    console.error("Failed to create concrete base", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getConcreteBases() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select().from(concreteBases).orderBy(desc(concreteBases.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (c:ConcreteBase) RETURN c ORDER BY c.createdAt DESC');
+    return result.records.map(r => recordToObj(r, 'c'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getConcreteBaseById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(concreteBases).where(eq(concreteBases.id, id)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (c:ConcreteBase {id: $id}) RETURN c', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'c');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateConcreteBase(id: number, data: Partial<InsertConcreteBase>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(concreteBases).set(data).where(eq(concreteBases.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (key === 'capacity') {
+        sets.push(`c.${key} = toInteger($${key})`);
+      } else {
+        sets.push(`c.${key} = $${key}`);
+      }
+      params[key] = data[key];
+    });
+
+    sets.push('c.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (c:ConcreteBase {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 // ============ Machines ============
 export async function createMachine(machine: InsertMachine) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (m:Machine {
+        id: toInteger(timestamp()),
+        name: $name,
+        machineNumber: $machineNumber,
+        type: $type,
+        manufacturer: $manufacturer,
+        model: $model,
+        year: toInteger($year),
+        concreteBaseId: $concreteBaseId,
+        status: $status,
+        totalWorkingHours: toInteger($totalWorkingHours),
+        lastMaintenanceDate: datetime($lastMaintenanceDate),
+        nextMaintenanceDate: datetime($nextMaintenanceDate),
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH m
+      OPTIONAL MATCH (c:ConcreteBase {id: $concreteBaseId})
+      FOREACH (_ IN CASE WHEN c IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (m)-[:LOCATED_AT]->(c)
+      )
+      RETURN m
+    `;
 
-  const result = await db.insert(machines).values(machine);
-  return result;
+    await session.run(query, {
+      name: machine.name,
+      machineNumber: machine.machineNumber,
+      type: machine.type,
+      manufacturer: machine.manufacturer || '',
+      model: machine.model || '',
+      year: machine.year || 0,
+      concreteBaseId: machine.concreteBaseId || null,
+      status: machine.status,
+      totalWorkingHours: machine.totalWorkingHours || 0,
+      lastMaintenanceDate: machine.lastMaintenanceDate ? machine.lastMaintenanceDate.toISOString() : null,
+      nextMaintenanceDate: machine.nextMaintenanceDate ? machine.nextMaintenanceDate.toISOString() : null
+    });
+  } catch (e) {
+    console.error("Failed to create machine", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMachines(filters?: { concreteBaseId?: number; type?: string; status?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (m:Machine)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.concreteBaseId) {
-    conditions.push(eq(machines.concreteBaseId, filters.concreteBaseId));
-  }
-  if (filters?.type) {
-    conditions.push(eq(machines.type, filters.type as any));
-  }
-  if (filters?.status) {
-    conditions.push(eq(machines.status, filters.status as any));
-  }
+    if (filters?.concreteBaseId) {
+      where.push('m.concreteBaseId = $concreteBaseId');
+      params.concreteBaseId = filters.concreteBaseId;
+    }
+    if (filters?.type) {
+      where.push('m.type = $type');
+      params.type = filters.type;
+    }
+    if (filters?.status) {
+      where.push('m.status = $status');
+      params.status = filters.status;
+    }
 
-  const result = conditions.length > 0
-    ? await db.select().from(machines).where(and(...conditions)).orderBy(desc(machines.createdAt))
-    : await db.select().from(machines).orderBy(desc(machines.createdAt));
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN m ORDER BY m.createdAt DESC';
 
-  return result;
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMachineById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(machines).where(eq(machines.id, id)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (m:Machine {id: $id}) RETURN m', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'm');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateMachine(id: number, data: Partial<InsertMachine>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(machines).set(data).where(eq(machines.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (['year', 'totalWorkingHours'].includes(key)) {
+        sets.push(`m.${key} = toInteger($${key})`);
+      } else if (data[key] instanceof Date) {
+        sets.push(`m.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        sets.push(`m.${key} = $${key}`);
+      }
+      if (!(data[key] instanceof Date)) params[key] = data[key];
+    });
+
+    sets.push('m.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (m:Machine {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteMachine(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.delete(machines).where(eq(machines.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (m:Machine {id: $id}) DETACH DELETE m', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // ============ Machine Maintenance ============
 export async function createMachineMaintenance(maintenance: InsertMachineMaintenance) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (mm:MachineMaintenance {
+        id: toInteger(timestamp()),
+        machineId: $machineId,
+        type: $maintenanceType,
+        date: datetime($date),
+        description: $description,
+        cost: toInteger($cost),
+        performedBy: $performedBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH mm
+      MATCH (m:Machine {id: $machineId})
+      MERGE (m)-[:UNDERWENT]->(mm)
+      RETURN mm
+    `;
 
-  const result = await db.insert(machineMaintenance).values(maintenance);
-  return result;
+    await session.run(query, {
+      machineId: maintenance.machineId,
+      maintenanceType: maintenance.maintenanceType,
+      date: maintenance.date ? maintenance.date.toISOString() : null,
+      description: maintenance.description || '',
+      cost: maintenance.cost || 0,
+      performedBy: maintenance.performedBy || ''
+    });
+  } catch (e) {
+    console.error("Failed to create machine maintenance", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMachineMaintenance(filters?: { machineId?: number; maintenanceType?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (mm:MachineMaintenance)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.machineId) {
-    conditions.push(eq(machineMaintenance.machineId, filters.machineId));
+    if (filters?.machineId) {
+      where.push('mm.machineId = $machineId');
+      params.machineId = filters.machineId;
+    }
+    if (filters?.maintenanceType) {
+      where.push('mm.type = $maintenanceType');
+      params.maintenanceType = filters.maintenanceType;
+    }
+
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN mm ORDER BY mm.date DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'mm'));
+  } finally {
+    await session.close();
   }
-  if (filters?.maintenanceType) {
-    conditions.push(eq(machineMaintenance.maintenanceType, filters.maintenanceType as any));
-  }
-
-  const result = conditions.length > 0
-    ? await db.select().from(machineMaintenance).where(and(...conditions)).orderBy(desc(machineMaintenance.date))
-    : await db.select().from(machineMaintenance).orderBy(desc(machineMaintenance.date));
-
-  return result;
 }
 
 // ============ Machine Work Hours ============
 export async function createMachineWorkHour(workHour: InsertMachineWorkHour) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (mw:MachineWorkHour {
+        id: toInteger(timestamp()),
+        machineId: $machineId,
+        projectId: $projectId,
+        date: datetime($date),
+        hours: toInteger($hours),
+        operatorId: $operatorId,
+        notes: $notes,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH mw
+      MATCH (m:Machine {id: $machineId})
+      MERGE (m)-[:WORKED]->(mw)
+      WITH mw
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (mw)-[:WORKED_ON]->(p)
+      )
+      RETURN mw
+    `;
 
-  const result = await db.insert(machineWorkHours).values(workHour);
-  return result;
+    await session.run(query, {
+      machineId: workHour.machineId,
+      projectId: workHour.projectId || null,
+      date: workHour.date.toISOString(),
+      hours: workHour.hours,
+      operatorId: workHour.operatorId || null,
+      notes: workHour.notes || ''
+    });
+  } catch (e) {
+    console.error("Failed to create machine work hour", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMachineWorkHours(filters?: { machineId?: number; projectId?: number }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (mw:MachineWorkHour)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.machineId) {
-    conditions.push(eq(machineWorkHours.machineId, filters.machineId));
+    if (filters?.machineId) {
+      where.push('mw.machineId = $machineId');
+      params.machineId = filters.machineId;
+    }
+    if (filters?.projectId) {
+      where.push('mw.projectId = $projectId');
+      params.projectId = filters.projectId;
+    }
+
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN mw ORDER BY mw.date DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'mw'));
+  } finally {
+    await session.close();
   }
-  if (filters?.projectId) {
-    conditions.push(eq(machineWorkHours.projectId, filters.projectId));
-  }
-
-  const result = conditions.length > 0
-    ? await db.select().from(machineWorkHours).where(and(...conditions)).orderBy(desc(machineWorkHours.date))
-    : await db.select().from(machineWorkHours).orderBy(desc(machineWorkHours.date));
-
-  return result;
 }
 
 // ============ Aggregate Inputs ============
 export async function createAggregateInput(input: InsertAggregateInput) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (ai:AggregateInput {
+        id: toInteger(timestamp()),
+        concreteBaseId: $concreteBaseId,
+        materialType: $materialType,
+        quantity: toInteger($quantity),
+        source: $source,
+        date: datetime($date),
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH ai
+      MATCH (c:ConcreteBase {id: $concreteBaseId})
+      MERGE (c)-[:USED_INPUT]->(ai)
+      RETURN ai
+    `;
 
-  const result = await db.insert(aggregateInputs).values(input);
-  return result;
+    await session.run(query, {
+      concreteBaseId: input.concreteBaseId,
+      materialType: input.materialType,
+      quantity: input.quantity || 0,
+      source: input.source || '',
+      date: input.date.toISOString()
+    });
+  } catch (e) {
+    console.error("Failed to create aggregate input", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAggregateInputs(filters?: { concreteBaseId?: number; materialType?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (ai:AggregateInput)';
+    let params: any = {};
+    let where = [];
 
-  const conditions = [];
-  if (filters?.concreteBaseId) {
-    conditions.push(eq(aggregateInputs.concreteBaseId, filters.concreteBaseId));
+    if (filters?.concreteBaseId) {
+      where.push('ai.concreteBaseId = $concreteBaseId');
+      params.concreteBaseId = filters.concreteBaseId;
+    }
+    if (filters?.materialType) {
+      where.push('ai.materialType = $materialType');
+      params.materialType = filters.materialType;
+    }
+
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN ai ORDER BY ai.date DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'ai'));
+  } finally {
+    await session.close();
   }
-  if (filters?.materialType) {
-    conditions.push(eq(aggregateInputs.materialType, filters.materialType as any));
-  }
-
-  const result = conditions.length > 0
-    ? await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date))
-    : await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
-
-  return result;
 }
 
 export async function getWeeklyTimesheetSummary(employeeId: number | undefined, weekStart: Date) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
 
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
+    // Filter by employeeId if provided
+    let match = 'MATCH (e:Employee)-[:LOGGED]->(w:WorkHour)';
+    let where = 'WHERE w.date >= datetime($weekStart) AND w.date < datetime($weekEnd) AND w.status = "approved"';
+    let params: any = { weekStart: weekStart.toISOString(), weekEnd: weekEnd.toISOString() };
 
-  let query = db
-    .select({
-      employeeId: workHours.employeeId,
-      employeeName: sql<string>`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
-      employeeNumber: employees.employeeNumber,
-      totalHours: sql<number>`SUM(${workHours.hoursWorked})`,
-      regularHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      overtimeHours: sql<number>`SUM(${workHours.overtimeHours})`,
-      weekendHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      holidayHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      daysWorked: sql<number>`COUNT(DISTINCT DATE(${workHours.date}))`,
-    })
-    .from(workHours)
-    .innerJoin(employees, eq(workHours.employeeId, employees.id))
-    .where(
-      and(
-        gte(workHours.date, weekStart),
-        lt(workHours.date, weekEnd),
-        eq(workHours.status, "approved"),
-        employeeId ? eq(workHours.employeeId, employeeId) : undefined
-      )
-    )
-    .groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber);
+    if (employeeId) {
+      where += ' AND e.id = $employeeId';
+      params.employeeId = employeeId;
+    }
 
-  return await query;
+    const query = `
+      ${match}
+      ${where}
+      RETURN
+        e.id as employeeId,
+        e.firstName + ' ' + e.lastName as employeeName,
+        e.employeeNumber as employeeNumber,
+        sum(w.hoursWorked) as totalHours,
+        sum(CASE WHEN w.workType = 'regular' THEN w.hoursWorked ELSE 0 END) as regularHours,
+        sum(w.overtimeHours) as overtimeHours,
+        sum(CASE WHEN w.workType = 'weekend' THEN w.hoursWorked ELSE 0 END) as weekendHours,
+        sum(CASE WHEN w.workType = 'holiday' THEN w.hoursWorked ELSE 0 END) as holidayHours,
+        count(DISTINCT date(w.date)) as daysWorked
+    `;
+
+    const result = await session.run(query, params);
+
+    return result.records.map(r => ({
+      employeeId: r.get('employeeId').toNumber(), // Neo4j Integer to JS number
+      employeeName: r.get('employeeName'),
+      employeeNumber: r.get('employeeNumber'),
+      totalHours: r.get('totalHours').toNumber(),
+      regularHours: r.get('regularHours').toNumber(),
+      overtimeHours: r.get('overtimeHours').toNumber(),
+      weekendHours: r.get('weekendHours').toNumber(),
+      holidayHours: r.get('holidayHours').toNumber(),
+      daysWorked: r.get('daysWorked').toNumber()
+    }));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMonthlyTimesheetSummary(employeeId: number | undefined, year: number, month: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 1);
 
-  const monthStart = new Date(year, month - 1, 1);
-  const monthEnd = new Date(year, month, 1);
+    let match = 'MATCH (e:Employee)-[:LOGGED]->(w:WorkHour)';
+    let where = 'WHERE w.date >= datetime($monthStart) AND w.date < datetime($monthEnd) AND w.status = "approved"';
+    let params: any = { monthStart: monthStart.toISOString(), monthEnd: monthEnd.toISOString() };
 
-  let query = db
-    .select({
-      employeeId: workHours.employeeId,
-      employeeName: sql<string>`CONCAT(${employees.firstName}, ' ', ${employees.lastName})`,
-      employeeNumber: employees.employeeNumber,
-      department: employees.department,
-      hourlyRate: employees.hourlyRate,
-      totalHours: sql<number>`SUM(${workHours.hoursWorked})`,
-      regularHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'regular' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      overtimeHours: sql<number>`SUM(${workHours.overtimeHours})`,
-      weekendHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'weekend' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      holidayHours: sql<number>`SUM(CASE WHEN ${workHours.workType} = 'holiday' THEN ${workHours.hoursWorked} ELSE 0 END)`,
-      daysWorked: sql<number>`COUNT(DISTINCT DATE(${workHours.date}))`,
-    })
-    .from(workHours)
-    .innerJoin(employees, eq(workHours.employeeId, employees.id))
-    .where(
-      and(
-        gte(workHours.date, monthStart),
-        lt(workHours.date, monthEnd),
-        eq(workHours.status, "approved"),
-        employeeId ? eq(workHours.employeeId, employeeId) : undefined
-      )
-    )
-    .groupBy(workHours.employeeId, employees.firstName, employees.lastName, employees.employeeNumber, employees.department, employees.hourlyRate);
+    if (employeeId) {
+      where += ' AND e.id = $employeeId';
+      params.employeeId = employeeId;
+    }
 
-  return await query;
+    const query = `
+      ${match}
+      ${where}
+      RETURN
+        e.id as employeeId,
+        e.firstName + ' ' + e.lastName as employeeName,
+        e.employeeNumber as employeeNumber,
+        e.department as department,
+        e.hourlyRate as hourlyRate,
+        sum(w.hoursWorked) as totalHours,
+        sum(CASE WHEN w.workType = 'regular' THEN w.hoursWorked ELSE 0 END) as regularHours,
+        sum(w.overtimeHours) as overtimeHours,
+        sum(CASE WHEN w.workType = 'weekend' THEN w.hoursWorked ELSE 0 END) as weekendHours,
+        sum(CASE WHEN w.workType = 'holiday' THEN w.hoursWorked ELSE 0 END) as holidayHours,
+        count(DISTINCT date(w.date)) as daysWorked
+    `;
+
+    const result = await session.run(query, params);
+
+    return result.records.map(r => ({
+      employeeId: r.get('employeeId').toNumber(),
+      employeeName: r.get('employeeName'),
+      employeeNumber: r.get('employeeNumber'),
+      department: r.get('department'),
+      hourlyRate: r.get('hourlyRate').toNumber(),
+      totalHours: r.get('totalHours').toNumber(),
+      regularHours: r.get('regularHours').toNumber(),
+      overtimeHours: r.get('overtimeHours').toNumber(),
+      weekendHours: r.get('weekendHours').toNumber(),
+      holidayHours: r.get('holidayHours').toNumber(),
+      daysWorked: r.get('daysWorked').toNumber()
+    }));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getLowStockMaterials() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db
-    .select()
-    .from(materials)
-    .where(sql`${materials.quantity} <= ${materials.minStock}`);
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (m:Material) WHERE m.quantity <= m.minStock RETURN m');
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 
 export async function getCriticalStockMaterials() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db
-    .select()
-    .from(materials)
-    .where(sql`${materials.quantity} <= ${materials.criticalThreshold} AND ${materials.criticalThreshold} > 0`);
+  const session = getSession();
+  try {
+    // Check if criticalThreshold exists and > 0 (Neo4j properties might be missing if null, but we set them to 0 default in create)
+    const result = await session.run('MATCH (m:Material) WHERE m.quantity <= m.criticalThreshold AND m.criticalThreshold > 0 RETURN m');
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAdminUsersWithSMS() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db
-    .select()
-    .from(users)
-    .where(and(
-      eq(users.role, 'admin'),
-      eq(users.smsNotificationsEnabled, true),
-      sql`${users.phoneNumber} IS NOT NULL`
-    ));
+  const session = getSession();
+  try {
+    const result = await session.run("MATCH (u:User {role: 'admin', smsNotificationsEnabled: true}) WHERE u.phoneNumber IS NOT NULL RETURN u");
+    return result.records.map(r => recordToObj(r, 'u'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateUserSMSSettings(userId: number, phoneNumber: string, enabled: boolean) {
-  const db = await getDb();
-  if (!db) return false;
-
+  const session = getSession();
   try {
-    await db
-      .update(users)
-      .set({
-        phoneNumber,
-        smsNotificationsEnabled: enabled,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId));
+    await session.run(`
+      MATCH (u:User {id: $id})
+      SET u.phoneNumber = $phoneNumber,
+          u.smsNotificationsEnabled = $enabled,
+          u.updatedAt = datetime()
+    `, { id: userId, phoneNumber, enabled });
     return true;
   } catch (error) {
     console.error("Failed to update SMS settings:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
