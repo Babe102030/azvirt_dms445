@@ -2,6 +2,7 @@ import { ENV } from './_core/env';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from '../drizzle/schema';
+import { eq, and, gte, lte, desc, like, sql } from 'drizzle-orm';
 
 // PostgreSQL connection for Neon
 const connectionString = process.env.DATABASE_URL;
@@ -15,6 +16,30 @@ export const db = drizzle(sql, { schema });
 export async function getDb() {
   return db;
 }
+
+// Type definitions for compatibility
+type InsertUser = typeof schema.users.$inferInsert;
+type InsertProject = typeof schema.projects.$inferInsert;
+type InsertMaterial = typeof schema.materials.$inferInsert;
+
+// TODO: Add missing table schemas to drizzle/schema.ts
+type InsertDelivery = any;
+type InsertQualityTest = any;
+type InsertEmployee = any;
+type InsertWorkHour = any;
+type InsertConcreteBase = any;
+type InsertMachine = any;
+type InsertMachineMaintenance = any;
+type InsertMachineWorkHour = any;
+type InsertAggregateInput = any;
+type InsertMaterialConsumptionLog = any;
+type InsertPurchaseOrder = any;
+type InsertShift = any;
+type InsertShiftTemplate = any;
+type InsertEmployeeAvailability = any;
+type InsertComplianceAuditTrail = any;
+type InsertBreakRecord = any;
+type InsertTimesheetOfflineCache = any;
 
 
 export async function upsertUser(user: InsertUser): Promise<void> {
