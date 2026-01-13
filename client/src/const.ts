@@ -4,6 +4,14 @@ export { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 export const getLoginUrl = () => {
   const oauthPortalUrl = import.meta.env.VITE_OAUTH_PORTAL_URL;
   const appId = import.meta.env.VITE_APP_ID;
+
+  // If OAuth environment variables are not set (e.g., during Clerk migration),
+  // return a fallback URL to prevent URL construction errors
+  if (!oauthPortalUrl || !appId) {
+    console.warn('OAuth environment variables not set, redirecting to home page');
+    return window.location.origin;
+  }
+
   const redirectUri = `${window.location.origin}/api/oauth/callback`;
   const state = btoa(redirectUri);
 
