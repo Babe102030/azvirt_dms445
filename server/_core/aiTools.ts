@@ -4,7 +4,7 @@
  */
 
 import { getDb } from '../db';
-import { materials, deliveries, documents, qualityTests, forecastPredictions } from '../../drizzle/schema';
+import { materials, projects } from '../../drizzle/schema';
 import { like, eq, and, gte, lte, desc } from 'drizzle-orm';
 
 export interface Tool {
@@ -45,7 +45,7 @@ const searchMaterialsTool: Tool = {
   execute: async (params, userId) => {
     const db = await getDb();
     if (!db) return { error: 'Database not available' };
-    
+
     let query = db.select().from(materials);
 
     if (params.query) {
@@ -73,90 +73,22 @@ const searchMaterialsTool: Tool = {
 };
 
 /**
- * Get delivery status
+ * Get project information
  */
-const getDeliveryStatusTool: Tool = {
-  name: 'get_delivery_status',
-  description: 'Get real-time delivery status, GPS location, and ETA. Can search by delivery ID, project name, or status.',
+const getProjectsTool: Tool = {
+  name: 'get_projects',
+  description: 'Get project information and status. Can filter by status or search by name.',
   parameters: {
     type: 'object',
     properties: {
-      deliveryId: {
-        type: 'number',
-        description: 'Specific delivery ID to lookup',
-      },
-      projectName: {
-        type: 'string',
-        description: 'Project name to filter deliveries',
-      },
       status: {
         type: 'string',
-        description: 'Delivery status to filter',
-        enum: ['scheduled', 'loaded', 'en_route', 'arrived', 'delivered', 'returning', 'completed'],
+        description: 'Project status to filter',
+        enum: ['planning', 'active', 'completed', 'on_hold'],
       },
-    },
-    required: [],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-    
-    const conditions = [];
-
-    if (params.deliveryId) {
-      conditions.push(eq(deliveries.id, params.deliveryId));
-    }
-    if (params.projectName) {
-      conditions.push(like(deliveries.projectName, `%${params.projectName}%`));
-    }
-    if (params.status) {
-      conditions.push(eq(deliveries.status, params.status));
-    }
-
-    const results = await db
-      .select()
-      .from(deliveries)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(deliveries.scheduledTime))
-      .limit(10);
-
-    return results.map(d => ({
-      id: d.id,
-      projectName: d.projectName,
-      concreteType: d.concreteType,
-      volume: d.volume,
-      status: d.status,
-      scheduledTime: d.scheduledTime,
-      driverName: d.driverName,
-      vehicleNumber: d.vehicleNumber,
-      gpsLocation: d.gpsLocation,
-      estimatedArrival: d.estimatedArrival,
-      notes: d.notes,
-    }));
-  },
-};
-
-/**
- * Search documents
- */
-const searchDocumentsTool: Tool = {
-  name: 'search_documents',
-  description: 'Search documents by name, category, or project. Returns document metadata and download URLs.',
-  parameters: {
-    type: 'object',
-    properties: {
       query: {
         type: 'string',
-        description: 'Document name to search for',
-      },
-      category: {
-        type: 'string',
-        description: 'Document category to filter',
-        enum: ['contract', 'blueprint', 'report', 'certificate', 'invoice', 'other'],
-      },
-      projectId: {
-        type: 'number',
-        description: 'Project ID to filter documents',
+        description: 'Project name to search for',
       },
     },
     required: [],
@@ -164,565 +96,34 @@ const searchDocumentsTool: Tool = {
   execute: async (params, userId) => {
     const db = await getDb();
     if (!db) return { error: 'Database not available' };
-    
+
+    let query = db.select().from(projects);
+
     const conditions = [];
-
-    if (params.query) {
-      conditions.push(like(documents.name, `%${params.query}%`));
-    }
-    if (params.category) {
-      conditions.push(eq(documents.category, params.category));
-    }
-    if (params.projectId) {
-      conditions.push(eq(documents.projectId, params.projectId));
-    }
-
-    const results = await db
-      .select()
-      .from(documents)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(documents.createdAt))
-      .limit(20);
-
-    return results.map(d => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      category: d.category,
-      fileUrl: d.fileUrl,
-      mimeType: d.mimeType,
-      fileSize: d.fileSize,
-      createdAt: d.createdAt,
-    }));
-  },
-};
-
-/**
- * Get quality test results
- */
-const getQualityTestsTool: Tool = {
-  name: 'get_quality_tests',
-  description: 'Retrieve quality control test results. Can filter by status, test type, or delivery.',
-  parameters: {
-    type: 'object',
-    properties: {
-      status: {
-        type: 'string',
-        description: 'Test status to filter',
-        enum: ['pass', 'fail', 'pending'],
-      },
-      testType: {
-        type: 'string',
-        description: 'Type of test to filter',
-        enum: ['slump', 'strength', 'air_content', 'temperature', 'other'],
-      },
-      deliveryId: {
-        type: 'number',
-        description: 'Delivery ID to get tests for',
-      },
-      limit: {
-        type: 'number',
-        description: 'Maximum number of results to return (default: 10)',
-      },
-    },
-    required: [],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-    
-    const conditions = [];
-
     if (params.status) {
-      conditions.push(eq(qualityTests.status, params.status));
+      conditions.push(eq(projects.status, params.status));
     }
-    if (params.testType) {
-      conditions.push(eq(qualityTests.testType, params.testType));
+    if (params.query) {
+      conditions.push(like(projects.name, `%${params.query}%`));
     }
-    if (params.deliveryId) {
-      conditions.push(eq(qualityTests.deliveryId, params.deliveryId));
-    }
-
-    const results = await db
-      .select()
-      .from(qualityTests)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(qualityTests.createdAt))
-      .limit(params.limit || 10);
-
-    return results.map(t => ({
-      id: t.id,
-      testName: t.testName,
-      testType: t.testType,
-      result: t.result,
-      unit: t.unit,
-      status: t.status,
-      testedBy: t.testedBy,
-      complianceStandard: t.complianceStandard,
-      notes: t.notes,
-      createdAt: t.createdAt,
-    }));
-  },
-};
-
-/**
- * Generate inventory forecast
- */
-const generateForecastTool: Tool = {
-  name: 'generate_forecast',
-  description: 'Generate inventory forecast predictions showing when materials will run out and recommended order quantities.',
-  parameters: {
-    type: 'object',
-    properties: {
-      materialId: {
-        type: 'number',
-        description: 'Specific material ID to forecast (optional, forecasts all if not provided)',
-      },
-    },
-    required: [],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-    
-    let query = db
-      .select()
-      .from(forecastPredictions)
-      .orderBy(forecastPredictions.daysUntilStockout);
-
-    if (params.materialId) {
-      query = query.where(eq(forecastPredictions.materialId, params.materialId)) as any;
-    }
-
-    const results = await query.limit(20);
-
-    return results.map(f => ({
-      materialId: f.materialId,
-      materialName: f.materialName,
-      currentStock: f.currentStock,
-      dailyConsumptionRate: f.dailyConsumptionRate,
-      daysUntilStockout: f.daysUntilStockout,
-      predictedRunoutDate: f.predictedRunoutDate,
-      recommendedOrderQty: f.recommendedOrderQty,
-      confidence: f.confidence,
-      status: f.daysUntilStockout && f.daysUntilStockout < 7 ? 'critical' : 
-              f.daysUntilStockout && f.daysUntilStockout < 14 ? 'warning' : 'ok',
-    }));
-  },
-};
-
-/**
- * Calculate statistics
- */
-const calculateStatsTool: Tool = {
-  name: 'calculate_stats',
-  description: 'Calculate statistics and aggregations (total deliveries, average test results, etc.)',
-  parameters: {
-    type: 'object',
-    properties: {
-      metric: {
-        type: 'string',
-        description: 'Metric to calculate',
-        enum: ['total_deliveries', 'total_concrete_volume', 'qc_pass_rate', 'active_projects'],
-      },
-      startDate: {
-        type: 'string',
-        description: 'Start date for filtering (ISO format)',
-      },
-      endDate: {
-        type: 'string',
-        description: 'End date for filtering (ISO format)',
-      },
-    },
-    required: ['metric'],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-    
-    const { metric, startDate, endDate } = params;
-
-    const dateConditions = [];
-    if (startDate) {
-      dateConditions.push(gte(deliveries.createdAt, new Date(startDate)));
-    }
-    if (endDate) {
-      dateConditions.push(lte(deliveries.createdAt, new Date(endDate)));
-    }
-
-    switch (metric) {
-      case 'total_deliveries': {
-        const results = await db
-          .select()
-          .from(deliveries)
-          .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
-        return {
-          metric: 'total_deliveries',
-          value: results.length,
-          period: { startDate, endDate },
-        };
-      }
-
-      case 'total_concrete_volume': {
-        const results = await db
-          .select()
-          .from(deliveries)
-          .where(dateConditions.length > 0 ? and(...dateConditions) : undefined);
-        const totalVolume = results.reduce((sum, d) => sum + (d.volume || 0), 0);
-        return {
-          metric: 'total_concrete_volume',
-          value: totalVolume,
-          unit: 'm³',
-          period: { startDate, endDate },
-        };
-      }
-
-      case 'qc_pass_rate': {
-        const allTests = await db.select().from(qualityTests);
-        const passedTests = allTests.filter(t => t.status === 'pass');
-        const passRate = allTests.length > 0 ? (passedTests.length / allTests.length) * 100 : 0;
-        return {
-          metric: 'qc_pass_rate',
-          value: Math.round(passRate * 10) / 10,
-          unit: '%',
-          totalTests: allTests.length,
-          passedTests: passedTests.length,
-        };
-      }
-
-      default:
-        return { error: 'Unknown metric' };
-    }
-  },
-};
-
-/**
- * Log work hours for an employee
- */
-const logWorkHoursTool: Tool = {
-  name: 'log_work_hours',
-  description: 'Log or record work hours for an employee. Use this to track employee working time, overtime, and project assignments.',
-  parameters: {
-    type: 'object',
-    properties: {
-      employeeId: {
-        type: 'number',
-        description: 'ID of the employee',
-      },
-      projectId: {
-        type: 'number',
-        description: 'ID of the project (optional)',
-      },
-      date: {
-        type: 'string',
-        description: 'Date of work in ISO format (YYYY-MM-DD)',
-      },
-      startTime: {
-        type: 'string',
-        description: 'Start time in ISO format',
-      },
-      endTime: {
-        type: 'string',
-        description: 'End time in ISO format (optional if ongoing)',
-      },
-      workType: {
-        type: 'string',
-        description: 'Type of work',
-        enum: ['regular', 'overtime', 'weekend', 'holiday'],
-      },
-      notes: {
-        type: 'string',
-        description: 'Additional notes about the work',
-      },
-    },
-    required: ['employeeId', 'date', 'startTime'],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-
-    const { employeeId, projectId, date, startTime, endTime, workType, notes } = params;
-
-    // Calculate hours worked if endTime is provided
-    let hoursWorked = null;
-    let overtimeHours = 0;
-    if (endTime) {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const diffMs = end.getTime() - start.getTime();
-      hoursWorked = Math.round(diffMs / (1000 * 60 * 60)); // Convert to hours
-
-      // Calculate overtime (over 8 hours)
-      if (hoursWorked > 8) {
-        overtimeHours = hoursWorked - 8;
-      }
-    }
-
-    const [result] = await db.insert(workHours).values({
-      employeeId,
-      projectId: projectId || null,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: endTime ? new Date(endTime) : null,
-      hoursWorked,
-      overtimeHours,
-      workType: workType || 'regular',
-      notes: notes || null,
-      status: 'pending',
-    });
-
-    return {
-      success: true,
-      workHourId: result.insertId,
-      hoursWorked,
-      overtimeHours,
-      message: 'Work hours logged successfully',
-    };
-  },
-};
-
-/**
- * Get work hours summary
- */
-const getWorkHoursSummaryTool: Tool = {
-  name: 'get_work_hours_summary',
-  description: 'Get summary of work hours for an employee or project. Returns total hours, overtime, and breakdown by work type.',
-  parameters: {
-    type: 'object',
-    properties: {
-      employeeId: {
-        type: 'number',
-        description: 'Filter by employee ID',
-      },
-      projectId: {
-        type: 'number',
-        description: 'Filter by project ID',
-      },
-      startDate: {
-        type: 'string',
-        description: 'Start date for summary (YYYY-MM-DD)',
-      },
-      endDate: {
-        type: 'string',
-        description: 'End date for summary (YYYY-MM-DD)',
-      },
-      status: {
-        type: 'string',
-        description: 'Filter by approval status',
-        enum: ['pending', 'approved', 'rejected'],
-      },
-    },
-    required: [],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-
-    const { employeeId, projectId, startDate, endDate, status } = params;
-
-    let query = db.select().from(workHours);
-
-    const conditions = [];
-    if (employeeId) conditions.push(eq(workHours.employeeId, employeeId));
-    if (projectId) conditions.push(eq(workHours.projectId, projectId));
-    if (status) conditions.push(eq(workHours.status, status));
-    if (startDate) conditions.push(gte(workHours.date, new Date(startDate)));
-    if (endDate) conditions.push(lte(workHours.date, new Date(endDate)));
 
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
     }
 
-    const results = await query;
+    const results = await query.orderBy(desc(projects.createdAt));
 
-    // Calculate summary
-    const totalHours = results.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
-    const totalOvertime = results.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
-    const byWorkType = results.reduce((acc, r) => {
-      acc[r.workType] = (acc[r.workType] || 0) + (r.hoursWorked || 0);
-      return acc;
-    }, {} as Record<string, number>);
-
-    return {
-      totalEntries: results.length,
-      totalHours,
-      totalOvertime,
-      regularHours: totalHours - totalOvertime,
-      byWorkType,
-      entries: results.slice(0, 10), // Return first 10 entries
-    };
-  },
-};
-
-/**
- * Log machine work hours
- */
-const logMachineHoursTool: Tool = {
-  name: 'log_machine_hours',
-  description: 'Log work hours for machinery/equipment. Track equipment usage, operator, and project assignment.',
-  parameters: {
-    type: 'object',
-    properties: {
-      machineId: {
-        type: 'number',
-        description: 'ID of the machine/equipment',
-      },
-      projectId: {
-        type: 'number',
-        description: 'ID of the project (optional)',
-      },
-      date: {
-        type: 'string',
-        description: 'Date of operation (YYYY-MM-DD)',
-      },
-      startTime: {
-        type: 'string',
-        description: 'Start time in ISO format',
-      },
-      endTime: {
-        type: 'string',
-        description: 'End time in ISO format (optional)',
-      },
-      operatorId: {
-        type: 'number',
-        description: 'ID of the operator/employee',
-      },
-      operatorName: {
-        type: 'string',
-        description: 'Name of the operator',
-      },
-      notes: {
-        type: 'string',
-        description: 'Notes about machine operation',
-      },
-    },
-    required: ['machineId', 'date', 'startTime'],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-
-    const { machineId, projectId, date, startTime, endTime, operatorId, operatorName, notes } = params;
-
-    // Calculate hours if endTime provided
-    let hoursWorked = null;
-    if (endTime) {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const diffMs = end.getTime() - start.getTime();
-      hoursWorked = Math.round(diffMs / (1000 * 60 * 60));
-    }
-
-    const [result] = await db.insert(machineWorkHours).values({
-      machineId,
-      projectId: projectId || null,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: endTime ? new Date(endTime) : null,
-      hoursWorked,
-      operatorId: operatorId || null,
-      operatorName: operatorName || null,
-      notes: notes || null,
-    });
-
-    return {
-      success: true,
-      machineWorkHourId: result.insertId,
-      hoursWorked,
-      message: 'Machine hours logged successfully',
-    };
-  },
-};
-
-/**
- * Update document metadata
- */
-const updateDocumentTool: Tool = {
-  name: 'update_document',
-  description: 'Update document metadata such as name, description, category, or project assignment.',
-  parameters: {
-    type: 'object',
-    properties: {
-      documentId: {
-        type: 'number',
-        description: 'ID of the document to update',
-      },
-      name: {
-        type: 'string',
-        description: 'New document name',
-      },
-      description: {
-        type: 'string',
-        description: 'New description',
-      },
-      category: {
-        type: 'string',
-        description: 'Document category',
-        enum: ['contract', 'blueprint', 'report', 'certificate', 'invoice', 'other'],
-      },
-      projectId: {
-        type: 'number',
-        description: 'Assign to project ID',
-      },
-    },
-    required: ['documentId'],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-
-    const { documentId, name, description, category, projectId } = params;
-
-    // Build update object with only provided fields
-    const updates: any = { updatedAt: new Date() };
-    if (name) updates.name = name;
-    if (description) updates.description = description;
-    if (category) updates.category = category;
-    if (projectId !== undefined) updates.projectId = projectId;
-
-    await db
-      .update(documents)
-      .set(updates)
-      .where(eq(documents.id, documentId));
-
-    return {
-      success: true,
-      documentId,
-      updated: Object.keys(updates).filter(k => k !== 'updatedAt'),
-      message: 'Document updated successfully',
-    };
-  },
-};
-
-/**
- * Delete document
- */
-const deleteDocumentTool: Tool = {
-  name: 'delete_document',
-  description: 'Delete a document from the system. This permanently removes the document record.',
-  parameters: {
-    type: 'object',
-    properties: {
-      documentId: {
-        type: 'number',
-        description: 'ID of the document to delete',
-      },
-    },
-    required: ['documentId'],
-  },
-  execute: async (params, userId) => {
-    const db = await getDb();
-    if (!db) return { error: 'Database not available' };
-
-    const { documentId } = params;
-
-    await db.delete(documents).where(eq(documents.id, documentId));
-
-    return {
-      success: true,
-      documentId,
-      message: 'Document deleted successfully',
-    };
+    return results.map(p => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      location: p.location,
+      status: p.status,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      createdBy: p.createdBy,
+      createdAt: p.createdAt,
+    }));
   },
 };
 
@@ -773,7 +174,7 @@ const createMaterialTool: Tool = {
 
     const { name, category, unit, quantity, minStock, supplier, unitPrice } = params;
 
-    const [result] = await db.insert(materials).values({
+    const result = await db.insert(materials).values({
       name,
       category: category || 'other',
       unit,
@@ -782,11 +183,11 @@ const createMaterialTool: Tool = {
       criticalThreshold: minStock ? Math.floor(minStock * 0.5) : 0,
       supplier: supplier || null,
       unitPrice: unitPrice || null,
-    });
+    }).returning({ id: materials.id });
 
     return {
       success: true,
-      materialId: result.insertId,
+      materialId: result[0]?.id,
       message: `Material "${name}" created successfully`,
     };
   },
@@ -867,62 +268,74 @@ const updateMaterialQuantityTool: Tool = {
   },
 };
 
-// Import work hours and machine work hours from schema
-import { workHours, machineWorkHours } from '../../drizzle/schema';
-
-const bulkImportTool: Tool = {
-  name: 'bulk_import_data',
-  description: 'Import bulk data from CSV or Excel files for work hours, materials, or documents.',
+/**
+ * Create project
+ */
+const createProjectTool: Tool = {
+  name: 'create_project',
+  description: 'Create a new construction project with basic information.',
   parameters: {
     type: 'object',
     properties: {
-      filePath: {
+      name: {
         type: 'string',
-        description: 'Path to the CSV or Excel file to import',
+        description: 'Project name',
       },
-      importType: {
+      description: {
         type: 'string',
-        enum: ['work_hours', 'materials', 'documents'],
-        description: 'Type of data to import',
+        description: 'Project description',
       },
-      sheetName: {
+      location: {
         type: 'string',
-        description: 'Sheet name for Excel files (optional)',
+        description: 'Project location',
+      },
+      status: {
+        type: 'string',
+        description: 'Project status',
+        enum: ['planning', 'active', 'completed', 'on_hold'],
+      },
+      startDate: {
+        type: 'string',
+        description: 'Start date (ISO format)',
+      },
+      endDate: {
+        type: 'string',
+        description: 'End date (ISO format)',
       },
     },
-    required: ['filePath', 'importType'],
+    required: ['name'],
   },
   execute: async (params, userId) => {
-    const { filePath, importType } = params;
-    if (!filePath || !importType) {
-      return { error: 'filePath and importType are required' };
-    }
+    const db = await getDb();
+    if (!db) return { error: 'Database not available' };
+
+    const { name, description, location, status, startDate, endDate } = params;
+
+    const result = await db.insert(projects).values({
+      name,
+      description: description || null,
+      location: location || null,
+      status: status || 'planning',
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      createdBy: userId,
+    }).returning({ id: projects.id });
+
     return {
       success: true,
-      message: 'Use bulkImport procedures to complete the import',
+      projectId: result[0]?.id,
+      message: `Project "${name}" created successfully`,
     };
   },
 };
 
 // Export all tools
 export const AI_TOOLS: Tool[] = [
-  // Read-only tools
   searchMaterialsTool,
-  getDeliveryStatusTool,
-  searchDocumentsTool,
-  getQualityTestsTool,
-  generateForecastTool,
-  calculateStatsTool,
-  // Data manipulation tools
-  logWorkHoursTool,
-  getWorkHoursSummaryTool,
-  logMachineHoursTool,
-  updateDocumentTool,
-  deleteDocumentTool,
+  getProjectsTool,
   createMaterialTool,
   updateMaterialQuantityTool,
-  // Bulk import tool
-  bulkImportTool,
+  createProjectTool,
 ];
 
 /**
@@ -934,7 +347,7 @@ export async function executeTool(
   userId: number
 ): Promise<any> {
   const tool = AI_TOOLS.find(t => t.name === toolName);
-  
+
   if (!tool) {
     throw new Error(`Tool not found: ${toolName}`);
   }
