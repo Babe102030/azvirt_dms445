@@ -52,9 +52,12 @@ export const aiAssistantRouter = router({
           }
         }
 
+        // Ensure conversationId is non-null for TS
+        const finalConversationId = conversationId!;
+
         // Save user message
         await db.createAiMessage({
-          conversationId,
+          conversationId: finalConversationId,
           role: "user",
           content: input.message,
           audioUrl: input.audioUrl,
@@ -62,7 +65,7 @@ export const aiAssistantRouter = router({
         });
 
         // Get conversation history
-        const history = await db.getAiMessages(conversationId);
+        const history = await db.getAiMessages(finalConversationId);
         const messages = history.map((msg) => ({
           role: msg.role as "user" | "assistant" | "system",
           content: msg.content,
@@ -126,14 +129,14 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
 
         // Save assistant response
         const assistantMessageId = await db.createAiMessage({
-          conversationId,
+          conversationId: finalConversationId,
           role: "assistant",
           content: response.message.content,
           model: input.model,
         });
 
         return {
-          conversationId,
+          conversationId: finalConversationId,
           messageId: assistantMessageId,
           content: response.message.content,
           model: input.model,
@@ -222,7 +225,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       // Verify conversation belongs to user
       const conversations = await db.getAiConversations(ctx.user.id);
       const conversation = conversations.find((c) => c.id === input.conversationId);
-      
+
       if (!conversation) {
         throw new Error("Conversation not found");
       }
@@ -259,7 +262,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       // Verify ownership
       const conversations = await db.getAiConversations(ctx.user.id);
       const conversation = conversations.find((c) => c.id === input.conversationId);
-      
+
       if (!conversation) {
         throw new Error("Conversation not found");
       }

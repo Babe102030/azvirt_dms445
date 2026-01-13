@@ -146,10 +146,10 @@ export async function getCurrentUser(req: Request) {
         }
 
         return {
-            id: req.auth.userId,
+            id: auth.userId,
             name: clerkUser.firstName && clerkUser.lastName
                 ? `${clerkUser.firstName} ${clerkUser.lastName}`
-                : clerkUser.username || `user_${req.auth.userId}`,
+                : clerkUser.username || `user_${auth.userId}`,
             email: clerkUser.emailAddresses[0]?.emailAddress || null,
             image: clerkUser.imageUrl || null,
         };
