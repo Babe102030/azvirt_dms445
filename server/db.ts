@@ -1,6 +1,28 @@
 import driver, { getSession } from './db/neo4j';
 import { ENV } from './_core/env';
-import { InsertUser, InsertDocument, InsertProject, InsertMaterial, InsertDelivery, InsertQualityTest, InsertEmployee, InsertWorkHour, InsertConcreteBase, InsertMachine, InsertMachineMaintenance, InsertMachineWorkHour, InsertAggregateInput, InsertMaterialConsumptionLog } from "../drizzle/schema";
+
+// Temporary types to replace Drizzle schema types
+type InsertUser = any;
+type InsertDocument = any;
+type InsertProject = any;
+type InsertMaterial = any;
+type InsertDelivery = any;
+type InsertQualityTest = any;
+type InsertEmployee = any;
+type InsertWorkHour = any;
+type InsertConcreteBase = any;
+type InsertMachine = any;
+type InsertMachineMaintenance = any;
+type InsertMachineWorkHour = any;
+type InsertAggregateInput = any;
+type InsertMaterialConsumptionLog = any;
+type InsertPurchaseOrder = any;
+type InsertShift = any;
+type InsertShiftTemplate = any;
+type InsertEmployeeAvailability = any;
+type InsertComplianceAuditTrail = any;
+type InsertBreakRecord = any;
+type InsertTimesheetOfflineCache = any;
 
 // Helper to convert Neo4j Node to JS Object
 const recordToObj = (record: any, key: string = 'n') => {
@@ -3437,32 +3459,67 @@ export async function createJobSite(input: {
   address?: string;
   createdBy: number;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (p:Project {id: $projectId})
+      CREATE (js:JobSite {
+        id: toInteger(timestamp()),
+        projectId: $projectId,
+        name: $name,
+        description: $description,
+        latitude: $latitude,
+        longitude: $longitude,
+        geofenceRadius: $geofenceRadius,
+        address: $address,
+        isActive: true,
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      MERGE (p)-[:HAS_JOB_SITE]->(js)
+      RETURN js.id as id
+    `;
 
-  const result = await db.insert(jobSites).values({
-    projectId: input.projectId,
-    name: input.name,
-    description: input.description,
-    latitude: input.latitude.toString() as any,
-    longitude: input.longitude.toString() as any,
-    geofenceRadius: input.geofenceRadius || 100,
-    address: input.address,
-    createdBy: input.createdBy,
-  });
+    const result = await session.run(query, {
+      projectId: input.projectId,
+      name: input.name,
+      description: input.description || null,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      geofenceRadius: input.geofenceRadius || 100,
+      address: input.address || null,
+      createdBy: input.createdBy
+    });
 
-  return result[0].insertId;
+    return result.records[0]?.get('id').toNumber();
+  } catch (error) {
+    console.error("Failed to create job site:", error);
+    throw error;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getJobSites(projectId?: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = `MATCH (js:JobSite) WHERE js.isActive = true RETURN js`;
+    let params: any = {};
 
-  if (projectId) {
-    return await db.select().from(jobSites).where(eq(jobSites.projectId, projectId));
+    if (projectId) {
+      query = `MATCH (p:Project {id: $projectId})-[:HAS_JOB_SITE]->(js:JobSite) WHERE js.isActive = true RETURN js`;
+      params = { projectId };
+    }
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'js'));
+  } catch (error) {
+    console.error("Failed to get job sites:", error);
+    return [];
+  } finally {
+    await session.close();
   }
-
-  return await db.select().from(jobSites);
 }
 
 export async function createLocationLog(input: {
@@ -3479,25 +3536,56 @@ export async function createLocationLog(input: {
   ipAddress?: string;
   userAgent?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (u:User {id: $employeeId})
+      MATCH (s:Shift {id: $shiftId})
+      MATCH (js:JobSite {id: $jobSiteId})
+      CREATE (ll:LocationLog {
+        id: toInteger(timestamp()),
+        shiftId: $shiftId,
+        employeeId: $employeeId,
+        jobSiteId: $jobSiteId,
+        eventType: $eventType,
+        latitude: $latitude,
+        longitude: $longitude,
+        accuracy: $accuracy,
+        isWithinGeofence: $isWithinGeofence,
+        distanceFromGeofence: $distanceFromGeofence,
+        deviceId: $deviceId,
+        ipAddress: $ipAddress,
+        userAgent: $userAgent,
+        timestamp: datetime()
+      })
+      MERGE (s)-[:HAS_LOCATION_LOG]->(ll)
+      MERGE (u)-[:LOGGED_LOCATION]->(ll)
+      MERGE (ll)-[:AT_SITE]->(js)
+      RETURN ll.id as id
+    `;
 
-  const result = await db.insert(locationLogs).values({
-    shiftId: input.shiftId,
-    employeeId: input.employeeId,
-    jobSiteId: input.jobSiteId,
-    eventType: input.eventType,
-    latitude: input.latitude.toString() as any,
-    longitude: input.longitude.toString() as any,
-    accuracy: input.accuracy,
-    isWithinGeofence: input.isWithinGeofence,
-    distanceFromGeofence: input.distanceFromGeofence,
-    deviceId: input.deviceId,
-    ipAddress: input.ipAddress,
-    userAgent: input.userAgent,
-  });
+    const result = await session.run(query, {
+      shiftId: input.shiftId,
+      employeeId: input.employeeId,
+      jobSiteId: input.jobSiteId,
+      eventType: input.eventType,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      accuracy: input.accuracy || null,
+      isWithinGeofence: input.isWithinGeofence,
+      distanceFromGeofence: input.distanceFromGeofence || null,
+      deviceId: input.deviceId || null,
+      ipAddress: input.ipAddress || null,
+      userAgent: input.userAgent || null
+    });
 
-  return result[0].insertId;
+    return result.records[0]?.get('id').toNumber();
+  } catch (error) {
+    console.error("Failed to create location log:", error);
+    throw error;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function recordGeofenceViolation(input: {
@@ -3508,88 +3596,247 @@ export async function recordGeofenceViolation(input: {
   distanceFromGeofence: number;
   severity?: "warning" | "violation";
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (ll:LocationLog {id: $locationLogId})
+      MATCH (u:User {id: $employeeId})
+      MATCH (js:JobSite {id: $jobSiteId})
+      CREATE (gv:GeofenceViolation {
+        id: toInteger(timestamp()),
+        locationLogId: $locationLogId,
+        employeeId: $employeeId,
+        jobSiteId: $jobSiteId,
+        violationType: $violationType,
+        distanceFromGeofence: $distanceFromGeofence,
+        severity: $severity,
+        isResolved: false,
+        timestamp: datetime()
+      })
+      MERGE (ll)-[:HAS_VIOLATION]->(gv)
+      MERGE (u)-[:COMMITTED_VIOLATION]->(gv)
+      MERGE (gv)-[:AT_SITE]->(js)
+      RETURN gv.id as id
+    `;
 
-  const result = await db.insert(geofenceViolations).values({
-    locationLogId: input.locationLogId,
-    employeeId: input.employeeId,
-    jobSiteId: input.jobSiteId,
-    violationType: input.violationType,
-    distanceFromGeofence: input.distanceFromGeofence,
-    severity: input.severity || "warning",
-  });
+    const result = await session.run(query, {
+      locationLogId: input.locationLogId,
+      employeeId: input.employeeId,
+      jobSiteId: input.jobSiteId,
+      violationType: input.violationType,
+      distanceFromGeofence: input.distanceFromGeofence,
+      severity: input.severity || "warning"
+    });
 
-  return result[0].insertId;
+    return result.records[0]?.get('id').toNumber();
+  } catch (error) {
+    console.error("Failed to record geofence violation:", error);
+    throw error;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getLocationHistory(employeeId: number, limit: number = 50) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db
-    .select()
-    .from(locationLogs)
-    .where(eq(locationLogs.employeeId, employeeId))
-    .orderBy(desc(locationLogs.timestamp))
-    .limit(limit);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:LOGGED_LOCATION]->(ll:LocationLog)
+      RETURN ll
+      ORDER BY ll.timestamp DESC
+      LIMIT toInteger($limit)
+    `, { employeeId, limit });
+    return result.records.map(r => recordToObj(r, 'll'));
+  } catch (error) {
+    console.error("Failed to get location history:", error);
+    return [];
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getGeofenceViolations(employeeId?: number, resolved?: boolean) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = `MATCH (gv:GeofenceViolation)`;
+    let whereClauses = [];
+    let params: any = {};
 
-  const conditions = [];
+    if (employeeId) {
+      whereClauses.push(`gv.employeeId = $employeeId`);
+      params.employeeId = employeeId;
+    }
+    if (resolved !== undefined) {
+      whereClauses.push(`gv.isResolved = $resolved`);
+      params.resolved = resolved;
+    }
 
-  if (employeeId) {
-    conditions.push(eq(geofenceViolations.employeeId, employeeId));
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
+    }
+
+    query += ` RETURN gv ORDER BY gv.timestamp DESC`;
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'gv'));
+  } catch (error) {
+    console.error("Failed to get geofence violations:", error);
+    return [];
+  } finally {
+    await session.close();
   }
-
-  if (resolved !== undefined) {
-    conditions.push(eq(geofenceViolations.isResolved, resolved));
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  return await db
-    .select()
-    .from(geofenceViolations)
-    .where(whereClause)
-    .orderBy(desc(geofenceViolations.timestamp))
 }
 
 export async function resolveGeofenceViolation(violationId: number, resolvedBy: number, notes?: string) {
-  const db = await getDb();
-  if (!db) return false;
-
+  const session = getSession();
   try {
-    await db
-      .update(geofenceViolations)
-      .set({
-        isResolved: true,
-        resolvedBy,
-        resolutionNotes: notes,
-        resolvedAt: new Date(),
-      })
-      .where(eq(geofenceViolations.id, violationId));
-
+    await session.run(`
+      MATCH (gv:GeofenceViolation {id: $violationId})
+      SET gv.isResolved = true, 
+          gv.resolvedBy = $resolvedBy, 
+          gv.resolutionNotes = $notes, 
+          gv.resolvedAt = datetime()
+    `, { violationId, resolvedBy, notes });
     return true;
   } catch (error) {
     console.error("Failed to resolve geofence violation:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
+// ============ TIMESHEET APPROVALS ============
 
-export async function getShiftById(id: number) {
-  const db = await getDb();
-  if (!db) return null;
-
+export async function requestTimesheetApproval(approval: any) {
+  const session = getSession();
   try {
-    const result = await db.select().from(shifts).where(eq(shifts.id, id)).limit(1);
-    return result.length > 0 ? result[0] : null;
+    const query = `
+      MATCH (u:User {id: $employeeId})
+      MATCH (s:Shift {id: $shiftId})
+      CREATE (ta:TimesheetApproval {
+        id: toInteger(timestamp()),
+        shiftId: $shiftId,
+        employeeId: $employeeId,
+        status: 'pending',
+        submittedAt: datetime(),
+        comments: $comments
+      })
+      MERGE (s)-[:HAS_APPROVAL_REQUEST]->(ta)
+      MERGE (u)-[:REQUESTED_APPROVAL]->(ta)
+      RETURN ta.id as id
+    `;
+    const result = await session.run(query, {
+      shiftId: approval.shiftId,
+      employeeId: approval.employeeId,
+      comments: approval.comments || null
+    });
+    return result.records[0]?.get('id').toNumber();
   } catch (error) {
-    console.error("Failed to get shift by id:", error);
+    console.error("Failed to request timesheet approval:", error);
     return null;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function approveTimesheet(approvalId: number, approvedBy: number, comments?: string) {
+  const session = getSession();
+  try {
+    await session.run(`
+      MATCH (ta:TimesheetApproval {id: $approvalId})
+      MATCH (u:User {id: $approvedBy})
+      SET ta.status = 'approved', 
+          ta.approvedBy = $approvedBy, 
+          ta.approvedAt = datetime(), 
+          ta.comments = $comments
+      MERGE (ta)-[:APPROVED_BY]->(u)
+    `, { approvalId, approvedBy, comments: comments || null });
+
+    // Also update the Shift status
+    await session.run(`
+      MATCH (ta:TimesheetApproval {id: $approvalId})<-[:HAS_APPROVAL_REQUEST]-(s:Shift)
+      SET s.status = 'approved'
+    `, { approvalId });
+
+    return true;
+  } catch (error) {
+    console.error("Failed to approve timesheet:", error);
+    return false;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function rejectTimesheet(approvalId: number, rejectedBy: number, comments: string) {
+  const session = getSession();
+  try {
+    await session.run(`
+      MATCH (ta:TimesheetApproval {id: $approvalId})
+      MATCH (u:User {id: $rejectedBy})
+      SET ta.status = 'rejected', 
+          ta.rejectedBy = $rejectedBy, 
+          ta.rejectedAt = datetime(), 
+          ta.rejectionReason = $comments
+      MERGE (ta)-[:REJECTED_BY]->(u)
+    `, { approvalId, rejectedBy, comments });
+
+    // Also update Shift status
+    await session.run(`
+      MATCH (ta:TimesheetApproval {id: $approvalId})<-[:HAS_APPROVAL_REQUEST]-(s:Shift)
+      SET s.status = 'rejected'
+    `, { approvalId });
+
+    return true;
+  } catch (error) {
+    console.error("Failed to reject timesheet:", error);
+    return false;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function getPendingTimesheetApprovals(managerId?: number) {
+  const session = getSession();
+  try {
+    // Ideally we filter by manager's team but for now return all or filter logic if we had teams modeled
+    const result = await session.run(`
+      MATCH (ta:TimesheetApproval {status: 'pending'})
+      MATCH (ta)<-[:HAS_APPROVAL_REQUEST]-(s:Shift)
+      MATCH (s)<-[:HAS_SHIFT]-(u:User)
+      RETURN ta, s, u
+      ORDER BY ta.submittedAt ASC
+    `);
+
+    // Complex return structure handling, usually we just return the approval objects 
+    // or enriched objects. For now returning approval objects.
+    return result.records.map(r => {
+      const approval = recordToObj(r, 'ta');
+      const shift = recordToObj(r, 's');
+      const user = recordToObj(r, 'u');
+      return { ...approval, shift, employee: user };
+    });
+  } catch (error) {
+    console.error("Failed to get pending approvals:", error);
+    return [];
+  } finally {
+    await session.close();
+  }
+}
+
+export async function getTimesheetApprovalHistory(employeeId: number) {
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:REQUESTED_APPROVAL]->(ta:TimesheetApproval)
+      RETURN ta
+      ORDER BY ta.submittedAt DESC
+    `, { employeeId });
+    return result.records.map(r => recordToObj(r, 'ta'));
+  } catch (error) {
+    console.error("Failed to get approval history:", error);
+    return [];
+  } finally {
+    await session.close();
   }
 }
