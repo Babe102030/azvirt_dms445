@@ -1,4 +1,4 @@
-import driver, { getSession } from './db/neo4j';
+import driver, { getSession, recordToNative } from './db/neo4j';
 import { ENV } from './_core/env';
 
 // Temporary types to replace Drizzle schema types
@@ -25,11 +25,7 @@ type InsertBreakRecord = any;
 type InsertTimesheetOfflineCache = any;
 
 // Helper to convert Neo4j Node to JS Object
-const recordToObj = (record: any, key: string = 'n') => {
-  if (!record || !record.get(key)) return null;
-  const node = record.get(key);
-  return { ...node.properties, id: parseInt(node.properties.id) }; // Ensure ID is int for app compatibility
-};
+const recordToObj = recordToNative;
 
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -1947,7 +1943,7 @@ export async function addMessage(
   content: string,
   metadata?: any
 ) {
-  const metaString = metadata ? JSON.stringify(metadata) : null;
+  const metaString = metadata ? JSON.stringify(metadata) : undefined;
   return createAiMessage({
     conversationId,
     role,
@@ -2335,7 +2331,7 @@ export async function getTaskAssignments(taskId: number) {
 export async function updateTaskAssignment(assignmentId: number, updates: any) {
   const session = getSession();
   try {
-    let sets = [];
+    let sets: string[] = [];
     let params: any = { assignmentId };
 
     Object.keys(updates).forEach(key => {

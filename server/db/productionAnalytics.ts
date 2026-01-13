@@ -1,43 +1,29 @@
-import { getDb } from "../db";
-import { mixingLogs, batchIngredients, materials } from "../../drizzle/schema";
-import { eq, gte, lte, desc, sql } from "drizzle-orm";
+import driver, { getSession } from '../db/neo4j';
 
 /**
  * Get daily batch production volume for the last N days
  */
 export async function getDailyProductionVolume(days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const query = `
+      MATCH (m:MixingLog)
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      RETURN date(m.createdAt) as date, sum(m.volume) as volume, count(m) as count
+      ORDER BY date
+    `;
 
-    const batches = await db
-      .select()
-      .from(mixingLogs)
-      .where(
-        lte(mixingLogs.createdAt, new Date()) &&
-        gte(mixingLogs.createdAt, startDate)
-      )
-      .orderBy(mixingLogs.createdAt);
-
-    // Group by date and sum volumes
-    const volumeByDate: Record<string, { date: string; volume: number; count: number }> = {};
-
-    for (const batch of batches) {
-      const dateStr = batch.createdAt.toISOString().split("T")[0];
-      if (!volumeByDate[dateStr]) {
-        volumeByDate[dateStr] = { date: dateStr, volume: 0, count: 0 };
-      }
-      volumeByDate[dateStr].volume += batch.volume || 0;
-      volumeByDate[dateStr].count += 1;
-    }
-
-    return Object.values(volumeByDate).sort((a, b) => a.date.localeCompare(b.date));
+    const result = await session.run(query, { days });
+    return result.records.map(r => ({
+      date: r.get('date').toString(),
+      volume: r.get('volume') || 0,
+      count: r.get('count').toNumber()
+    }));
   } catch (error) {
     console.error("Failed to get daily production volume:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
@@ -45,60 +31,30 @@ export async function getDailyProductionVolume(days: number = 30) {
  * Get material consumption trends for the last N days
  */
 export async function getMaterialConsumptionTrends(days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    // Top 10 consumed materials
+    const query = `
+      MATCH (m:MixingLog {status: 'completed'})
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      MATCH (m)-[r:USED_INGREDIENT]->(mat:Material)
+      RETURN mat.id as materialId, mat.name as name, mat.unit as unit, sum(COALESCE(r.actualQuantity, r.plannedQuantity)) as totalQuantity
+      ORDER BY totalQuantity DESC
+      LIMIT 10
+    `;
 
-    // Get completed batches
-    const completedBatches = await db
-      .select()
-      .from(mixingLogs)
-      .where(
-        eq(mixingLogs.status, "completed") &&
-        lte(mixingLogs.createdAt, new Date()) &&
-        gte(mixingLogs.createdAt, startDate)
-      );
-
-    // Get ingredients for completed batches
-    const consumptionByMaterial: Record<number, { materialId: number; totalQuantity: number; unit: string; name: string }> = {};
-
-    for (const batch of completedBatches) {
-      const ingredients = await db
-        .select()
-        .from(batchIngredients)
-        .where(eq(batchIngredients.batchId, batch.id));
-
-      for (const ingredient of ingredients) {
-        if (ingredient.materialId) {
-          if (!consumptionByMaterial[ingredient.materialId]) {
-            // Get material info
-            const materialInfo = await db
-              .select()
-              .from(materials)
-              .where(eq(materials.id, ingredient.materialId));
-
-            const material = materialInfo[0];
-            consumptionByMaterial[ingredient.materialId] = {
-              materialId: ingredient.materialId,
-              totalQuantity: 0,
-              unit: material?.unit || "kg",
-              name: material?.name || "Unknown",
-            };
-          }
-          consumptionByMaterial[ingredient.materialId].totalQuantity += ingredient.plannedQuantity || 0;
-        }
-      }
-    }
-
-    return Object.values(consumptionByMaterial)
-      .sort((a: any, b: any) => b.totalQuantity - a.totalQuantity)
-      .slice(0, 10); // Top 10 consumed materials
+    const result = await session.run(query, { days });
+    return result.records.map(r => ({
+      materialId: r.get('materialId').toNumber(),
+      name: r.get('name'),
+      unit: r.get('unit'),
+      totalQuantity: r.get('totalQuantity') || 0
+    }));
   } catch (error) {
     console.error("Failed to get material consumption trends:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
@@ -106,63 +62,50 @@ export async function getMaterialConsumptionTrends(days: number = 30) {
  * Get production efficiency metrics
  */
 export async function getProductionEfficiencyMetrics(days: number = 30) {
-  const db = await getDb();
-  if (!db) return null;
-
+  const session = getSession();
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const query = `
+      MATCH (m:MixingLog)
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      WITH count(m) as totalBatches,
+           count(CASE WHEN m.status = 'completed' THEN 1 END) as completedBatches,
+           count(CASE WHEN m.status = 'rejected' THEN 1 END) as rejectedBatches,
+           sum(CASE WHEN m.status = 'completed' THEN m.volume ELSE 0 END) as totalVolume,
+           avg(CASE WHEN m.status = 'completed' AND m.startTime IS NOT NULL AND m.endTime IS NOT NULL 
+               THEN duration.between(datetime(m.startTime), datetime(m.endTime)).seconds / 3600.0 ELSE NULL END) as avgBatchTimeHours
+      RETURN totalBatches, completedBatches, rejectedBatches, totalVolume, avgBatchTimeHours
+    `;
 
-    // Get all batches in the period
-    const allBatches = await db
-      .select()
-      .from(mixingLogs)
-      .where(
-        lte(mixingLogs.createdAt, new Date()) &&
-        gte(mixingLogs.createdAt, startDate)
-      );
+    const result = await session.run(query, { days });
+    if (result.records.length === 0) return null;
 
-    const completedBatches = allBatches.filter(b => b.status === "completed");
-    const rejectedBatches = allBatches.filter(b => b.status === "rejected");
+    const r = result.records[0];
+    const totalBatches = r.get('totalBatches').toNumber();
+    const completedBatches = r.get('completedBatches').toNumber();
+    const rejectedBatches = r.get('rejectedBatches').toNumber();
+    const totalVolume = r.get('totalVolume') || 0;
+    const avgBatchTime = r.get('avgBatchTimeHours') || 0;
 
-    // Calculate metrics
-    const totalBatches = allBatches.length;
-    const successRate = totalBatches > 0 ? (completedBatches.length / totalBatches) * 100 : 0;
-    const totalVolume = completedBatches.reduce((sum: number, b: any) => sum + (b.volume || 0), 0);
-    const avgBatchVolume = completedBatches.length > 0 ? totalVolume / completedBatches.length : 0;
-
-    // Calculate average batch time (in hours)
-    let totalBatchTime = 0;
-    let batchesWithTime = 0;
-
-    for (const batch of completedBatches) {
-      if (batch.startTime && batch.endTime) {
-        const timeMs = batch.endTime.getTime() - batch.startTime.getTime();
-        const timeHours = timeMs / (1000 * 60 * 60);
-        totalBatchTime += timeHours;
-        batchesWithTime += 1;
-      }
-    }
-
-    const avgBatchTime = batchesWithTime > 0 ? totalBatchTime / batchesWithTime : 0;
-
-    // Calculate utilization (completed batches / all batches)
-    const utilization = totalBatches > 0 ? (completedBatches.length / totalBatches) * 100 : 0;
+    const successRate = totalBatches > 0 ? (completedBatches / totalBatches) * 100 : 0;
+    const avgBatchVolume = completedBatches > 0 ? totalVolume / completedBatches : 0;
+    const utilization = totalBatches > 0 ? (completedBatches / totalBatches) * 100 : 0;
 
     return {
       totalBatches,
-      completedBatches: completedBatches.length,
-      rejectedBatches: rejectedBatches.length,
+      completedBatches,
+      rejectedBatches,
       successRate: Math.round(successRate * 100) / 100,
       totalVolume: Math.round(totalVolume * 100) / 100,
       avgBatchVolume: Math.round(avgBatchVolume * 100) / 100,
       avgBatchTime: Math.round(avgBatchTime * 100) / 100,
       utilization: Math.round(utilization * 100) / 100,
-      period: `Last ${days} days`,
+      period: `Last ${days} days`
     };
   } catch (error) {
     console.error("Failed to get production efficiency metrics:", error);
     return null;
+  } finally {
+    await session.close();
   }
 }
 
@@ -170,45 +113,27 @@ export async function getProductionEfficiencyMetrics(days: number = 30) {
  * Get production volume by recipe
  */
 export async function getProductionByRecipe(days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    const query = `
+      MATCH (m:MixingLog {status: 'completed'})
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      RETURN m.recipeId as recipeId, m.recipeName as recipeName, sum(m.volume) as volume, count(m) as count
+      ORDER BY volume DESC
+    `;
 
-    const batches = await db
-      .select()
-      .from(mixingLogs)
-      .where(
-        eq(mixingLogs.status, "completed") &&
-        lte(mixingLogs.createdAt, new Date()) &&
-        gte(mixingLogs.createdAt, startDate)
-      );
-
-    // Group by recipe
-    const volumeByRecipe: Record<number, { recipeId: number; recipeName: string; volume: number; count: number }> = {};
-
-    for (const batch of batches) {
-      if (batch.recipeId) {
-        if (!volumeByRecipe[batch.recipeId]) {
-          volumeByRecipe[batch.recipeId] = {
-            recipeId: batch.recipeId,
-            recipeName: batch.recipeName || "Unknown Recipe",
-            volume: 0,
-            count: 0,
-          };
-        }
-        volumeByRecipe[batch.recipeId].volume += batch.volume || 0;
-        volumeByRecipe[batch.recipeId].count += 1;
-      }
-    }
-
-    return Object.values(volumeByRecipe)
-      .sort((a: any, b: any) => b.volume - a.volume);
+    const result = await session.run(query, { days });
+    return result.records.map(r => ({
+      recipeId: r.get('recipeId') ? r.get('recipeId').toNumber() : null,
+      recipeName: r.get('recipeName') || "Unknown Recipe",
+      volume: r.get('volume') || 0,
+      count: r.get('count').toNumber()
+    }));
   } catch (error) {
     console.error("Failed to get production by recipe:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
@@ -216,39 +141,58 @@ export async function getProductionByRecipe(days: number = 30) {
  * Get hourly production rate (batches per hour)
  */
 export async function getHourlyProductionRate(days: number = 7) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    // Cypher doesn't easily format date to hour bucket string across days without APOC sometimes, 
+    // but we can extract hour.
+    // However, the original code grouped by "YYYY-MM-DD HH:00".
 
-    const completedBatches = await db
-      .select()
-      .from(mixingLogs)
-      .where(
-        eq(mixingLogs.status, "completed") &&
-        lte(mixingLogs.createdAt, new Date()) &&
-        gte(mixingLogs.createdAt, startDate)
-      );
+    const query = `
+      MATCH (m:MixingLog {status: 'completed'})
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      WITH m, 
+           toString(datetime(m.createdAt).year) + '-' + 
+           toString(datetime(m.createdAt).month) + '-' + 
+           toString(datetime(m.createdAt).day) + ' ' + 
+           toString(datetime(m.createdAt).hour) + ':00' as hour
+      RETURN hour, count(m) as count
+      ORDER BY hour
+    `;
+    // Note: Manual string formatting in Cypher is verbose. 
+    // Alternatively, return raw timestamps and aggregate in JS, but Cypher aggregation is preferred.
+    // Let's try to simulate the format. In Neo4j 5.x apoc is useful, but standard cypher works too.
+    // 'toString' on datetime components does not pad with zero automatically. 
+    // We might accept simplified grouping or return raw.
+    // Let's stick to returning raw m.createdAt and grouping in JS if complex formatting is needed,
+    // OR use a simpler Cypher grouping.
+    // Actually, distinct hour buckets.
 
-    // Group by hour
+    const result = await session.run(`
+      MATCH (m:MixingLog {status: 'completed'})
+      WHERE m.createdAt >= date() - duration('P'+$days+'D')
+      RETURN m.createdAt as createdAt
+    `, { days });
+
+    // JS aggregation to ensure exact format match
     const rateByHour: Record<string, { hour: string; count: number }> = {};
+    for (const r of result.records) {
+      const d = new Date(r.get('createdAt').toString()); // ISO string
+      const dateStr = d.toISOString().split("T")[0];
+      const hourStr = String(d.getHours()).padStart(2, '0');
+      const key = `${dateStr} ${hourStr}:00`;
 
-    for (const batch of completedBatches) {
-      const hour = batch.createdAt.toISOString().split("T")[0] + " " + 
-                   String(batch.createdAt.getHours()).padStart(2, "0") + ":00";
-      
-      if (!rateByHour[hour]) {
-        rateByHour[hour] = { hour, count: 0 };
+      if (!rateByHour[key]) {
+        rateByHour[key] = { hour: key, count: 0 };
       }
-      rateByHour[hour].count += 1;
+      rateByHour[key].count++;
     }
 
-    return Object.values(rateByHour)
-      .sort((a, b) => a.hour.localeCompare(b.hour));
+    return Object.values(rateByHour).sort((a, b) => a.hour.localeCompare(b.hour));
+
   } catch (error) {
     console.error("Failed to get hourly production rate:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }

@@ -1,14 +1,10 @@
-import driver, { getSession } from '../db/neo4j';
+import driver, { getSession, recordToNative } from '../db/neo4j';
 
 // Temporary types
 type InsertConcreteRecipe = any;
 type InsertRecipeIngredient = any;
 
-const recordToObj = (record: any, key: string = 'n') => {
-  if (!record || !record.get(key)) return null;
-  const node = record.get(key);
-  return { ...node.properties, id: parseInt(node.properties.id) };
-};
+const recordToObj = recordToNative;
 
 /**
  * Get all concrete recipes
