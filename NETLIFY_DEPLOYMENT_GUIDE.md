@@ -133,3 +133,32 @@ This guide provides step-by-step instructions for deploying the AzVirt Document 
    git commit -m "Your changes"
    git push origin main
    ```
+4. Netlify will automatically deploy updates
+
+### Monitoring
+
+1. Set up Netlify alerts for deployment failures
+2. Monitor site performance in Netlify dashboard
+3. Use analytics to track user behavior
+
+## Security Best Practices
+
+1. **Keep dependencies updated**
+2. **Use strong, unique secrets** for all environment variables
+3. **Enable HTTPS** (automatically provided by Netlify)
+4. **Set up proper CORS headers**
+5. **Regularly audit** environment variables and access controls
+
+## Performance Optimization
+
+1. **Enable Netlify's CDN** for faster content delivery
+2. **Set up caching headers** for static assets
+3. **Use Netlify's edge functions** for performance-critical routes
+4. **Optimize images** and other media assets
+
+## Support
+
+For additional help with Netlify deployment:
+- Netlify Documentation: [https://docs.netlify.com](https://docs.netlify.com)
+- Netlify Community: [https://community.netlify.com](https://community.netlify.com)
+- Netlify Support: [https://www.netlify.com/support](https://www.netlify.com/support)
