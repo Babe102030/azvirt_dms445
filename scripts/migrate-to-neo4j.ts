@@ -7,7 +7,7 @@ async function migrate() {
     console.log('🚀 Starting migration...');
 
     const client = createClient({
-        url: process.env.DATABASE_URL
+        url: process.env.DATABASE_URL!
     });
 
     const session = driver.session();
@@ -103,7 +103,7 @@ async function migrate() {
         }
         console.log(`✅ Migrated ${matRes.rows.length} materials`);
 
-        // 4. Projects
+        /* // 4. Projects
         console.log('Migrating Projects...');
         const projRes = await client.execute("SELECT * FROM projects");
         for (const row of projRes.rows) {
@@ -271,7 +271,7 @@ async function migrate() {
                 `, { mid: row.id, rid: row.recipeId });
             }
         }
-        console.log(`✅ Migrated ${mixRes.rows.length} mixing logs`);
+        console.log(`✅ Migrated ${mixRes.rows.length} mixing logs`); */
 
     } catch (error) {
         console.error('❌ Migration failed:', error);
