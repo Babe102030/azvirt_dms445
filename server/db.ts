@@ -2986,257 +2986,441 @@ export async function updateUserLanguagePreference(userId: number, language: str
 
 // ============ SHIFT MANAGEMENT ============
 
-export async function createShift(shift: InsertShift): Promise<number | null> {
-  const db = await getDb();
-  if (!db) return null;
-
+export async function createShift(shift: any): Promise<number | null> {
+  const session = getSession();
   try {
-    const result = await db.insert(shifts).values(shift);
-    return result[0].insertId as number;
+    const query = `
+      MATCH (u:User {id: $employeeId})
+      CREATE (s:Shift {
+        id: toInteger(timestamp()),
+        employeeId: $employeeId,
+        projectId: $projectId,
+        startTime: datetime($startTime),
+        endTime: datetime($endTime),
+        breakDuration: $breakDuration,
+        notes: $notes,
+        status: $status,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      MERGE (u)-[:HAS_SHIFT]->(s)
+      WITH s
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (s)-[:FOR_PROJECT]->(p)
+      )
+      RETURN s.id as id
+    `;
+
+    const result = await session.run(query, {
+      employeeId: shift.employeeId,
+      projectId: shift.projectId || null,
+      startTime: new Date(shift.startTime).toISOString(),
+      endTime: shift.endTime ? new Date(shift.endTime).toISOString() : null,
+      breakDuration: shift.breakDuration || 0,
+      notes: shift.notes || null,
+      status: shift.status || 'scheduled'
+    });
+
+    return result.records[0]?.get('id').toNumber();
   } catch (error) {
     console.error("Failed to create shift:", error);
     return null;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getAllShifts() {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(shifts)
-      .orderBy(shifts.shiftDate);
+    const result = await session.run(`
+      MATCH (s:Shift)
+      RETURN s 
+      ORDER BY s.startTime DESC
+    `);
+    return result.records.map(r => recordToObj(r, 's'));
   } catch (error) {
     console.error("Failed to get all shifts:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 export async function getShiftsByEmployee(employeeId: number, startDate: Date, endDate: Date) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(shifts)
-      .where(
-        and(
-          eq(shifts.employeeId, employeeId),
-          gte(shifts.shiftDate, startDate),
-          lte(shifts.shiftDate, endDate)
-        )
-      );
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
+      WHERE s.startTime >= datetime($startDate) AND s.startTime <= datetime($endDate)
+      RETURN s 
+      ORDER BY s.startTime DESC
+    `, {
+      employeeId,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+    return result.records.map(r => recordToObj(r, 's'));
   } catch (error) {
     console.error("Failed to get shifts:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
-export async function updateShift(id: number, updates: Partial<InsertShift>) {
-  const db = await getDb();
-  if (!db) return false;
-
+export async function updateShift(id: number, updates: any) {
+  const session = getSession();
   try {
-    await db
-      .update(shifts)
-      .set({ ...updates, updatedAt: new Date() })
-      .where(eq(shifts.id, id));
+    let sets = [];
+    let params: any = { id };
+
+    Object.keys(updates).forEach(key => {
+      if (key === 'id') return;
+      if (['startTime', 'endTime'].includes(key)) {
+        sets.push(`s.${key} = datetime($${key})`);
+        params[key] = new Date(updates[key]).toISOString();
+      } else {
+        sets.push(`s.${key} = $${key}`);
+        params[key] = updates[key];
+      }
+    });
+
+    if (sets.length === 0) return true;
+    sets.push('s.updatedAt = datetime()');
+
+    await session.run(`MATCH (s:Shift {id: $id}) SET ${sets.join(', ')}`, params);
     return true;
   } catch (error) {
     console.error("Failed to update shift:", error);
     return false;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function getShiftById(id: number) {
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (s:Shift {id: $id}) RETURN s', { id });
+    if (result.records.length === 0) return null;
+    return recordToObj(result.records[0], 's');
+  } catch (error) {
+    console.error("Failed to get shift by id:", error);
+    return null;
+  } finally {
+    await session.close();
+  }
+}
+
+export async function deleteShift(id: number) {
+  const session = getSession();
+  try {
+    await session.run('MATCH (s:Shift {id: $id}) DETACH DELETE s', { id });
+    return true;
+  } catch (error) {
+    console.error("Failed to delete shift:", error);
+    return false;
+  } finally {
+    await session.close();
   }
 }
 
 // ============ SHIFT TEMPLATES ============
 
-export async function createShiftTemplate(template: InsertShiftTemplate): Promise<number | null> {
-  const db = await getDb();
-  if (!db) return null;
-
+export async function createShiftTemplate(template: any): Promise<number | null> {
+  const session = getSession();
   try {
-    const result = await db.insert(shiftTemplates).values(template);
-    return result[0].insertId as number;
+    const query = `
+      CREATE (st:ShiftTemplate {
+        id: toInteger(timestamp()),
+        name: $name,
+        startTime: $startTime,
+        endTime: $endTime,
+        duration: $duration,
+        isActive: true,
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      RETURN st.id as id
+    `;
+
+    const result = await session.run(query, {
+      name: template.name,
+      startTime: template.startTime,
+      endTime: template.endTime,
+      duration: template.duration,
+      createdBy: template.createdBy
+    });
+
+    return result.records[0]?.get('id').toNumber();
   } catch (error) {
     console.error("Failed to create shift template:", error);
     return null;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getShiftTemplates() {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true));
+    const result = await session.run(`
+      MATCH (st:ShiftTemplate {isActive: true})
+      RETURN st
+      ORDER BY st.name
+    `);
+    return result.records.map(r => recordToObj(r, 'st'));
   } catch (error) {
     console.error("Failed to get shift templates:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 // ============ EMPLOYEE AVAILABILITY ============
 
-export async function setEmployeeAvailability(availability: InsertEmployeeAvailability) {
-  const db = await getDb();
-  if (!db) return false;
-
+export async function setEmployeeAvailability(availability: any) {
+  const session = getSession();
   try {
     // Delete existing availability for this employee and day
-    await db
-      .delete(employeeAvailability)
-      .where(
-        and(
-          eq(employeeAvailability.employeeId, availability.employeeId),
-          eq(employeeAvailability.dayOfWeek, availability.dayOfWeek)
-        )
-      );
+    await session.run(`
+      MATCH (u:User {id: $employeeId})-[r:HAS_AVAILABILITY]->(ea:EmployeeAvailability {dayOfWeek: $dayOfWeek})
+      DELETE r, ea
+    `, { employeeId: availability.employeeId, dayOfWeek: availability.dayOfWeek });
 
-    // Insert new availability
-    await db.insert(employeeAvailability).values(availability);
+    // Create new availability
+    const query = `
+      MATCH (u:User {id: $employeeId})
+      CREATE (ea:EmployeeAvailability {
+        id: toInteger(timestamp()),
+        employeeId: $employeeId,
+        dayOfWeek: $dayOfWeek,
+        startTime: $startTime,
+        endTime: $endTime,
+        isAvailable: $isAvailable,
+        updatedAt: datetime()
+      })
+      MERGE (u)-[:HAS_AVAILABILITY]->(ea)
+    `;
+
+    await session.run(query, {
+      employeeId: availability.employeeId,
+      dayOfWeek: availability.dayOfWeek,
+      startTime: availability.startTime,
+      endTime: availability.endTime,
+      isAvailable: availability.isAvailable !== undefined ? availability.isAvailable : true
+    });
     return true;
   } catch (error) {
     console.error("Failed to set employee availability:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getEmployeeAvailability(employeeId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(employeeAvailability)
-      .where(eq(employeeAvailability.employeeId, employeeId));
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:HAS_AVAILABILITY]->(ea:EmployeeAvailability)
+      RETURN ea
+      ORDER BY ea.dayOfWeek
+    `, { employeeId });
+    return result.records.map(r => recordToObj(r, 'ea'));
   } catch (error) {
     console.error("Failed to get employee availability:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 // ============ COMPLIANCE & AUDIT TRAIL ============
 
-export async function logComplianceAudit(audit: InsertComplianceAuditTrail) {
-  const db = await getDb();
-  if (!db) return false;
-
+export async function logComplianceAudit(audit: any) {
+  const session = getSession();
   try {
-    await db.insert(complianceAuditTrail).values(audit);
+    const query = `
+      CREATE (ca:ComplianceAuditTrail {
+        id: toInteger(timestamp()),
+        employeeId: $employeeId,
+        eventType: $eventType,
+        description: $description,
+        auditDate: datetime($auditDate),
+        severity: $severity,
+        metadata: $metadata,
+        createdAt: datetime()
+      })
+      WITH ca
+      MATCH (u:User {id: $employeeId})
+      MERGE (u)-[:HAS_COMPLIANCE_EVENT]->(ca)
+    `;
+
+    await session.run(query, {
+      employeeId: audit.employeeId,
+      eventType: audit.eventType,
+      description: audit.description || null,
+      auditDate: new Date(audit.auditDate).toISOString(),
+      severity: audit.severity || 'info',
+      metadata: audit.metadata ? JSON.stringify(audit.metadata) : null
+    });
     return true;
   } catch (error) {
     console.error("Failed to log compliance audit:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getComplianceAudits(employeeId: number, startDate: Date, endDate: Date) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(complianceAuditTrail)
-      .where(
-        and(
-          eq(complianceAuditTrail.employeeId, employeeId),
-          gte(complianceAuditTrail.auditDate, startDate),
-          lte(complianceAuditTrail.auditDate, endDate)
-        )
-      );
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:HAS_COMPLIANCE_EVENT]->(ca:ComplianceAuditTrail)
+      WHERE ca.auditDate >= datetime($startDate) AND ca.auditDate <= datetime($endDate)
+      RETURN ca
+      ORDER BY ca.auditDate DESC
+    `, {
+      employeeId,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString()
+    });
+    return result.records.map(r => recordToObj(r, 'ca'));
   } catch (error) {
     console.error("Failed to get compliance audits:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 // ============ BREAK TRACKING ============
 
-export async function recordBreak(breakRecord: InsertBreakRecord) {
-  const db = await getDb();
-  if (!db) return false;
-
+export async function recordBreak(breakRecord: any) {
+  const session = getSession();
   try {
-    await db.insert(breakRecords).values(breakRecord);
+    const query = `
+      MATCH (s:Shift {id: $shiftId})
+      CREATE (b:BreakRecord {
+        id: toInteger(timestamp()),
+        shiftId: $shiftId,
+        startTime: datetime($startTime),
+        endTime: datetime($endTime),
+        duration: $duration,
+        type: $type,
+        createdAt: datetime()
+      })
+      MERGE (s)-[:HAS_BREAK]->(b)
+    `;
+
+    await session.run(query, {
+      shiftId: breakRecord.shiftId,
+      startTime: new Date(breakRecord.startTime).toISOString(),
+      endTime: breakRecord.endTime ? new Date(breakRecord.endTime).toISOString() : null,
+      duration: breakRecord.duration || 0,
+      type: breakRecord.type || 'standard'
+    });
     return true;
   } catch (error) {
     console.error("Failed to record break:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getBreakRules(jurisdiction: string) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(breakRules)
-      .where(eq(breakRules.jurisdiction, jurisdiction));
+    const result = await session.run(`
+      MATCH (br:BreakRule {jurisdiction: $jurisdiction})
+      RETURN br
+    `, { jurisdiction });
+    return result.records.map(r => recordToObj(r, 'br'));
   } catch (error) {
     console.error("Failed to get break rules:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 // ============ OFFLINE SYNC ============
 
-export async function cacheOfflineEntry(cache: InsertTimesheetOfflineCache) {
-  const db = await getDb();
-  if (!db) return false;
-
+export async function cacheOfflineEntry(cache: any) {
+  const session = getSession();
   try {
-    await db.insert(timesheetOfflineCache).values(cache);
+    const query = `
+      CREATE (toc:TimesheetOfflineCache {
+        id: toInteger(timestamp()),
+        employeeId: $employeeId,
+        data: $data,
+        capturedAt: datetime($capturedAt),
+        syncStatus: $syncStatus,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH toc
+      MATCH (u:User {id: $employeeId})
+      MERGE (u)-[:HAS_OFFLINE_ENTRY]->(toc)
+    `;
+
+    await session.run(query, {
+      employeeId: cache.employeeId,
+      data: JSON.stringify(cache.data),
+      capturedAt: new Date(cache.capturedAt).toISOString(),
+      syncStatus: cache.syncStatus || 'pending'
+    });
     return true;
   } catch (error) {
     console.error("Failed to cache offline entry:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getPendingOfflineEntries(employeeId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
+  const session = getSession();
   try {
-    return await db
-      .select()
-      .from(timesheetOfflineCache)
-      .where(
-        and(
-          eq(timesheetOfflineCache.employeeId, employeeId),
-          eq(timesheetOfflineCache.syncStatus, "pending")
-        )
-      );
+    const result = await session.run(`
+      MATCH (u:User {id: $employeeId})-[:HAS_OFFLINE_ENTRY]->(toc:TimesheetOfflineCache)
+      WHERE toc.syncStatus = 'pending'
+      RETURN toc
+      ORDER BY toc.capturedAt ASC
+    `, { employeeId });
+    return result.records.map(r => recordToObj(r, 'toc'));
   } catch (error) {
     console.error("Failed to get pending offline entries:", error);
     return [];
+  } finally {
+    await session.close();
   }
 }
 
 export async function updateOfflineSyncStatus(id: number, status: string, syncedAt?: Date) {
-  const db = await getDb();
-  if (!db) return false;
-
+  const session = getSession();
   try {
-    await db
-      .update(timesheetOfflineCache)
-      .set({
-        syncStatus: status as any,
-        syncedAt: syncedAt,
-        updatedAt: new Date(),
-      })
-      .where(eq(timesheetOfflineCache.id, id));
+    await session.run(`
+      MATCH (toc:TimesheetOfflineCache {id: $id})
+      SET toc.syncStatus = $status, toc.syncedAt = datetime($syncedAt), toc.updatedAt = datetime()
+    `, {
+      id,
+      status,
+      syncedAt: syncedAt ? syncedAt.toISOString() : new Date().toISOString()
+    });
     return true;
   } catch (error) {
     console.error("Failed to update offline sync status:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
