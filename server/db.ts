@@ -2646,18 +2646,30 @@ export async function getFailedNotifications(hours: number = 24) {
 
 // ==================== NOTIFICATION TEMPLATES ====================
 export async function getNotificationTemplates(limit = 50, offset = 0) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationTemplates).limit(limit).offset(offset).orderBy(desc(notificationTemplates.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (nt:NotificationTemplate) 
+      RETURN nt 
+      ORDER BY nt.createdAt DESC 
+      SKIP toInteger($offset) 
+      LIMIT toInteger($limit)
+    `, { limit, offset });
+    return result.records.map(r => recordToObj(r, 'nt'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotificationTemplate(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(notificationTemplates).where(eq(notificationTemplates.id, id)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (nt:NotificationTemplate {id: $id}) RETURN nt', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'nt');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function createNotificationTemplate(data: {
@@ -2671,75 +2683,150 @@ export async function createNotificationTemplate(data: {
   variables?: string[];
   tags?: string[];
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (nt:NotificationTemplate {
+        id: toInteger(timestamp()),
+        name: $name,
+        description: $description,
+        subject: $subject,
+        bodyText: $bodyText,
+        bodyHtml: $bodyHtml,
+        channels: $channels,
+        variables: $variables,
+        tags: $tags,
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH nt
+      MATCH (u:User {id: $createdBy})
+      MERGE (u)-[:CREATED_TEMPLATE]->(nt)
+      RETURN nt.id as id
+    `;
 
-  const result = await db.insert(notificationTemplates).values({
-    createdBy: data.createdBy,
-    name: data.name,
-    description: data.description || null,
-    subject: data.subject,
-    bodyText: data.bodyText,
-    bodyHtml: data.bodyHtml || null,
-    channels: JSON.stringify(data.channels) as any,
-    variables: data.variables ? JSON.stringify(data.variables) : null,
-    tags: data.tags ? JSON.stringify(data.tags) : null,
-  } as any);
+    const result = await session.run(query, {
+      createdBy: data.createdBy,
+      name: data.name,
+      description: data.description || null,
+      subject: data.subject,
+      bodyText: data.bodyText,
+      bodyHtml: data.bodyHtml || null,
+      channels: JSON.stringify(data.channels),
+      variables: data.variables ? JSON.stringify(data.variables) : null,
+      tags: data.tags ? JSON.stringify(data.tags) : null,
+    });
 
-  // Extract insertId from MySQL result
-  const insertId = (result as any)[0]?.insertId;
-  return { insertId };
+    return { insertId: result.records[0]?.get('id').toNumber() };
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateNotificationTemplate(id: number, data: any) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  return db.update(notificationTemplates).set(data).where(eq(notificationTemplates.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (['channels', 'variables', 'tags'].includes(key) && typeof data[key] !== 'string') {
+        sets.push(`nt.${key} = $${key}`);
+        params[key] = JSON.stringify(data[key]);
+      } else {
+        sets.push(`nt.${key} = $${key}`);
+        params[key] = data[key];
+      }
+    });
+
+    if (sets.length === 0) return;
+    sets.push('nt.updatedAt = datetime()');
+
+    await session.run(`MATCH (nt:NotificationTemplate {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteNotificationTemplate(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.delete(notificationTemplates).where(eq(notificationTemplates.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (nt:NotificationTemplate {id: $id}) DETACH DELETE nt', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== NOTIFICATION TRIGGERS ====================
 export async function getNotificationTriggers(limit = 50, offset = 0) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationTriggers).limit(limit).offset(offset).orderBy(desc(notificationTriggers.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (tr:NotificationTrigger) 
+      RETURN tr 
+      ORDER BY tr.createdAt DESC 
+      SKIP toInteger($offset) 
+      LIMIT toInteger($limit)
+    `, { limit, offset });
+    return result.records.map(r => recordToObj(r, 'tr'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotificationTrigger(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(notificationTriggers).where(eq(notificationTriggers.id, id)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (tr:NotificationTrigger {id: $id}) RETURN tr', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'tr');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTriggersByTemplate(templateId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationTriggers).where(eq(notificationTriggers.templateId, templateId)).orderBy(desc(notificationTriggers.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (tr:NotificationTrigger)-[:USES_TEMPLATE]->(nt:NotificationTemplate {id: $templateId})
+      RETURN tr 
+      ORDER BY tr.createdAt DESC
+    `, { templateId });
+    return result.records.map(r => recordToObj(r, 'tr'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTriggersByEventType(eventType: string) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationTriggers).where(eq(notificationTriggers.eventType, eventType)).orderBy(desc(notificationTriggers.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (tr:NotificationTrigger {eventType: $eventType})
+      RETURN tr 
+      ORDER BY tr.createdAt DESC
+    `, { eventType });
+    return result.records.map(r => recordToObj(r, 'tr'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getActiveTriggers() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationTriggers).where(eq(notificationTriggers.isActive, true)).orderBy(desc(notificationTriggers.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (tr:NotificationTrigger {isActive: true})
+      RETURN tr 
+      ORDER BY tr.createdAt DESC
+    `);
+    return result.records.map(r => recordToObj(r, 'tr'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function createNotificationTrigger(data: {
@@ -2751,35 +2838,78 @@ export async function createNotificationTrigger(data: {
   triggerCondition: any;
   actions: any;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (tr:NotificationTrigger {
+        id: toInteger(timestamp()),
+        name: $name,
+        description: $description,
+        eventType: $eventType,
+        triggerCondition: $triggerCondition,
+        actions: $actions,
+        isActive: true,
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH tr
+      MATCH (nt:NotificationTemplate {id: $templateId})
+      MATCH (u:User {id: $createdBy})
+      MERGE (tr)-[:USES_TEMPLATE]->(nt)
+      MERGE (u)-[:CREATED_TRIGGER]->(tr)
+      RETURN tr.id as id
+    `;
 
-  const result = await db.insert(notificationTriggers).values({
-    createdBy: data.createdBy,
-    templateId: data.templateId,
-    name: data.name,
-    description: data.description || null,
-    eventType: data.eventType,
-    triggerCondition: JSON.stringify(data.triggerCondition) as any,
-    actions: JSON.stringify(data.actions) as any,
-  } as any);
+    const result = await session.run(query, {
+      createdBy: data.createdBy,
+      templateId: data.templateId,
+      name: data.name,
+      description: data.description || null,
+      eventType: data.eventType,
+      triggerCondition: JSON.stringify(data.triggerCondition),
+      actions: JSON.stringify(data.actions)
+    });
 
-  const insertId = (result as any)[0]?.insertId;
-  return { insertId }
+    return { insertId: result.records[0]?.get('id').toNumber() };
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateNotificationTrigger(id: number, data: any) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  return db.update(notificationTriggers).set(data).where(eq(notificationTriggers.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (['triggerCondition', 'actions'].includes(key) && typeof data[key] !== 'string') {
+        sets.push(`tr.${key} = $${key}`);
+        params[key] = JSON.stringify(data[key]);
+      } else {
+        sets.push(`tr.${key} = $${key}`);
+        params[key] = data[key];
+      }
+    });
+
+    if (sets.length === 0) return;
+    sets.push('tr.updatedAt = datetime()');
+
+    await session.run(`MATCH (tr:NotificationTrigger {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteNotificationTrigger(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.delete(notificationTriggers).where(eq(notificationTriggers.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (tr:NotificationTrigger {id: $id}) DETACH DELETE tr', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== TRIGGER EXECUTION LOG ====================
@@ -2791,35 +2921,65 @@ export async function recordTriggerExecution(data: {
   notificationsSent: number;
   error?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (te:TriggerExecutionLog {
+        id: toInteger(timestamp()),
+        triggerId: $triggerId,
+        entityType: $entityType,
+        entityId: $entityId,
+        conditionsMet: $conditionsMet,
+        notificationsSent: $notificationsSent,
+        error: $error,
+        executedAt: datetime()
+      })
+      WITH te
+      MATCH (tr:NotificationTrigger {id: $triggerId})
+      MERGE (tr)-[:HAS_EXECUTION]->(te)
+    `;
 
-  return db.insert(triggerExecutionLog).values(data);
+    await session.run(query, {
+      triggerId: data.triggerId,
+      entityType: data.entityType,
+      entityId: data.entityId,
+      conditionsMet: data.conditionsMet,
+      notificationsSent: data.notificationsSent,
+      error: data.error || null
+    });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTriggerExecutionLog(triggerId: number, limit = 100) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(triggerExecutionLog).where(eq(triggerExecutionLog.triggerId, triggerId)).limit(limit).orderBy(desc(triggerExecutionLog.executedAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (tr:NotificationTrigger {id: $triggerId})-[:HAS_EXECUTION]->(te:TriggerExecutionLog)
+      RETURN te 
+      ORDER BY te.executedAt DESC
+      LIMIT toInteger($limit)
+    `, { triggerId, limit });
+    return result.records.map(r => recordToObj(r, 'te'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateUserLanguagePreference(userId: number, language: string) {
-  const db = await getDb();
-  if (!db) return false;
-
+  const session = getSession();
   try {
-    await db
-      .update(users)
-      .set({
-        languagePreference: language,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId));
+    await session.run(`
+      MATCH (u:User {id: $userId})
+      SET u.languagePreference = $language, u.updatedAt = datetime()
+    `, { userId, language });
     return true;
   } catch (error) {
     console.error("Failed to update language preference:", error);
     return false;
+  } finally {
+    await session.close();
   }
 }
 
