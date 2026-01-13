@@ -1,7 +1,7 @@
 import { ENV } from './_core/env';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from '../drizzle/schema';
+import * as schema from '../drizzle/schema.ts';
 import { eq, and, gte, lte, desc, like, sql as drizzleSql, or, inArray, not } from 'drizzle-orm';
 
 // PostgreSQL connection for Neon
