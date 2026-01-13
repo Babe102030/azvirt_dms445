@@ -1886,44 +1886,37 @@ export async function upsertEmailBranding(data: {
 
 // ============ AI Conversations ============
 export async function createConversation(userId: number, title: string, modelName: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(aiConversations).values({
-    userId,
-    title,
-    modelName,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-  return result;
+  return createAiConversation({ userId, title, modelName });
 }
 
 export async function getConversations(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(aiConversations)
-    .where(eq(aiConversations.userId, userId))
-    .orderBy(desc(aiConversations.updatedAt));
+  return getAiConversations(userId);
 }
 
 export async function getConversation(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (c:AiConversation {id: $id}) RETURN c', { id });
+    if (result.records.length === 0) return undefined;
 
-  const results = await db.select().from(aiConversations)
-    .where(eq(aiConversations.id, id));
-  return results[0];
+    // Map record to match expected interface
+    const conv = recordToObj(result.records[0], 'c');
+    return conv;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateConversationTitle(id: number, title: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.update(aiConversations)
-    .set({ title, updatedAt: new Date() })
-    .where(eq(aiConversations.id, id));
+  const session = getSession();
+  try {
+    await session.run(`
+      MATCH (c:AiConversation {id: $id}) 
+      SET c.title = $title, c.updatedAt = datetime()
+    `, { id, title });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function addMessage(
@@ -1932,97 +1925,113 @@ export async function addMessage(
   content: string,
   metadata?: any
 ) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(aiMessages).values({
+  const metaString = metadata ? JSON.stringify(metadata) : null;
+  return createAiMessage({
     conversationId,
     role,
     content,
-    metadata: metadata ? JSON.stringify(metadata) : null,
-    createdAt: new Date(),
+    metadata: metaString
   });
-
-  // Update conversation timestamp
-  await db.update(aiConversations)
-    .set({ updatedAt: new Date() })
-    .where(eq(aiConversations.id, conversationId));
-
-  return result;
 }
 
 export async function getMessages(conversationId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(aiMessages)
-    .where(eq(aiMessages.conversationId, conversationId))
-    .orderBy(aiMessages.createdAt);
+  return getAiMessages(conversationId);
 }
 
 export async function getAvailableModels() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(aiModels)
-    .where(eq(aiModels.isAvailable, true))
-    .orderBy(aiModels.name);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (m:AiModel {isAvailable: true}) 
+      RETURN m 
+      ORDER BY m.name
+    `);
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function upsertModel(name: string, displayName: string, type: "text" | "vision" | "code", size?: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const existing = await db.select().from(aiModels)
-    .where(eq(aiModels.name, name));
-
-  if (existing.length > 0) {
-    await db.update(aiModels)
-      .set({ isAvailable: true, lastUsed: new Date() })
-      .where(eq(aiModels.name, name));
-  } else {
-    await db.insert(aiModels).values({
-      name,
-      displayName,
-      type,
-      size: size || undefined,
-      isAvailable: true,
-      lastUsed: new Date(),
-    });
+  const session = getSession();
+  try {
+    await session.run(`
+      MERGE (m:AiModel {name: $name})
+      ON CREATE SET
+        m.id = toInteger(timestamp()),
+        m.displayName = $displayName,
+        m.type = $type,
+        m.size = $size,
+        m.isAvailable = true,
+        m.lastUsed = datetime(),
+        m.createdAt = datetime(),
+        m.updatedAt = datetime()
+      ON MATCH SET
+        m.isAvailable = true,
+        m.lastUsed = datetime(),
+        m.updatedAt = datetime()
+    `, { name, displayName, type, size: size || null });
+  } finally {
+    await session.close();
   }
 }
 
 export async function createAiConversation(data: { userId: number; title?: string; modelName?: string }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (c:AiConversation {
+        id: toInteger(timestamp()),
+        userId: $userId,
+        title: $title,
+        modelName: $modelName,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH c
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[:HAS_CONVERSATION]->(c)
+      RETURN c.id as id
+    `;
 
-  const result = await db.insert(aiConversations).values({
-    userId: data.userId,
-    title: data.title || "New Conversation",
-    modelName: data.modelName,
-  });
+    const result = await session.run(query, {
+      userId: data.userId,
+      title: data.title || "New Conversation",
+      modelName: data.modelName || null
+    });
 
-  return result[0].insertId;
+    return result.records[0]?.get('id').toNumber();
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAiConversations(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(aiConversations)
-    .where(eq(aiConversations.userId, userId))
-    .orderBy(aiConversations.updatedAt);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (c:AiConversation {userId: $userId})
+      RETURN c
+      ORDER BY c.updatedAt DESC
+    `, { userId }); // Using property directly for simplicity, though relationship check is better
+    return result.records.map(r => recordToObj(r, 'c'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteAiConversation(conversationId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  // Delete all messages first
-  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
-
-  // Delete conversation
-  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+  const session = getSession();
+  try {
+    // Delete conversation and its messages
+    await session.run(`
+      MATCH (c:AiConversation {id: $conversationId})
+      OPTIONAL MATCH (c)-[:HAS_MESSAGE]->(m:AiMessage)
+      DETACH DELETE c, m
+    `, { conversationId });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function createAiMessage(data: {
@@ -2036,332 +2045,602 @@ export async function createAiMessage(data: {
   toolCalls?: string;
   metadata?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (c:AiConversation {id: $conversationId})
+      CREATE (m:AiMessage {
+        id: toInteger(timestamp()),
+        conversationId: $conversationId,
+        role: $role,
+        content: $content,
+        model: $model,
+        audioUrl: $audioUrl,
+        imageUrl: $imageUrl,
+        thinkingProcess: $thinkingProcess,
+        toolCalls: $toolCalls,
+        metadata: $metadata,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      MERGE (c)-[:HAS_MESSAGE]->(m)
+      SET c.updatedAt = datetime()
+      RETURN m.id as id
+    `;
 
-  const result = await db.insert(aiMessages).values({
-    conversationId: data.conversationId,
-    role: data.role,
-    content: data.content,
-    model: data.model,
-    audioUrl: data.audioUrl,
-    imageUrl: data.imageUrl,
-    thinkingProcess: data.thinkingProcess,
-    toolCalls: data.toolCalls,
-    metadata: data.metadata,
-  });
+    const result = await session.run(query, {
+      conversationId: data.conversationId,
+      role: data.role,
+      content: data.content,
+      model: data.model || null,
+      audioUrl: data.audioUrl || null,
+      imageUrl: data.imageUrl || null,
+      thinkingProcess: data.thinkingProcess || null,
+      toolCalls: data.toolCalls || null,
+      metadata: data.metadata || null
+    });
 
-  // Update conversation timestamp
-  await db.update(aiConversations)
-    .set({ updatedAt: new Date() })
-    .where(eq(aiConversations.id, data.conversationId));
-
-  return result[0].insertId;
+    return result.records[0]?.get('id').toNumber();
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAiMessages(conversationId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(aiMessages)
-    .where(eq(aiMessages.conversationId, conversationId))
-    .orderBy(aiMessages.createdAt);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (c:AiConversation {id: $conversationId})-[:HAS_MESSAGE]->(m:AiMessage)
+      RETURN m
+      ORDER BY m.createdAt ASC
+    `, { conversationId });
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 
 // ==================== DAILY TASKS ====================
-import { dailyTasks, InsertDailyTask, taskAssignments, InsertTaskAssignment, taskStatusHistory, InsertTaskStatusHistory } from "../drizzle/schema";
-import { ne } from "drizzle-orm";
 
-export async function createTask(task: InsertDailyTask) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function createTask(task: any) {
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (t:DailyTask {
+        id: toInteger(timestamp()),
+        userId: $userId,
+        title: $title,
+        description: $description,
+        status: $status,
+        priority: $priority,
+        dueDate: datetime($dueDate),
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH t
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[:CREATED_TASK]->(t)
+      RETURN t.id as id
+    `;
 
-  const result = await db.insert(dailyTasks).values(task);
-  return result;
+    const result = await session.run(query, {
+      userId: task.userId,
+      title: task.title,
+      description: task.description || null,
+      status: task.status || 'pending',
+      priority: task.priority || 'medium',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null
+    });
+
+    return result.records[0]?.get('id').toNumber();
+  } catch (e) {
+    console.error("Failed to create task", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTasks(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(dailyTasks).where(eq(dailyTasks.userId, userId)).orderBy(desc(dailyTasks.dueDate));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {userId: $userId}) 
+      RETURN t 
+      ORDER BY t.dueDate DESC
+    `, { userId });
+    return result.records.map(r => recordToObj(r, 't'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTaskById(taskId: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(dailyTasks).where(eq(dailyTasks.id, taskId)).limit(1);
-  return result[0];
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (t:DailyTask {id: $taskId}) RETURN t', { taskId });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 't');
+  } finally {
+    await session.close();
+  }
 }
 
-export async function updateTask(taskId: number, updates: Partial<InsertDailyTask>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function updateTask(taskId: number, updates: any) {
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { taskId };
 
-  return db.update(dailyTasks).set(updates).where(eq(dailyTasks.id, taskId));
+    Object.keys(updates).forEach(key => {
+      if (key === 'id' || key === 'userId') return;
+      if (key === 'dueDate') {
+        sets.push(`t.${key} = datetime($${key})`);
+        params[key] = new Date(updates[key]).toISOString();
+      } else {
+        sets.push(`t.${key} = $${key}`);
+        params[key] = updates[key];
+      }
+    });
+
+    sets.push('t.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (t:DailyTask {id: $taskId}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteTask(taskId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.delete(dailyTasks).where(eq(dailyTasks.id, taskId));
+  const session = getSession();
+  try {
+    await session.run('MATCH (t:DailyTask {id: $taskId}) DETACH DELETE t', { taskId });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTasksByStatus(userId: number, status: string) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(dailyTasks)
-    .where(and(eq(dailyTasks.userId, userId), eq(dailyTasks.status, status as any)))
-    .orderBy(desc(dailyTasks.dueDate));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {userId: $userId, status: $status})
+      RETURN t 
+      ORDER BY t.dueDate DESC
+    `, { userId, status });
+    return result.records.map(r => recordToObj(r, 't'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTasksByPriority(userId: number, priority: string) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(dailyTasks)
-    .where(and(eq(dailyTasks.userId, userId), eq(dailyTasks.priority, priority as any)))
-    .orderBy(desc(dailyTasks.dueDate));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {userId: $userId, priority: $priority})
+      RETURN t 
+      ORDER BY t.dueDate DESC
+    `, { userId, priority });
+    return result.records.map(r => recordToObj(r, 't'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getOverdueTasks(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(dailyTasks)
-    .where(and(
-      eq(dailyTasks.userId, userId),
-      lt(dailyTasks.dueDate, new Date()),
-      ne(dailyTasks.status, 'completed')
-    ))
-    .orderBy(dailyTasks.dueDate);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {userId: $userId})
+      WHERE t.dueDate < datetime() AND t.status <> 'completed'
+      RETURN t 
+      ORDER BY t.dueDate
+    `, { userId });
+    return result.records.map(r => recordToObj(r, 't'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTodaysTasks(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    // Cypher doesn't have easy "today" range functions without external params usually, 
+    // but we can pass string dates.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  return db.select().from(dailyTasks)
-    .where(and(
-      eq(dailyTasks.userId, userId),
-      gte(dailyTasks.dueDate, today),
-      lt(dailyTasks.dueDate, tomorrow)
-    ))
-    .orderBy(dailyTasks.dueDate);
+    const result = await session.run(`
+      MATCH (t:DailyTask {userId: $userId})
+      WHERE t.dueDate >= datetime($today) AND t.dueDate < datetime($tomorrow)
+      RETURN t 
+      ORDER BY t.dueDate
+    `, { userId, today: today.toISOString(), tomorrow: tomorrow.toISOString() });
+    return result.records.map(r => recordToObj(r, 't'));
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== TASK ASSIGNMENTS ====================
 
-export async function assignTask(assignment: InsertTaskAssignment) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function assignTask(assignment: any) {
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (t:DailyTask {id: $taskId})
+      MATCH (u:User {id: $assignedTo})
+      CREATE (a:TaskAssignment {
+        id: toInteger(timestamp()),
+        taskId: $taskId,
+        assignedTo: $assignedTo,
+        assignedAt: datetime(),
+        status: 'active'
+      })
+      MERGE (t)-[:HAS_ASSIGNMENT]->(a)
+      MERGE (a)-[:ASSIGNED_TO]->(u)
+      RETURN a.id as id
+    `;
 
-  return db.insert(taskAssignments).values(assignment);
+    const result = await session.run(query, {
+      taskId: assignment.taskId,
+      assignedTo: assignment.assignedTo
+    });
+    return result.records[0]?.get('id').toNumber();
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTaskAssignments(taskId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskAssignments).where(eq(taskAssignments.taskId, taskId));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {id: $taskId})-[:HAS_ASSIGNMENT]->(a:TaskAssignment)
+      RETURN a
+    `, { taskId });
+    return result.records.map(r => recordToObj(r, 'a'));
+  } finally {
+    await session.close();
+  }
 }
 
-export async function updateTaskAssignment(assignmentId: number, updates: Partial<InsertTaskAssignment>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function updateTaskAssignment(assignmentId: number, updates: any) {
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { assignmentId };
 
-  return db.update(taskAssignments).set(updates).where(eq(taskAssignments.id, assignmentId));
+    Object.keys(updates).forEach(key => {
+      if (key === 'id') return;
+      sets.push(`a.${key} = $${key}`);
+      params[key] = updates[key];
+    });
+
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (a:TaskAssignment {id: $assignmentId}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAssignmentsForUser(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskAssignments).where(eq(taskAssignments.assignedTo, userId)).orderBy(desc(taskAssignments.assignedAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (u:User {id: $userId})<-[:ASSIGNED_TO]-(a:TaskAssignment)
+      RETURN a 
+      ORDER BY a.assignedAt DESC
+    `, { userId });
+    return result.records.map(r => recordToObj(r, 'a'));
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== TASK STATUS HISTORY ====================
 
-export async function recordTaskStatusChange(history: InsertTaskStatusHistory) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.insert(taskStatusHistory).values(history);
+export async function recordTaskStatusChange(history: any) {
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (h:TaskStatusHistory {
+        id: toInteger(timestamp()),
+        taskId: $taskId,
+        oldStatus: $oldStatus,
+        newStatus: $newStatus,
+        changedBy: $changedBy,
+        createdAt: datetime()
+      })
+      WITH h
+      MATCH (t:DailyTask {id: $taskId})
+      MERGE (t)-[:HAS_HISTORY]->(h)
+    `, {
+      taskId: history.taskId,
+      oldStatus: history.oldStatus,
+      newStatus: history.newStatus,
+      changedBy: history.changedBy
+    });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getTaskHistory(taskId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskStatusHistory).where(eq(taskStatusHistory.taskId, taskId)).orderBy(desc(taskStatusHistory.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (t:DailyTask {id: $taskId})-[:HAS_HISTORY]->(h:TaskStatusHistory)
+      RETURN h 
+      ORDER BY h.createdAt DESC
+    `, { taskId });
+    return result.records.map(r => recordToObj(r, 'h'));
+  } finally {
+    await session.close();
+  }
 }
 
 
 // ==================== TASK NOTIFICATIONS ====================
-import { taskNotifications, InsertTaskNotification, notificationPreferences, InsertNotificationPreference, notificationHistory, InsertNotificationHistory } from "../drizzle/schema";
 
-export async function createNotification(notification: InsertTaskNotification) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function createNotification(notification: any) {
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (n:TaskNotification {
+        id: toInteger(timestamp()),
+        userId: $userId,
+        title: $title,
+        message: $message,
+        type: $type,
+        status: $status,
+        priority: $priority,
+        link: $link,
+        readAt: null,
+        scheduledFor: datetime($scheduledFor),
+        sentAt: null,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH n
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[:HAS_NOTIFICATION]->(n)
+      RETURN n.id as id
+    `;
 
-  const result = await db.insert(taskNotifications).values(notification);
-  return result;
+    const result = await session.run(query, {
+      userId: notification.userId,
+      title: notification.title,
+      message: notification.message,
+      type: notification.type || 'info',
+      status: notification.status || 'pending',
+      priority: notification.priority || 'medium',
+      link: notification.link || null,
+      scheduledFor: notification.scheduledFor ? new Date(notification.scheduledFor).toISOString() : new Date().toISOString()
+    });
+
+    return result.records[0]?.get('id').toNumber();
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotifications(userId: number, limit: number = 50) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskNotifications)
-    .where(eq(taskNotifications.userId, userId))
-    .orderBy(desc(taskNotifications.createdAt))
-    .limit(limit);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (n:TaskNotification {userId: $userId})
+      RETURN n 
+      ORDER BY n.createdAt DESC
+      LIMIT toInteger($limit)
+    `, { userId, limit });
+    return result.records.map(r => recordToObj(r, 'n'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getUnreadNotifications(userId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskNotifications)
-    .where(and(
-      eq(taskNotifications.userId, userId),
-      ne(taskNotifications.status, 'read')
-    ))
-    .orderBy(desc(taskNotifications.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (n:TaskNotification {userId: $userId})
+      WHERE n.status <> 'read'
+      RETURN n 
+      ORDER BY n.createdAt DESC
+    `, { userId });
+    return result.records.map(r => recordToObj(r, 'n'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function markNotificationAsRead(notificationId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.update(taskNotifications)
-    .set({ status: 'read', readAt: new Date() })
-    .where(eq(taskNotifications.id, notificationId));
+  const session = getSession();
+  try {
+    await session.run(`
+      MATCH (n:TaskNotification {id: $notificationId})
+      SET n.status = 'read', n.readAt = datetime(), n.updatedAt = datetime()
+    `, { notificationId });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateNotificationStatus(notificationId: number, status: string, sentAt?: Date) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.update(taskNotifications)
-    .set({ status: status as any, sentAt: sentAt || new Date() })
-    .where(eq(taskNotifications.id, notificationId));
+  const session = getSession();
+  try {
+    await session.run(`
+      MATCH (n:TaskNotification {id: $notificationId})
+      SET n.status = $status, n.sentAt = datetime($sentAt), n.updatedAt = datetime()
+    `, { notificationId, status, sentAt: sentAt ? sentAt.toISOString() : new Date().toISOString() });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getPendingNotifications() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(taskNotifications)
-    .where(eq(taskNotifications.status, 'pending'))
-    .orderBy(taskNotifications.scheduledFor);
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (n:TaskNotification {status: 'pending'})
+      RETURN n 
+      ORDER BY n.scheduledFor
+    `);
+    return result.records.map(r => recordToObj(r, 'n'));
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== NOTIFICATION PREFERENCES ====================
 
 export async function getOrCreateNotificationPreferences(userId: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[:HAS_PREFERENCES]->(np:NotificationPreferences)
+      ON CREATE SET
+        np.id = toInteger(timestamp()),
+        np.userId = $userId,
+        np.emailEnabled = true,
+        np.smsEnabled = false,
+        np.inAppEnabled = true,
+        np.overdueReminders = true,
+        np.completionNotifications = true,
+        np.assignmentNotifications = true,
+        np.statusChangeNotifications = true,
+        np.timezone = 'UTC',
+        np.createdAt = datetime(),
+        np.updatedAt = datetime()
+      RETURN np
+    `, { userId });
 
-  const existing = await db.select().from(notificationPreferences)
-    .where(eq(notificationPreferences.userId, userId))
-    .limit(1);
-
-  if (existing.length > 0) {
-    return existing[0];
+    return recordToObj(result.records[0], 'np');
+  } finally {
+    await session.close();
   }
-
-  // Create default preferences
-  const result = await db.insert(notificationPreferences).values({
-    userId,
-    emailEnabled: true,
-    smsEnabled: false,
-    inAppEnabled: true,
-    overdueReminders: true,
-    completionNotifications: true,
-    assignmentNotifications: true,
-    statusChangeNotifications: true,
-    timezone: 'UTC',
-  });
-
-  return result;
 }
 
-export async function updateNotificationPreferences(userId: number, preferences: Partial<InsertNotificationPreference>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+export async function updateNotificationPreferences(userId: number, preferences: any) {
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { userId };
 
-  return db.update(notificationPreferences)
-    .set(preferences)
-    .where(eq(notificationPreferences.userId, userId));
+    Object.keys(preferences).forEach(key => {
+      if (key === 'id' || key === 'userId') return;
+      sets.push(`np.${key} = $${key}`);
+      params[key] = preferences[key];
+    });
+
+    if (sets.length === 0) return;
+    sets.push('np.updatedAt = datetime()');
+
+    await session.run(`
+      MATCH (u:User {id: $userId})-[:HAS_PREFERENCES]->(np:NotificationPreferences)
+      SET ${sets.join(', ')}
+    `, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotificationPreferences(userId: number) {
-  const db = await getDb();
-  if (!db) return null;
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (u:User {id: $userId})-[:HAS_PREFERENCES]->(np:NotificationPreferences)
+      RETURN np
+    `, { userId }); // Query by relationship or userId property
 
-  const result = await db.select().from(notificationPreferences)
-    .where(eq(notificationPreferences.userId, userId))
-    .limit(1);
-
-  return result[0] || null;
+    if (result.records.length === 0) return null;
+    return recordToObj(result.records[0], 'np');
+  } finally {
+    await session.close();
+  }
 }
 
 // ==================== NOTIFICATION HISTORY ====================
 
-export async function recordNotificationHistory(history: InsertNotificationHistory) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  return db.insert(notificationHistory).values(history);
+export async function recordNotificationHistory(history: any) {
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (h:NotificationHistory {
+        id: toInteger(timestamp()),
+        notificationId: $notificationId,
+        channel: $channel,
+        status: $status,
+        sentAt: datetime($sentAt),
+        error: $error,
+        userId: $userId
+      })
+      WITH h
+      MATCH (n:TaskNotification {id: $notificationId})
+      MERGE (n)-[:HAS_HISTORY]->(h)
+    `, {
+      notificationId: history.notificationId,
+      channel: history.channel,
+      status: history.status,
+      sentAt: history.sentAt ? new Date(history.sentAt).toISOString() : new Date().toISOString(),
+      error: history.error || null,
+      userId: history.userId // Storing redundantly or could match user
+    });
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotificationHistory(notificationId: number) {
-  const db = await getDb();
-  if (!db) return [];
-
-  return db.select().from(notificationHistory)
-    .where(eq(notificationHistory.notificationId, notificationId))
-    .orderBy(desc(notificationHistory.sentAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (n:TaskNotification {id: $notificationId})-[:HAS_HISTORY]->(h:NotificationHistory)
+      RETURN h 
+      ORDER BY h.sentAt DESC
+    `, { notificationId });
+    return result.records.map(r => recordToObj(r, 'h'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getNotificationHistoryByUser(userId: number, days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-
-  return db.select().from(notificationHistory)
-    .where(and(
-      eq(notificationHistory.userId, userId),
-      gte(notificationHistory.sentAt, cutoffDate)
-    ))
-    .orderBy(desc(notificationHistory.sentAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (h:NotificationHistory {userId: $userId})
+      WHERE h.sentAt >= datetime() - duration({days: $days})
+      RETURN h 
+      ORDER BY h.sentAt DESC
+    `, { userId, days });
+    return result.records.map(r => recordToObj(r, 'h'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getFailedNotifications(hours: number = 24) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const cutoffDate = new Date();
-  cutoffDate.setHours(cutoffDate.getHours() - hours);
-
-  return db.select().from(notificationHistory)
-    .where(and(
-      eq(notificationHistory.status, 'failed'),
-      gte(notificationHistory.sentAt, cutoffDate)
-    ))
-    .orderBy(desc(notificationHistory.sentAt));
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (h:NotificationHistory {status: 'failed'})
+      WHERE h.sentAt >= datetime() - duration({hours: $hours})
+      RETURN h 
+      ORDER BY h.sentAt DESC
+    `, { hours });
+    return result.records.map(r => recordToObj(r, 'h'));
+  } finally {
+    await session.close();
+  }
 }
 
 
