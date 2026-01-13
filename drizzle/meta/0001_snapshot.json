@@ -1,6 +1,6 @@
 {
-  "id": "853ae5c7-eae7-4648-9cb3-12407975f048",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "7a440035-103b-4d53-82d2-de0b85c145ca",
+  "prevId": "853ae5c7-eae7-4648-9cb3-12407975f048",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -22,8 +22,7 @@
         },
         "category": {
           "name": "category",
-          "type": "category",
-          "typeSchema": "public",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true,
           "default": "'other'"
@@ -137,8 +136,7 @@
         },
         "status": {
           "name": "status",
-          "type": "status",
-          "typeSchema": "public",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true,
           "default": "'planning'"
@@ -218,8 +216,7 @@
         },
         "role": {
           "name": "role",
-          "type": "role",
-          "typeSchema": "public",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": true,
           "default": "'user'"

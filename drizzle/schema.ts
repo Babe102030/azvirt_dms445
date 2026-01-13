@@ -1,8 +1,4 @@
-import { boolean, integer, pgEnum, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
-
-const roleEnum = pgEnum("role", ["user", "admin"]);
-const statusEnum = pgEnum("status", ["planning", "active", "completed", "on_hold"]);
-const categoryEnum = pgEnum("category", ["cement", "aggregate", "admixture", "water", "other"]);
+import { boolean, integer, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 /**
  * Core user table backing auth flow.
@@ -13,7 +9,7 @@ export const users = pgTable("users", {
     name: text("name"),
     email: varchar("email", { length: 320 }),
     loginMethod: varchar("loginMethod", { length: 64 }),
-    role: roleEnum("role").default("user").notNull(),
+    role: varchar("role", { length: 20 }).default("user").notNull(),
     phoneNumber: varchar("phoneNumber", { length: 50 }),
     smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
     languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
@@ -33,7 +29,7 @@ export const projects = pgTable("projects", {
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
     location: varchar("location", { length: 500 }),
-    status: statusEnum("status").default("planning").notNull(),
+    status: varchar("status", { length: 20 }).default("planning").notNull(),
     startDate: timestamp("startDate"),
     endDate: timestamp("endDate"),
     createdBy: integer("createdBy").notNull(),
@@ -50,7 +46,7 @@ export type InsertProject = typeof projects.$inferInsert;
 export const materials = pgTable("materials", {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 255 }).notNull(),
-    category: categoryEnum("category").default("other").notNull(),
+    category: varchar("category", { length: 20 }).default("other").notNull(),
     unit: varchar("unit", { length: 50 }).notNull(),
     quantity: integer("quantity").notNull().default(0),
     minStock: integer("minStock").notNull().default(0),
