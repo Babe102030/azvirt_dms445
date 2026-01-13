@@ -1,31 +1,24 @@
-import { ClerkExpressRequireAuth } from "@clerk/express";
-import { Clerk } from "@clerk/backend";
+import { requireAuth, clerkClient } from "@clerk/express";
 import type { Express, Request, Response, NextFunction } from "express";
 import * as db from "../db";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./cookies";
 
-// Initialize Clerk
-const clerk = Clerk({
-    secretKey: process.env.CLERK_SECRET_KEY,
-});
+// Initialize Clerk client
+const clerk = clerkClient;
 
 /**
  * Middleware to protect routes with Clerk authentication
  */
-export const clerkAuthMiddleware = ClerkExpressRequireAuth({
-    // Allow users who are signed in
-    // You can add additional options here like:
-    // - onError: custom error handler
-    // - onSuccess: custom success handler
-});
+export const clerkAuthMiddleware = requireAuth();
 
 /**
- * Get Clerk user data and sync with local database
+ * Get user from Clerk session
  */
 export async function syncClerkUser(req: Request) {
     try {
-        const userId = req.auth?.userId;
+        // Get the auth object from Clerk
+        const { userId } = req.auth;
 
         if (!userId) {
             throw new Error("No user ID found in Clerk session");
@@ -141,18 +134,17 @@ export async function getCurrentUser(req: Request) {
             return null;
         }
 
-        const userId = req.auth.userId;
-        const clerkUser = await clerk.users.getUser(userId);
+        const clerkUser = await clerk.users.getUser(req.auth.userId);
 
         if (!clerkUser) {
             return null;
         }
 
         return {
-            id: userId,
+            id: req.auth.userId,
             name: clerkUser.firstName && clerkUser.lastName
                 ? `${clerkUser.firstName} ${clerkUser.lastName}`
-                : clerkUser.username || `user_${userId}`,
+                : clerkUser.username || `user_${req.auth.userId}`,
             email: clerkUser.emailAddresses[0]?.emailAddress || null,
             image: clerkUser.imageUrl || null,
         };

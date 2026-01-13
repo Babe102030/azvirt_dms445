@@ -8,6 +8,7 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import RTLInitializer from "./components/RTLInitializer";
+import { ClerkProvider } from "./components/ClerkProvider";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -55,13 +56,15 @@ const trpcClient = trpc.createClient({
 });
 
 createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <RTLInitializer>
-          <App />
-        </RTLInitializer>
-      </LanguageProvider>
-    </QueryClientProvider>
-  </trpc.Provider>
+  <ClerkProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <RTLInitializer>
+            <App />
+          </RTLInitializer>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </trpc.Provider>
+  </ClerkProvider>
 );
