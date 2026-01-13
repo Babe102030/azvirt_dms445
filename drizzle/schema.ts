@@ -1,4 +1,5 @@
-import { boolean, integer, pgTable, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, serial, text, timestamp, varchar, decimal, doublePrecision, pgEnum } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
@@ -13,9 +14,9 @@ export const users = pgTable("users", {
     phoneNumber: varchar("phoneNumber", { length: 50 }),
     smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
     languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
-    createdAt: timestamp("createdAt").notNull(),
-    updatedAt: timestamp("updatedAt").notNull(),
-    lastSignedIn: timestamp("lastSignedIn").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+    lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -33,8 +34,8 @@ export const projects = pgTable("projects", {
     startDate: timestamp("startDate"),
     endDate: timestamp("endDate"),
     createdBy: integer("createdBy").notNull(),
-    createdAt: timestamp("createdAt").notNull(),
-    updatedAt: timestamp("updatedAt").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type Project = typeof projects.$inferSelect;
@@ -48,17 +49,246 @@ export const materials = pgTable("materials", {
     name: varchar("name", { length: 255 }).notNull(),
     category: varchar("category", { length: 20 }).default("other").notNull(),
     unit: varchar("unit", { length: 50 }).notNull(),
-    quantity: integer("quantity").notNull().default(0),
-    minStock: integer("minStock").notNull().default(0),
-    criticalThreshold: integer("criticalThreshold").notNull().default(0),
+    quantity: doublePrecision("quantity").notNull().default(0),
+    minStock: doublePrecision("minStock").notNull().default(0),
+    criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
     supplier: varchar("supplier", { length: 255 }),
     unitPrice: integer("unitPrice"),
     lowStockEmailSent: boolean("lowStockEmailSent").default(false),
     lastEmailSentAt: timestamp("lastEmailSentAt"),
     supplierEmail: varchar("supplierEmail", { length: 255 }),
-    createdAt: timestamp("createdAt").notNull(),
-    updatedAt: timestamp("updatedAt").notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type Material = typeof materials.$inferSelect;
 export type InsertMaterial = typeof materials.$inferInsert;
+
+/**
+ * Concrete Recipes
+ */
+export const concreteRecipes = pgTable("concrete_recipes", {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    targetStrength: varchar("targetStrength", { length: 50 }),
+    slump: varchar("slump", { length: 50 }),
+    maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
+    yieldVolume: doublePrecision("yieldVolume").default(1.0),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const recipeIngredients = pgTable("recipe_ingredients", {
+    id: serial("id").primaryKey(),
+    recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
+    materialId: integer("materialId").references(() => materials.id).notNull(),
+    quantity: doublePrecision("quantity").notNull(),
+    unit: varchar("unit", { length: 50 }).notNull(),
+});
+
+/**
+ * Production / Mixing Logs
+ */
+export const mixingLogs = pgTable("mixing_logs", {
+    id: serial("id").primaryKey(),
+    projectId: integer("projectId").references(() => projects.id),
+    deliveryId: integer("deliveryId"), // Circular dependency potential, handled by logic
+    recipeId: integer("recipeId").references(() => concreteRecipes.id),
+    recipeName: varchar("recipeName", { length: 255 }),
+    batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
+    volume: doublePrecision("volume").notNull(),
+    unit: varchar("unit", { length: 50 }).default("m3").notNull(),
+    status: varchar("status", { length: 20 }).default("planned").notNull(), // planned, in_progress, completed, rejected
+    startTime: timestamp("startTime"),
+    endTime: timestamp("endTime"),
+    operatorId: integer("operatorId").references(() => users.id),
+    approvedBy: integer("approvedBy").references(() => users.id),
+    qualityNotes: text("notes"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const batchIngredients = pgTable("batch_ingredients", {
+    id: serial("id").primaryKey(),
+    batchId: integer("batchId").references(() => mixingLogs.id).notNull(),
+    materialId: integer("materialId").references(() => materials.id).notNull(),
+    plannedQuantity: doublePrecision("plannedQuantity").notNull(),
+    actualQuantity: doublePrecision("actualQuantity"),
+    unit: varchar("unit", { length: 50 }).notNull(),
+    inventoryDeducted: boolean("inventoryDeducted").default(false).notNull(),
+});
+
+/**
+ * Deliveries
+ */
+export const deliveries = pgTable("deliveries", {
+    id: serial("id").primaryKey(),
+    projectId: integer("projectId").references(() => projects.id).notNull(),
+    recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
+    batchId: integer("batchId").references(() => mixingLogs.id),
+    ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
+    truckNumber: varchar("truckNumber", { length: 50 }),
+    driverId: integer("driverId").references(() => users.id),
+    status: varchar("status", { length: 20 }).default("scheduled").notNull(), // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
+    scheduledTime: timestamp("scheduledTime").notNull(),
+    startTime: timestamp("startTime"),
+    arrivalTime: timestamp("arrivalTime"),
+    deliveryTime: timestamp("deliveryTime"),
+    completionTime: timestamp("completionTime"),
+    gpsLocation: varchar("gpsLocation", { length: 100 }), // lat,lng
+    photos: text("photos"), // JSON array of strings
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+/**
+ * Quality Tests
+ */
+export const qualityTests = pgTable("quality_tests", {
+    id: serial("id").primaryKey(),
+    deliveryId: integer("deliveryId").references(() => deliveries.id),
+    projectId: integer("projectId").references(() => projects.id),
+    testType: varchar("testType", { length: 50 }).notNull(), // slump, strength, air_content, temperature, other
+    resultValue: varchar("resultValue", { length: 100 }),
+    status: varchar("status", { length: 20 }).default("pending").notNull(), // pass, fail, pending
+    testedBy: integer("testedBy").references(() => users.id),
+    testedAt: timestamp("testedAt").notNull().defaultNow(),
+    photos: text("photos"), // JSON array
+    inspectorSignature: text("inspectorSignature"), // base64
+    supervisorSignature: text("supervisorSignature"), // base64
+    gpsLocation: varchar("gpsLocation", { length: 100 }),
+    standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
+    syncStatus: varchar("syncStatus", { length: 20 }).default("synced"), // synced, pending, failed
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+/**
+ * Employees and HR
+ */
+export const employees = pgTable("employees", {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").references(() => users.id).unique(),
+    employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
+    firstName: varchar("firstName", { length: 100 }).notNull(),
+    lastName: varchar("lastName", { length: 100 }).notNull(),
+    jobTitle: varchar("jobTitle", { length: 100 }),
+    department: varchar("department", { length: 100 }),
+    hireDate: timestamp("hireDate"),
+    hourlyRate: integer("hourlyRate"),
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const shifts = pgTable("shifts", {
+    id: serial("id").primaryKey(),
+    employeeId: integer("employeeId").references(() => users.id).notNull(), // Linked to User for easier auth checks
+    startTime: timestamp("startTime").notNull(),
+    endTime: timestamp("endTime"),
+    status: varchar("status", { length: 20 }).default("scheduled").notNull(), // scheduled, in_progress, completed, cancelled, no_show
+    createdBy: integer("createdBy").references(() => users.id),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const timesheetApprovals = pgTable("timesheet_approvals", {
+    id: serial("id").primaryKey(),
+    shiftId: integer("shiftId").references(() => shifts.id).notNull(),
+    approverId: integer("approverId").references(() => users.id),
+    status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, approved, rejected
+    approvedAt: timestamp("approvedAt"),
+    comments: text("comments"),
+    rejectionReason: text("rejectionReason"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+/**
+ * Assets and Maintenance
+ */
+export const machines = pgTable("machines", {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    type: varchar("type", { length: 100 }),
+    serialNumber: varchar("serialNumber", { length: 100 }),
+    status: varchar("status", { length: 20 }).default("active"),
+    lastMaintenanceAt: timestamp("lastMaintenanceAt"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const machineWorkHours = pgTable("machine_work_hours", {
+    id: serial("id").primaryKey(),
+    machineId: integer("machineId").references(() => machines.id).notNull(),
+    hours: doublePrecision("hours").notNull(),
+    date: timestamp("date").notNull(),
+    operatorId: integer("operatorId").references(() => users.id),
+});
+
+/**
+ * Tasks and AI
+ */
+export const tasks = pgTable("tasks", {
+    id: serial("id").primaryKey(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, in_progress, completed, cancelled
+    priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, critical
+    dueDate: timestamp("dueDate"),
+    projectId: integer("projectId").references(() => projects.id),
+    createdBy: integer("createdBy").references(() => users.id).notNull(),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const taskAssignments = pgTable("task_assignments", {
+    id: serial("id").primaryKey(),
+    taskId: integer("taskId").references(() => tasks.id).notNull(),
+    userId: integer("userId").references(() => users.id).notNull(),
+    assignedAt: timestamp("assignedAt").notNull().defaultNow(),
+});
+
+export const aiConversations = pgTable("ai_conversations", {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").references(() => users.id).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    modelName: varchar("modelName", { length: 100 }),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const aiMessages = pgTable("ai_messages", {
+    id: serial("id").primaryKey(),
+    conversationId: integer("conversationId").references(() => aiConversations.id).notNull(),
+    role: varchar("role", { length: 20 }).notNull(), // user, assistant, system
+    content: text("content").notNull(),
+    metadata: text("metadata"), // JSON
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+/**
+ * System and Notifications
+ */
+export const notifications = pgTable("notifications", {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").references(() => users.id).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    message: text("message").notNull(),
+    type: varchar("type", { length: 50 }),
+    status: varchar("status", { length: 20 }).default("unread"), // unread, read, archived
+    sentAt: timestamp("sentAt").notNull().defaultNow(),
+});
+
+export const documents = pgTable("documents", {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    type: varchar("type", { length: 50 }),
+    url: text("url").notNull(),
+    projectId: integer("projectId").references(() => projects.id),
+    uploadedBy: integer("uploadedBy").references(() => users.id),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
