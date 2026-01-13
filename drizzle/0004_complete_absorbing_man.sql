@@ -1,2 +1,0 @@
--- Placeholder migration for 0004
--- This migration was skipped in the development process
