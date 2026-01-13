@@ -3,14 +3,14 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
+import { SignInButton } from "@clerk/clerk-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
 import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
 import DashboardFilters from "@/components/DashboardFilters";
-import { 
-  FileText, Package, Truck, FlaskConical, Folder, TrendingUp, 
+import {
+  FileText, Package, Truck, FlaskConical, Folder, TrendingUp,
   AlertCircle, CheckCircle, Clock, Search, Filter, Download, Activity
 } from "lucide-react";
 import { Link } from "wouter";
@@ -24,7 +24,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
-  
+
   const exportAllMutation = trpc.export.all.useMutation({
     onSuccess: (data) => {
       downloadExcelFile(data.data, generateExportFilename("azvirt_dms_all_data"));
@@ -34,7 +34,7 @@ export default function Home() {
       toast.error(`Neuspjeli izvoz: ${error.message}`);
     },
   });
-  
+
   const handleExportAll = () => {
     exportAllMutation.mutate();
   };
@@ -52,7 +52,7 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div 
+      <div
         className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url(/azvirt-35years-bg.png)' }}
       >
@@ -63,9 +63,11 @@ export default function Home() {
           <p className="text-xl md:text-2xl text-white mb-8 drop-shadow-lg">
             {t("dashboard.welcome")}
           </p>
-          <Button asChild size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
-            <a href={getLoginUrl()}>{t("auth.loginToContinue")}</a>
-          </Button>
+          <SignInButton mode="modal">
+            <Button size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
+              {t("auth.loginToContinue")}
+            </Button>
+          </SignInButton>
         </div>
       </div>
     );
@@ -90,15 +92,15 @@ export default function Home() {
                 className="pl-10 bg-card/50 border-primary/20"
               />
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={handleExportAll}
               disabled={exportAllMutation.isPending}
             >
@@ -110,7 +112,7 @@ export default function Home() {
 
         {/* Filters Panel */}
         {showFilters && (
-          <DashboardFilters 
+          <DashboardFilters
             onFilterChange={setFilters}
             onClose={() => setShowFilters(false)}
           />
@@ -169,11 +171,10 @@ export default function Home() {
           </Link>
 
           <Link href="/deliveries">
-            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
-              (stats?.todayDeliveries ?? 0) > 0 
-                ? "border-yellow-500/20 hover:border-yellow-500/40" 
-                : "border-primary/20 hover:border-primary/40"
-            }`}>
+            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${(stats?.todayDeliveries ?? 0) > 0
+              ? "border-yellow-500/20 hover:border-yellow-500/40"
+              : "border-primary/20 hover:border-primary/40"
+              }`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{t("dashboard.todayDeliveries")}</CardTitle>
                 <Truck className={`h-4 w-4 ${(stats?.todayDeliveries ?? 0) > 0 ? "text-yellow-500" : "text-primary"}`} />
@@ -186,11 +187,10 @@ export default function Home() {
           </Link>
 
           <Link href="/materials">
-            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
-              (stats?.lowStockMaterials ?? 0) > 0 
-                ? "border-red-500/20 hover:border-red-500/40" 
-                : "border-primary/20 hover:border-primary/40"
-            }`}>
+            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${(stats?.lowStockMaterials ?? 0) > 0
+              ? "border-red-500/20 hover:border-red-500/40"
+              : "border-primary/20 hover:border-primary/40"
+              }`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">{t("dashboard.lowStockItems")}</CardTitle>
                 <Package className={`h-4 w-4 ${(stats?.lowStockMaterials ?? 0) > 0 ? "text-red-500" : "text-primary"}`} />

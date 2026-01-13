@@ -45,10 +45,14 @@ export async function syncClerkUser(req: Request) {
         // Upsert user into local database
         await db.upsertUser(userData);
 
-        return {
-            userId: userId,
-            ...userData,
-        };
+        // Fetch full user object from database to ensure correct types
+        const user = await db.getUserByOpenId(userId);
+
+        if (!user) {
+            throw new Error("Failed to retrieve user after upsert");
+        }
+
+        return user;
     } catch (error) {
         console.error("[Clerk] Error syncing user:", error);
         throw error;

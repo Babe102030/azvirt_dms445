@@ -5,7 +5,6 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import RTLInitializer from "./components/RTLInitializer";
 import { ClerkProvider } from "./components/ClerkProvider";
@@ -21,7 +20,8 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  // With Clerk, we can just reload to let the provider handle auth state
+  window.location.reload();
 };
 
 queryClient.getQueryCache().subscribe(event => {

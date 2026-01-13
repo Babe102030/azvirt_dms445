@@ -3,16 +3,16 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
+import { SignInButton } from "@clerk/clerk-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
 import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
 import DashboardFilters from "@/components/DashboardFilters";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
 import { useDashboardWidgets } from "@/hooks/useDashboardWidgets";
-import { 
-  FileText, Package, Truck, FlaskConical, Folder, TrendingUp, 
+import {
+  FileText, Package, Truck, FlaskConical, Folder, TrendingUp,
   AlertCircle, CheckCircle, Clock, Search, Filter, Download, Activity,
   Settings
 } from "lucide-react";
@@ -66,7 +66,7 @@ export default function CustomizableDashboard() {
 
   if (!user) {
     return (
-      <div 
+      <div
         className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: 'url(/azvirt-35years-bg.png)' }}
       >
@@ -77,9 +77,11 @@ export default function CustomizableDashboard() {
           <p className="text-xl md:text-2xl text-white mb-8 drop-shadow-lg">
             Sistem za upravljanje dokumentima za izvrsnost u građevinarstvu
           </p>
-          <Button asChild size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
-            <a href={getLoginUrl()}>Prijavite se za nastavak</a>
-          </Button>
+          <SignInButton mode="modal">
+            <Button size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
+              Prijavite se za nastavak
+            </Button>
+          </SignInButton>
         </div>
       </div>
     );
@@ -104,15 +106,15 @@ export default function CustomizableDashboard() {
                 className="pl-10 bg-card/50 border-primary/20"
               />
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-4 w-4" />
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="icon"
               onClick={() => setShowCustomizer(true)}
             >
@@ -126,7 +128,7 @@ export default function CustomizableDashboard() {
 
         {/* Filters Panel */}
         {showFilters && (
-          <DashboardFilters 
+          <DashboardFilters
             onFilterChange={setFilters}
             onClose={() => setShowFilters(false)}
           />

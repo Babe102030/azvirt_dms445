@@ -19,7 +19,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
+import { SignInButton } from "@clerk/clerk-react";
 import { useIsMobile } from "@/hooks/useMobile";
 import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot, BellRing, Beaker, BarChart3, CheckCircle2 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -91,15 +91,14 @@ export default function DashboardLayout({
               {t("auth.loginDescription")}
             </p>
           </div>
-          <Button
-            onClick={() => {
-              window.location.href = getLoginUrl();
-            }}
-            size="lg"
-            className="w-full shadow-lg hover:shadow-xl transition-all"
-          >
-            {t("auth.login")}
-          </Button>
+          <SignInButton mode="modal">
+            <Button
+              size="lg"
+              className="w-full shadow-lg hover:shadow-xl transition-all"
+            >
+              {t("auth.login")}
+            </Button>
+          </SignInButton>
         </div>
       </div>
     );

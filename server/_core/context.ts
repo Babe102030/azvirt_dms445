@@ -1,6 +1,6 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
 import type { User } from "../../drizzle/schema";
-import { sdk } from "./sdk";
+
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
@@ -8,13 +8,19 @@ export type TrpcContext = {
   user: User | null;
 };
 
+import { syncClerkUser } from "./clerk";
+
 export async function createContext(
   opts: CreateExpressContextOptions
 ): Promise<TrpcContext> {
   let user: User | null = null;
 
   try {
-    user = await sdk.authenticateRequest(opts.req);
+    // Sync user from Clerk session
+    // This will create the user in our DB if they don't exist
+    // and return the user object with the correct shape
+    const syncedUser = await syncClerkUser(opts.req);
+    user = syncedUser as User;
   } catch (error) {
     // Authentication is optional for public procedures.
     user = null;
