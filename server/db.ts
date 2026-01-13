@@ -1,5 +1,8 @@
 import driver, { getSession, recordToNative } from './db/neo4j';
 import { ENV } from './_core/env';
+import { drizzle } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
+import * as schema from '../drizzle/schema';
 
 // Temporary types to replace Drizzle schema types
 type InsertUser = any;
@@ -26,6 +29,17 @@ type InsertTimesheetOfflineCache = any;
 
 // Helper to convert Neo4j Node to JS Object
 const recordToObj = recordToNative;
+
+// Drizzle/SQLite connection for components that still need it
+const sqliteClient = createClient({
+  url: process.env.DATABASE_URL || 'file:local.db',
+});
+
+export const db = drizzle(sqliteClient, { schema });
+
+export async function getDb() {
+  return db;
+}
 
 
 export async function upsertUser(user: InsertUser): Promise<void> {
