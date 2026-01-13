@@ -12,4 +12,5 @@ export default defineConfig({
   dbCredentials: {
     url: connectionString,
   },
+  schemaFilter: ["users", "projects", "materials"],
 });
