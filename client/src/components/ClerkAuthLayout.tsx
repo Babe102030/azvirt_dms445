@@ -62,3 +62,7 @@ export function AuthHeader() {
 export function AuthFooter() {
     return (
         <div className="mt-6 text-center text-sm text-muted-foreground">
+            <p>By continuing, you agree to our <a href="#" className="underline hover:text-primary">Terms of Service</a> and <a href="#" className="underline hover:text-primary">Privacy Policy</a>.</p>
+        </div>
+    );
+}
