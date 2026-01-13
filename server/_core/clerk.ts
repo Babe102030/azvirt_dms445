@@ -18,7 +18,7 @@ export const clerkAuthMiddleware = requireAuth();
 export async function syncClerkUser(req: Request) {
     try {
         // Get the auth object from Clerk
-        const { userId } = req.auth;
+        const { userId } = (req as any).auth;
 
         if (!userId) {
             throw new Error("No user ID found in Clerk session");
@@ -134,11 +134,12 @@ export function registerClerkRoutes(app: Express) {
  */
 export async function getCurrentUser(req: Request) {
     try {
-        if (!req.auth?.userId) {
+        const auth = (req as any).auth;
+        if (!auth?.userId) {
             return null;
         }
 
-        const clerkUser = await clerk.users.getUser(req.auth.userId);
+        const clerkUser = await clerk.users.getUser(auth.userId);
 
         if (!clerkUser) {
             return null;

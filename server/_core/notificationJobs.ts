@@ -1,6 +1,3 @@
-import { getDb } from "../db";
-import { dailyTasks, users } from "../../drizzle/schema";
-import { eq, lt, and, ne } from "drizzle-orm";
 import {
   sendEmailNotification,
   sendSmsNotification,
@@ -11,6 +8,9 @@ import {
   createNotification,
   getNotificationPreferences,
   recordNotificationHistory,
+  getOverdueTasks,
+  getUserById,
+  getUserByOpenId
 } from "../db";
 
 /**
@@ -20,23 +20,8 @@ export async function checkAndNotifyOverdueTasks() {
   try {
     console.log("[NotificationJobs] Starting overdue task check...");
 
-    const db = await getDb();
-    if (!db) {
-      console.error("[NotificationJobs] Database not available");
-      return;
-    }
-
     // Get all overdue tasks that are not completed
-    const overdueTasks = await db
-      .select()
-      .from(dailyTasks)
-      .where(
-        and(
-          lt(dailyTasks.dueDate, new Date()),
-          ne(dailyTasks.status, "completed"),
-          ne(dailyTasks.status, "cancelled")
-        )
-      );
+    const overdueTasks = await getOverdueTasks(100);
 
     console.log(
       `[NotificationJobs] Found ${overdueTasks.length} overdue tasks`
@@ -45,15 +30,10 @@ export async function checkAndNotifyOverdueTasks() {
     for (const task of overdueTasks) {
       try {
         // Get user details
-        const userResult = await db
-          .select()
-          .from(users)
-          .where(eq(users.id, task.userId))
-          .limit(1);
+        const user = await getUserById(task.userId);
 
-        if (userResult.length === 0) continue;
+        if (!user) continue;
 
-        const user = userResult[0];
         const prefs = await getNotificationPreferences(task.userId);
 
         // Check if user wants overdue reminders
@@ -78,7 +58,7 @@ export async function checkAndNotifyOverdueTasks() {
         const message = formatNotificationMessage(
           "overdue_reminder",
           task.title,
-          { daysOverdue: Math.floor((Date.now() - task.dueDate.getTime()) / (1000 * 60 * 60 * 24)).toString() }
+          { daysOverdue: Math.floor((Date.now() - new Date(task.dueDate).getTime()) / (1000 * 60 * 60 * 24)).toString() }
         );
 
         const channels: ("email" | "sms" | "in_app")[] = [];
@@ -96,7 +76,9 @@ export async function checkAndNotifyOverdueTasks() {
           status: "pending",
         });
 
-        const notificationId = (notificationResult as any).insertId || 0;
+        // Neo4j createNotification returns just the ID usually, or we adjusted it.
+        // Let's check db.ts return type. It returns insertId (number).
+        const notificationId = notificationResult;
 
         // Send email if enabled
         if (prefs?.emailEnabled && user.email) {
@@ -181,22 +163,11 @@ export async function notifyTaskCompletion(
       `[NotificationJobs] Sending completion notification for task ${taskId}`
     );
 
-    const db = await getDb();
-    if (!db) {
-      console.error("[NotificationJobs] Database not available");
-      return;
-    }
-
     // Get user details
-    const userResult = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    const user = await getUserById(userId);
 
-    if (userResult.length === 0) return;
+    if (!user) return;
 
-    const user = userResult[0];
     const prefs = await getNotificationPreferences(userId);
 
     // Check if user wants completion notifications
@@ -236,7 +207,7 @@ export async function notifyTaskCompletion(
       status: "pending",
     });
 
-    const notificationId = (notificationResult as any).insertId || 0;
+    const notificationId = notificationResult;
 
     // Send email if enabled
     if (prefs?.emailEnabled && user.email) {

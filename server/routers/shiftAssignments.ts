@@ -9,14 +9,10 @@ import {
   deleteShiftAssignment,
   checkShiftConflicts,
 } from "../db/shiftAssignments";
-import { getDb } from "../db";
-import { shiftTemplates } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getShiftTemplates } from "../db";
 
 async function getAllShiftTemplates() {
-  const db = await getDb();
-  if (!db) return [];
-  return await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true));
+  return await getShiftTemplates();
 }
 
 export const shiftAssignmentsRouter = router({

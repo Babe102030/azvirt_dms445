@@ -16,8 +16,12 @@ import {
 } from '../_core/fileParser';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getDb } from '../db';
-import { workHours, materials, documents } from '../../drizzle/schema';
+import {
+  createWorkHour,
+  createMaterial,
+  createDocument,
+  getProjectById
+} from '../db';
 
 // Schema for work hours import
 const WORK_HOURS_SCHEMA: ColumnSchema[] = [
@@ -188,14 +192,15 @@ export const bulkImportRouter = router({
             // Insert
             const workType = (transformed.workType as string) || 'regular';
             const validWorkTypes = ['regular', 'overtime', 'weekend', 'holiday'];
-            await db.insert(workHours).values({
+
+            await createWorkHour({
               employeeId: transformed.employeeId as number,
               projectId: (transformed.projectId as number) || null,
-              date: new Date(transformed.date as string),
-              startTime: new Date(transformed.startTime as string),
-              endTime: transformed.endTime ? new Date(transformed.endTime as string) : null,
-              hoursWorked,
-              overtimeHours,
+              date: new Date(transformed.date as string).toISOString(),
+              startTime: new Date(transformed.startTime as string).toISOString(),
+              endTime: transformed.endTime ? new Date(transformed.endTime as string).toISOString() : null,
+              hoursWorked: hoursWorked,
+              overtimeHours: overtimeHours,
               workType: (validWorkTypes.includes(workType) ? workType : 'regular') as any,
               notes: (transformed.notes as string) || null,
               status: 'pending',
@@ -279,7 +284,8 @@ export const bulkImportRouter = router({
             // Insert
             const category = (transformed.category as string) || 'other';
             const validCategories = ['cement', 'aggregate', 'admixture', 'water', 'other'];
-            await db.insert(materials).values({
+
+            await createMaterial({
               name: transformed.name as string,
               category: (validCategories.includes(category) ? category : 'other') as any,
               unit: transformed.unit as string,
@@ -370,7 +376,8 @@ export const bulkImportRouter = router({
             // Insert
             const docCategory = (transformed.category as string) || 'other';
             const validDocCategories = ['contract', 'blueprint', 'report', 'certificate', 'invoice', 'other'];
-            await db.insert(documents).values({
+
+            await createDocument({
               name: transformed.name as string,
               description: (transformed.description as string) || null,
               fileKey: transformed.fileKey as string,
