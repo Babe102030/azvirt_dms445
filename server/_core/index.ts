@@ -45,16 +45,28 @@ async function startServer() {
     }
     clerkAuthMiddleware(req, res, next);
   });
+
   // tRPC API
   app.use(
     "/api/trpc",
     createExpressMiddleware({
       router: appRouter,
       createContext,
+      onError: ({ path, error }) => {
+        console.error(`[TRPC Error] at ${path}:`, error);
+      }
     })
   );
-  // Force using static files for now to serve built assets
-  serveStatic(app);
+
+  // In development, setup Vite for HMR and serving client files
+  // In production, serve static files from dist/public
+  if (process.env.NODE_ENV === "development") {
+    console.log("Setting up Vite for development...");
+    await setupVite(app, server);
+  } else {
+    console.log("Serving static files for production...");
+    serveStatic(app);
+  }
 
   console.log("Finding available port...");
   const preferredPort = parseInt(process.env.PORT || "3000");
