@@ -173,106 +173,273 @@ export async function deleteDocument(id: number) {
 
 // Projects
 export async function createProject(project: InsertProject) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(projects).values(project);
-  return result;
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (u:User {id: $createdBy})
+      CREATE (p:Project {
+        id: toInteger(timestamp()),
+        name: $name,
+        description: $description,
+        location: $location,
+        status: $status,
+        startDate: datetime($startDate),
+        endDate: datetime($endDate),
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      MERGE (u)-[:CREATED]->(p)
+      RETURN p
+    `;
+    await session.run(query, {
+      name: project.name,
+      description: project.description || '',
+      location: project.location || '',
+      status: project.status,
+      startDate: project.startDate ? project.startDate.toISOString() : null,
+      endDate: project.endDate ? project.endDate.toISOString() : null,
+      createdBy: project.createdBy
+    });
+  } catch (e) {
+    console.error("Failed to create project", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getProjects() {
-  const db = await getDb();
-  if (!db) return [];
-
-  const result = await db.select().from(projects).orderBy(desc(projects.createdAt));
-  return result;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (p:Project) RETURN p ORDER BY p.createdAt DESC');
+    return result.records.map(r => recordToObj(r, 'p'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getProjectById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(projects).where(eq(projects.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (p:Project {id: $id}) RETURN p', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'p');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateProject(id: number, data: Partial<InsertProject>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(projects).set(data).where(eq(projects.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      sets.push(`p.${key} = $${key}`);
+      // Handle dates
+      if (data[key] instanceof Date) {
+        sets.push(`p.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        params[key] = data[key];
+      }
+    });
+
+    // Always update updatedAt
+    sets.push('p.updatedAt = datetime()');
+
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (p:Project {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 // Materials
 export async function createMaterial(material: InsertMaterial) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(materials).values(material);
-  return result;
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (m:Material {
+        id: toInteger(timestamp()),
+        name: $name,
+        category: $category,
+        unit: $unit,
+        quantity: toInteger($quantity),
+        minStock: toInteger($minStock),
+        criticalThreshold: toInteger($criticalThreshold),
+        supplier: $supplier,
+        unitPrice: toInteger($unitPrice),
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+    `, {
+      name: material.name,
+      category: material.category,
+      unit: material.unit,
+      quantity: material.quantity || 0,
+      minStock: material.minStock || 0,
+      criticalThreshold: material.criticalThreshold || 0,
+      supplier: material.supplier || null,
+      unitPrice: material.unitPrice || 0
+    });
+  } catch (e) {
+    console.error("Failed to create material", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getMaterials() {
-  const db = await getDb();
-  if (!db) return [];
-
-  const result = await db.select().from(materials).orderBy(materials.name);
-  return result;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (m:Material) RETURN m ORDER BY m.name');
+    return result.records.map(r => recordToObj(r, 'm'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function updateMaterial(id: number, data: Partial<InsertMaterial>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(materials).set(data).where(eq(materials.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+
+      // Handle integers
+      if (['quantity', 'minStock', 'criticalThreshold', 'unitPrice'].includes(key)) {
+        sets.push(`m.${key} = toInteger($${key})`);
+      } else {
+        sets.push(`m.${key} = $${key}`);
+      }
+      params[key] = data[key];
+    });
+
+    sets.push('m.updatedAt = datetime()');
+
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (m:Material {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteMaterial(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.delete(materials).where(eq(materials.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (m:Material {id: $id}) DETACH DELETE m', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // Deliveries
 export async function createDelivery(delivery: InsertDelivery) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (d:Delivery {
+        id: toInteger(timestamp()),
+        projectId: $projectId,
+        projectName: $projectName,
+        concreteType: $concreteType,
+        volume: toInteger($volume),
+        scheduledTime: datetime($scheduledTime),
+        status: $status,
+        createdBy: $createdBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH d
+      MATCH (u:User {id: $createdBy})
+      MERGE (u)-[:CREATED]->(d)
+      WITH d
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (d)-[:DELIVERED_TO]->(p)
+      )
+      RETURN d
+    `;
 
-  const result = await db.insert(deliveries).values(delivery);
-  return result;
+    await session.run(query, {
+      projectId: delivery.projectId || null,
+      projectName: delivery.projectName,
+      concreteType: delivery.concreteType,
+      volume: delivery.volume,
+      scheduledTime: delivery.scheduledTime.toISOString(),
+      status: delivery.status,
+      createdBy: delivery.createdBy
+    });
+  } catch (e) {
+    console.error("Failed to create delivery", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getDeliveries(filters?: { projectId?: number; status?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (d:Delivery)';
+    let params: any = {};
+    let where = [];
 
-  let conditions: any[] = [];
+    if (filters?.projectId) {
+      where.push('d.projectId = $projectId');
+      params.projectId = filters.projectId;
+    }
+    if (filters?.status) {
+      where.push('d.status = $status');
+      params.status = filters.status;
+    }
 
-  if (filters?.projectId) {
-    conditions.push(eq(deliveries.projectId, filters.projectId));
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+
+    query += ' RETURN d ORDER BY d.scheduledTime DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'd'));
+  } finally {
+    await session.close();
   }
-
-  if (filters?.status) {
-    conditions.push(eq(deliveries.status, filters.status as any));
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const result = await db
-    .select()
-    .from(deliveries)
-    .where(whereClause)
-    .orderBy(desc(deliveries.scheduledTime));
-
-  return result;
 }
 
 export async function updateDelivery(id: number, data: Partial<InsertDelivery>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(deliveries).set(data).where(eq(deliveries.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      sets.push(`d.${key} = $${key}`);
+      if (data[key] instanceof Date) {
+        sets.push(`d.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        params[key] = data[key];
+      }
+    });
+
+    sets.push('d.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (d:Delivery {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 // Quality Tests
