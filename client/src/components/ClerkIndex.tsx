@@ -7,6 +7,9 @@ export * from "./ClerkUserProfile";
 export * from "./ClerkProtectedRoute";
 export * from "./ClerkSignUp";
 export * from "./ClerkAuthLayout";
+export * from "./ClerkSessionManagement";
+export * from "./ClerkEnhancedSignIn";
+export * from "./ClerkTestComponent";
 
 // Re-export Clerk hooks and components from clerk-react for convenience
 export {
