@@ -405,12 +405,56 @@ export async function createAggregateInput(input: any) { return Date.now(); }
 export async function getAggregateInputs(filters?: any) { return []; }
 export async function getWeeklyTimesheetSummary(employeeId?: number, weekStart?: Date) { return []; }
 export async function getMonthlyTimesheetSummary(employeeId?: number, year?: number, month?: number) { return []; }
-export async function getLowStockMaterials() { return []; }
-export async function getCriticalStockMaterials() { return []; }
-export async function getAdminUsersWithSMS() { return []; }
-export async function updateUserSMSSettings(userId: number, phoneNumber: string, enabled: boolean) { return true; }
-export async function recordConsumption(consumption: any) { return true; }
-export async function getConsumptionHistory(materialId?: number, days?: number) { return []; }
+export async function getLowStockMaterials() {
+  return await db.select()
+    .from(schema.materials)
+    .where(lte(schema.materials.quantity, schema.materials.minStock))
+    .orderBy(schema.materials.name);
+}
+
+export async function getCriticalStockMaterials() {
+  return await db.select()
+    .from(schema.materials)
+    .where(lte(schema.materials.quantity, schema.materials.criticalThreshold))
+    .orderBy(schema.materials.name);
+}
+
+export async function getAdminUsersWithSMS() {
+  return await db.select()
+    .from(schema.users)
+    .where(and(eq(schema.users.role, 'admin'), eq(schema.users.smsNotificationsEnabled, true)));
+}
+
+export async function updateUserSMSSettings(userId: number, phoneNumber: string, enabled: boolean) {
+  await db.update(schema.users)
+    .set({ phoneNumber, smsNotificationsEnabled: enabled, updatedAt: new Date() })
+    .where(eq(schema.users.id, userId));
+  return true;
+}
+
+export async function recordConsumption(consumption: any) {
+  // Simple implementation: update material quantity
+  const materialId = consumption.materialId;
+  const quantity = consumption.quantity;
+
+  const material = await db.select().from(schema.materials).where(eq(schema.materials.id, materialId));
+  if (material[0]) {
+    await db.update(schema.materials)
+      .set({
+        quantity: Math.max(0, material[0].quantity - quantity),
+        updatedAt: new Date()
+      })
+      .where(eq(schema.materials.id, materialId));
+  }
+  return true;
+}
+
+export async function getConsumptionHistory(materialId?: number, days: number = 30) {
+  // This would typically query a consumption table, which we don't have yet in schema.ts
+  // For now, return empty or implement if table exists.
+  return [];
+}
+
 export async function calculateDailyConsumptionRate(materialId: number, days?: number) { return 0; }
 export async function generateForecastPredictions() { return []; }
 export async function getForecastPredictions() { return []; }

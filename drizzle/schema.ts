@@ -125,21 +125,35 @@ export const batchIngredients = pgTable("batch_ingredients", {
  */
 export const deliveries = pgTable("deliveries", {
     id: serial("id").primaryKey(),
-    projectId: integer("projectId").references(() => projects.id).notNull(),
-    recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
+    projectId: integer("projectId").references(() => projects.id),
+    projectName: varchar("projectName", { length: 255 }),
+    recipeId: integer("recipeId").references(() => concreteRecipes.id),
+    concreteType: varchar("concreteType", { length: 100 }),
+    volume: doublePrecision("volume"),
     batchId: integer("batchId").references(() => mixingLogs.id),
     ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
     truckNumber: varchar("truckNumber", { length: 50 }),
+    vehicleNumber: varchar("vehicleNumber", { length: 50 }),
     driverId: integer("driverId").references(() => users.id),
+    driverName: varchar("driverName", { length: 255 }),
     status: varchar("status", { length: 20 }).default("scheduled").notNull(), // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
     scheduledTime: timestamp("scheduledTime").notNull(),
     startTime: timestamp("startTime"),
     arrivalTime: timestamp("arrivalTime"),
     deliveryTime: timestamp("deliveryTime"),
     completionTime: timestamp("completionTime"),
+    estimatedArrival: integer("estimatedArrival"),
+    actualArrivalTime: integer("actualArrivalTime"),
+    actualDeliveryTime: integer("actualDeliveryTime"),
     gpsLocation: varchar("gpsLocation", { length: 100 }), // lat,lng
     photos: text("photos"), // JSON array of strings
+    deliveryPhotos: text("deliveryPhotos"), // JSON array of strings (backwards compat)
     notes: text("notes"),
+    driverNotes: text("driverNotes"),
+    customerName: varchar("customerName", { length: 255 }),
+    customerPhone: varchar("customerPhone", { length: 50 }),
+    smsNotificationSent: boolean("smsNotificationSent").default(false),
+    createdBy: integer("createdBy").references(() => users.id),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -151,17 +165,26 @@ export const qualityTests = pgTable("quality_tests", {
     id: serial("id").primaryKey(),
     deliveryId: integer("deliveryId").references(() => deliveries.id),
     projectId: integer("projectId").references(() => projects.id),
+    testName: varchar("testName", { length: 255 }),
     testType: varchar("testType", { length: 50 }).notNull(), // slump, strength, air_content, temperature, other
-    resultValue: varchar("resultValue", { length: 100 }),
+    result: varchar("result", { length: 100 }),
+    resultValue: varchar("resultValue", { length: 100 }), // legacy
+    unit: varchar("unit", { length: 50 }),
     status: varchar("status", { length: 20 }).default("pending").notNull(), // pass, fail, pending
-    testedBy: integer("testedBy").references(() => users.id),
+    testedByUserId: integer("testedByUserId").references(() => users.id),
+    testedBy: varchar("testedBy", { length: 255 }), // can be string name or user ID
     testedAt: timestamp("testedAt").notNull().defaultNow(),
     photos: text("photos"), // JSON array
+    photoUrls: text("photoUrls"), // JSON array (backwards compat)
+    notes: text("notes"),
     inspectorSignature: text("inspectorSignature"), // base64
     supervisorSignature: text("supervisorSignature"), // base64
     gpsLocation: varchar("gpsLocation", { length: 100 }),
+    testLocation: varchar("testLocation", { length: 100 }),
     standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
+    complianceStandard: varchar("complianceStandard", { length: 100 }),
     syncStatus: varchar("syncStatus", { length: 20 }).default("synced"), // synced, pending, failed
+    offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
