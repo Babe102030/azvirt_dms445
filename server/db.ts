@@ -1397,161 +1397,273 @@ export async function updateUserSMSSettings(userId: number, phoneNumber: string,
 
 // Material Consumption Tracking
 export async function recordConsumption(consumption: InsertMaterialConsumptionLog) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (l:MaterialConsumptionLog {
+        id: toInteger(timestamp()),
+        materialId: $materialId,
+        quantity: toInteger($quantity),
+        reason: $reason,
+        projectId: $projectId,
+        consumptionDate: datetime($consumptionDate),
+        recordedBy: $recordedBy,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH l
+      MATCH (m:Material {id: $materialId})
+      MERGE (m)-[:CONSUMED]->(l)
+      WITH l, m
+      SET m.quantity = CASE WHEN m.quantity - l.quantity < 0 THEN 0 ELSE m.quantity - l.quantity END,
+          m.updatedAt = datetime()
+      WITH l
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (l)-[:USED_FOR]->(p)
+      )
+    `;
 
-  await db.insert(materialConsumptionLog).values(consumption);
-
-  // Update material quantity
-  if (consumption.materialId) {
-    const currentMaterials = await getMaterials();
-    const material = currentMaterials.find(m => m.id === consumption.materialId);
-    if (material) {
-      await updateMaterial(consumption.materialId, {
-        quantity: Math.max(0, material.quantity - consumption.quantity)
-      });
-    }
+    await session.run(query, {
+      materialId: consumption.materialId,
+      quantity: consumption.quantity,
+      reason: consumption.reason || '',
+      projectId: consumption.projectId || null,
+      consumptionDate: consumption.consumptionDate.toISOString(),
+      recordedBy: consumption.recordedBy || null
+    });
+  } catch (e) {
+    console.error("Failed to record consumption", e);
+    throw e;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getConsumptionHistory(materialId?: number, days: number = 30) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = `
+      MATCH (l:MaterialConsumptionLog)
+      WHERE l.consumptionDate >= datetime() - duration({days: $days})
+    `;
+    let params: any = { days };
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
+    if (materialId) {
+      query += ' AND l.materialId = $materialId';
+      params.materialId = materialId;
+    }
 
-  let query = db.select().from(materialConsumptionLog);
+    query += ' RETURN l ORDER BY l.consumptionDate DESC';
 
-  if (materialId) {
-    query = query.where(eq(materialConsumptionLog.materialId, materialId)) as any;
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'l'));
+  } finally {
+    await session.close();
   }
-
-  const result = await query.orderBy(desc(materialConsumptionLog.consumptionDate));
-  return result;
 }
 
 export async function calculateDailyConsumptionRate(materialId: number, days: number = 30) {
-  const db = await getDb();
-  if (!db) return 0;
+  const session = getSession();
+  try {
+    const result = await session.run(`
+      MATCH (l:MaterialConsumptionLog)
+      WHERE l.materialId = $materialId AND l.consumptionDate >= datetime() - duration({days: $days})
+      RETURN 
+        sum(l.quantity) as totalConsumed,
+        count(DISTINCT date(l.consumptionDate)) as uniqueDays
+    `, { materialId, days });
 
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
+    if (result.records.length === 0) return 0;
 
-  const consumptions = await db
-    .select()
-    .from(materialConsumptionLog)
-    .where(eq(materialConsumptionLog.materialId, materialId));
+    const record = result.records[0];
+    const total = record.get('totalConsumed').toNumber();
+    const uniqueDays = record.get('uniqueDays').toNumber();
 
-  if (consumptions.length === 0) return 0;
-
-  const totalConsumed = consumptions.reduce((sum, c) => sum + c.quantity, 0);
-  const uniqueDays = new Set(consumptions.map(c =>
-    new Date(c.consumptionDate).toDateString()
-  )).size;
-
-  return uniqueDays > 0 ? totalConsumed / uniqueDays : 0;
+    return uniqueDays > 0 ? total / uniqueDays : 0;
+  } finally {
+    await session.close();
+  }
 }
 
 // Forecasting & Predictions
 export async function generateForecastPredictions() {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const allMaterials = await getMaterials();
+    const predictions: any[] = [];
 
-  const allMaterials = await getMaterials();
-  const predictions: InsertForecastPrediction[] = [];
+    // Clear old predictions
+    await session.run('MATCH (fp:ForecastPrediction) DETACH DELETE fp');
 
-  for (const material of allMaterials) {
-    const dailyRate = await calculateDailyConsumptionRate(material.id, 30);
+    for (const material of allMaterials) {
+      const dailyRate = await calculateDailyConsumptionRate(material.id, 30);
 
-    if (dailyRate > 0) {
-      const daysUntilStockout = Math.floor(material.quantity / dailyRate);
-      const predictedRunoutDate = new Date();
-      predictedRunoutDate.setDate(predictedRunoutDate.getDate() + daysUntilStockout);
+      if (dailyRate > 0) {
+        const daysUntilStockout = Math.floor(material.quantity / dailyRate);
+        const predictedRunoutDate = new Date();
+        predictedRunoutDate.setDate(predictedRunoutDate.getDate() + daysUntilStockout);
+        const recommendedOrderQty = Math.ceil(dailyRate * 14 * 1.2);
 
-      // Calculate recommended order quantity (2 weeks supply + buffer)
-      const recommendedOrderQty = Math.ceil(dailyRate * 14 * 1.2);
+        // Confidence calculation (simplified)
+        const history = await getConsumptionHistory(material.id, 30);
+        const confidence = Math.min(95, history.length * 3);
 
-      // Simple confidence based on data availability
-      const consumptions = await getConsumptionHistory(material.id, 30);
-      const confidence = Math.min(95, consumptions.length * 3);
+        const prediction = {
+          materialId: material.id,
+          materialName: material.name,
+          currentStock: material.quantity,
+          dailyConsumptionRate: Math.round(dailyRate),
+          predictedRunoutDate: predictedRunoutDate.toISOString(),
+          daysUntilStockout,
+          recommendedOrderQty,
+          confidence,
+          calculatedAt: new Date().toISOString()
+        };
+        predictions.push(prediction);
 
-      predictions.push({
-        materialId: material.id,
-        materialName: material.name,
-        currentStock: material.quantity,
-        dailyConsumptionRate: Math.round(dailyRate),
-        predictedRunoutDate,
-        daysUntilStockout,
-        recommendedOrderQty,
-        confidence,
-        calculatedAt: new Date(),
-      });
+        await session.run(`
+          CREATE (fp:ForecastPrediction {
+            id: toInteger(timestamp()),
+            materialId: $materialId,
+            materialName: $materialName,
+            currentStock: toInteger($currentStock),
+            dailyConsumptionRate: toInteger($dailyConsumptionRate),
+            predictedRunoutDate: datetime($predictedRunoutDate),
+            daysUntilStockout: toInteger($daysUntilStockout),
+            recommendedOrderQty: toInteger($recommendedOrderQty),
+            confidence: toInteger($confidence),
+            calculatedAt: datetime($calculatedAt)
+          })
+          WITH fp
+          MATCH (m:Material {id: $materialId})
+          MERGE (m)-[:HAS_PREDICTION]->(fp)
+        `, prediction);
+      }
     }
+    return predictions;
+  } finally {
+    await session.close();
   }
-
-  // Clear old predictions and insert new ones
-  await db.delete(forecastPredictions);
-  if (predictions.length > 0) {
-    await db.insert(forecastPredictions).values(predictions);
-  }
-
-  return predictions;
 }
 
 export async function getForecastPredictions() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select().from(forecastPredictions).orderBy(forecastPredictions.daysUntilStockout);
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (fp:ForecastPrediction) RETURN fp ORDER BY fp.daysUntilStockout');
+    return result.records.map(r => recordToObj(r, 'fp'));
+  } finally {
+    await session.close();
+  }
 }
 
 // Purchase Orders
 export async function createPurchaseOrder(order: InsertPurchaseOrder) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (po:PurchaseOrder {
+        id: toInteger(timestamp()),
+        materialId: $materialId,
+        quantity: toInteger($quantity),
+        orderDate: datetime($orderDate),
+        expectedDeliveryDate: datetime($expectedDeliveryDate),
+        status: $status,
+        supplier: $supplier,
+        notes: $notes,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH po
+      MATCH (m:Material {id: $materialId})
+      MERGE (po)-[:FOR_MATERIAL]->(m)
+      RETURN po
+    `;
 
-  await db.insert(purchaseOrders).values(order);
+    await session.run(query, {
+      materialId: order.materialId,
+      quantity: order.quantity,
+      orderDate: order.orderDate.toISOString(),
+      expectedDeliveryDate: order.expectedDeliveryDate ? order.expectedDeliveryDate.toISOString() : null,
+      status: order.status || 'pending',
+      supplier: order.supplier || '',
+      notes: order.notes || ''
+    });
+  } catch (e) {
+    console.error("Failed to create purchase order", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getPurchaseOrders(filters?: { status?: string; materialId?: number }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (po:PurchaseOrder)';
+    let params: any = {};
+    let where = [];
 
-  let conditions: any[] = [];
+    if (filters?.status) {
+      where.push('po.status = $status');
+      params.status = filters.status;
+    }
+    if (filters?.materialId) {
+      where.push('po.materialId = $materialId');
+      params.materialId = filters.materialId;
+    }
 
-  if (filters?.status) {
-    conditions.push(eq(purchaseOrders.status, filters.status as any));
+    if (where.length > 0) {
+      query += ' WHERE ' + where.join(' AND ');
+    }
+    query += ' RETURN po ORDER BY po.createdAt DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'po'));
+  } finally {
+    await session.close();
   }
-
-  if (filters?.materialId) {
-    conditions.push(eq(purchaseOrders.materialId, filters.materialId));
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  return await db
-    .select()
-    .from(purchaseOrders)
-    .where(whereClause)
-    .orderBy(desc(purchaseOrders.createdAt));
 }
 
 export async function updatePurchaseOrder(id: number, data: Partial<InsertPurchaseOrder>) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    let sets = [];
+    let params: any = { id };
 
-  await db.update(purchaseOrders).set(data).where(eq(purchaseOrders.id, id));
+    Object.keys(data).forEach(key => {
+      if (key === 'id') return;
+      if (key === 'quantity') {
+        sets.push(`po.${key} = toInteger($${key})`);
+      } else if (data[key] instanceof Date) {
+        sets.push(`po.${key} = datetime($${key})`);
+        params[key] = data[key].toISOString();
+      } else {
+        sets.push(`po.${key} = $${key}`);
+      }
+      if (!(data[key] instanceof Date)) params[key] = data[key];
+    });
+
+    sets.push('po.updatedAt = datetime()');
+    if (sets.length === 0) return;
+
+    await session.run(`MATCH (po:PurchaseOrder {id: $id}) SET ${sets.join(', ')}`, params);
+  } finally {
+    await session.close();
+  }
 }
 
 
 // Report Settings
 export async function getReportSettings(userId: number) {
-  const db = await getDb();
-  if (!db) return null;
-
-  const results = await db.select().from(reportSettings).where(eq(reportSettings.userId, userId)).limit(1);
-  return results[0] || null;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (u:User {id: $userId})-[:HAS_SETTINGS]->(rs:ReportSettings) RETURN rs', { userId });
+    if (result.records.length === 0) return null;
+    return recordToObj(result.records[0], 'rs');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function upsertReportSettings(data: {
@@ -1562,87 +1674,116 @@ export async function upsertReportSettings(data: {
   includeQualityControl?: boolean;
   reportTime?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MATCH (u:User {id: $userId})
+      MERGE (u)-[:HAS_SETTINGS]->(rs:ReportSettings)
+      ON CREATE SET
+        rs.id = toInteger(timestamp()),
+        rs.userId = $userId,
+        rs.includeProduction = $includeProduction,
+        rs.includeDeliveries = $includeDeliveries,
+        rs.includeMaterials = $includeMaterials,
+        rs.includeQualityControl = $includeQualityControl,
+        rs.reportTime = $reportTime,
+        rs.createdAt = datetime(),
+        rs.updatedAt = datetime()
+      ON MATCH SET
+        rs.includeProduction = COALESCE($includeProduction, rs.includeProduction),
+        rs.includeDeliveries = COALESCE($includeDeliveries, rs.includeDeliveries),
+        rs.includeMaterials = COALESCE($includeMaterials, rs.includeMaterials),
+        rs.includeQualityControl = COALESCE($includeQualityControl, rs.includeQualityControl),
+        rs.reportTime = COALESCE($reportTime, rs.reportTime),
+        rs.updatedAt = datetime()
+      RETURN rs.id as id
+    `;
 
-  const existing = await getReportSettings(data.userId);
-
-  if (existing) {
-    await db.update(reportSettings)
-      .set({
-        includeProduction: data.includeProduction ?? existing.includeProduction,
-        includeDeliveries: data.includeDeliveries ?? existing.includeDeliveries,
-        includeMaterials: data.includeMaterials ?? existing.includeMaterials,
-        includeQualityControl: data.includeQualityControl ?? existing.includeQualityControl,
-        reportTime: data.reportTime ?? existing.reportTime,
-        updatedAt: new Date(),
-      })
-      .where(eq(reportSettings.id, existing.id));
-    return existing.id;
-  } else {
-    await db.insert(reportSettings).values({
+    const result = await session.run(query, {
       userId: data.userId,
-      includeProduction: data.includeProduction ?? true,
-      includeDeliveries: data.includeDeliveries ?? true,
-      includeMaterials: data.includeMaterials ?? true,
-      includeQualityControl: data.includeQualityControl ?? true,
-      reportTime: data.reportTime ?? '18:00',
+      includeProduction: data.includeProduction !== undefined ? data.includeProduction : true,
+      includeDeliveries: data.includeDeliveries !== undefined ? data.includeDeliveries : true,
+      includeMaterials: data.includeMaterials !== undefined ? data.includeMaterials : true,
+      includeQualityControl: data.includeQualityControl !== undefined ? data.includeQualityControl : true,
+      reportTime: data.reportTime || '18:00'
     });
-    return 0; // MySQL doesn't support returning()
+
+    return result.records[0]?.get('id').toNumber() || 0;
+  } finally {
+    await session.close();
   }
 }
 
 // Report Recipients
 export async function getReportRecipients() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select().from(reportRecipients).where(eq(reportRecipients.active, true));
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (r:ReportRecipient) WHERE r.active = true RETURN r');
+    return result.records.map(r => recordToObj(r, 'r'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getAllReportRecipients() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select().from(reportRecipients).orderBy(desc(reportRecipients.createdAt));
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (r:ReportRecipient) RETURN r ORDER BY r.createdAt DESC');
+    return result.records.map(r => recordToObj(r, 'r'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function addReportRecipient(email: string, name?: string) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.insert(reportRecipients).values({
-    email,
-    name: name || null,
-    active: true,
-  });
-  return 0;
+  const session = getSession();
+  try {
+    await session.run(`
+      CREATE (r:ReportRecipient {
+        id: toInteger(timestamp()),
+        email: $email,
+        name: $name,
+        active: true,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+    `, { email, name: name || '' });
+    return 0;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function removeReportRecipient(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.update(reportRecipients)
-    .set({ active: false })
-    .where(eq(reportRecipients.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (r:ReportRecipient {id: $id}) SET r.active = false, r.updatedAt = datetime()', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 
 // Email Templates
 export async function getEmailTemplates() {
-  const db = await getDb();
-  if (!db) return [];
-
-  return await db.select().from(emailTemplates).where(eq(emailTemplates.isActive, true));
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (et:EmailTemplate {isActive: true}) RETURN et');
+    return result.records.map(r => recordToObj(r, 'et'));
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getEmailTemplateByType(type: string) {
-  const db = await getDb();
-  if (!db) return null;
-
-  const results = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type)).limit(1);
-  return results[0] || null;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (et:EmailTemplate {type: $type}) RETURN et', { type });
+    if (result.records.length === 0) return null;
+    return recordToObj(result.records[0], 'et');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function upsertEmailTemplate(data: {
@@ -1652,42 +1793,51 @@ export async function upsertEmailTemplate(data: {
   htmlTemplate: string;
   variables?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MERGE (et:EmailTemplate {type: $type})
+      ON CREATE SET
+        et.id = toInteger(timestamp()),
+        et.name = $name,
+        et.subject = $subject,
+        et.htmlTemplate = $htmlTemplate,
+        et.variables = $variables,
+        et.isActive = true,
+        et.createdAt = datetime(),
+        et.updatedAt = datetime()
+      ON MATCH SET
+        et.name = $name,
+        et.subject = $subject,
+        et.htmlTemplate = $htmlTemplate,
+        et.variables = $variables,
+        et.updatedAt = datetime()
+      RETURN et.id as id
+    `;
 
-  const existing = await getEmailTemplateByType(data.type);
-
-  if (existing) {
-    await db.update(emailTemplates)
-      .set({
-        name: data.name,
-        subject: data.subject,
-        htmlTemplate: data.htmlTemplate,
-        variables: data.variables,
-        updatedAt: new Date(),
-      })
-      .where(eq(emailTemplates.id, existing.id));
-    return existing.id;
-  } else {
-    await db.insert(emailTemplates).values({
+    const result = await session.run(query, {
       name: data.name,
       type: data.type,
       subject: data.subject,
       htmlTemplate: data.htmlTemplate,
-      variables: data.variables,
-      isActive: true,
+      variables: data.variables || ''
     });
-    return 0;
+    return result.records[0]?.get('id').toNumber() || 0;
+  } finally {
+    await session.close();
   }
 }
 
 // Email Branding
 export async function getEmailBranding() {
-  const db = await getDb();
-  if (!db) return null;
-
-  const results = await db.select().from(emailBranding).limit(1);
-  return results[0] || null;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (eb:EmailBranding) RETURN eb LIMIT 1');
+    if (result.records.length === 0) return null;
+    return recordToObj(result.records[0], 'eb');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function upsertEmailBranding(data: {
@@ -1697,32 +1847,39 @@ export async function upsertEmailBranding(data: {
   companyName?: string;
   footerText?: string;
 }) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      MERGE (eb:EmailBranding {id: 1})
+      ON CREATE SET
+        eb.logoUrl = $logoUrl,
+        eb.primaryColor = $primaryColor,
+        eb.secondaryColor = $secondaryColor,
+        eb.companyName = $companyName,
+        eb.footerText = $footerText,
+        eb.createdAt = datetime(),
+        eb.updatedAt = datetime()
+      ON MATCH SET
+        eb.logoUrl = COALESCE($logoUrl, eb.logoUrl),
+        eb.primaryColor = COALESCE($primaryColor, eb.primaryColor),
+        eb.secondaryColor = COALESCE($secondaryColor, eb.secondaryColor),
+        eb.companyName = COALESCE($companyName, eb.companyName),
+        eb.footerText = COALESCE($footerText, eb.footerText),
+        eb.updatedAt = datetime()
+      RETURN eb.id as id
+    `;
 
-  const existing = await getEmailBranding();
-
-  if (existing) {
-    await db.update(emailBranding)
-      .set({
-        logoUrl: data.logoUrl ?? existing.logoUrl,
-        primaryColor: data.primaryColor ?? existing.primaryColor,
-        secondaryColor: data.secondaryColor ?? existing.secondaryColor,
-        companyName: data.companyName ?? existing.companyName,
-        footerText: data.footerText ?? existing.footerText,
-        updatedAt: new Date(),
-      })
-      .where(eq(emailBranding.id, existing.id));
-    return existing.id;
-  } else {
-    await db.insert(emailBranding).values({
+    const result = await session.run(query, {
       logoUrl: data.logoUrl || null,
       primaryColor: data.primaryColor || "#f97316",
       secondaryColor: data.secondaryColor || "#ea580c",
       companyName: data.companyName || "AzVirt",
-      footerText: data.footerText || null,
+      footerText: data.footerText || null
     });
-    return 0;
+
+    return result.records[0]?.get('id').toNumber() || 0;
+  } finally {
+    await session.close();
   }
 }
 
