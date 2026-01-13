@@ -29,6 +29,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  console.log("Starting server initialization...");
   const app = express();
   const server = createServer(app);
   // Configure body parser with larger size limit for file uploads
@@ -55,6 +56,7 @@ async function startServer() {
   // Force using static files for now to serve built assets
   serveStatic(app);
 
+  console.log("Finding available port...");
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);
 
@@ -62,6 +64,7 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  console.log(`Attempting to listen on port ${port}...`);
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
 
