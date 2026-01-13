@@ -1,191 +1,174 @@
-import { eq, desc, like, and, or, gte, lte, lt, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
-import {
-  InsertUser, users,
-  documents, InsertDocument,
-  projects, InsertProject,
-  materials, InsertMaterial,
-  deliveries, InsertDelivery,
-  qualityTests, InsertQualityTest,
-  employees, InsertEmployee,
-  workHours, InsertWorkHour,
-  concreteBases, InsertConcreteBase,
-  machines, InsertMachine,
-  machineMaintenance, InsertMachineMaintenance,
-  machineWorkHours, InsertMachineWorkHour,
-  aggregateInputs, InsertAggregateInput,
-  materialConsumptionLog, InsertMaterialConsumptionLog,
-  purchaseOrders, InsertPurchaseOrder,
-  forecastPredictions, InsertForecastPrediction,
-  aiConversations,
-  aiMessages,
-  aiModels,
-  reportSettings,
-  reportRecipients,
-  emailBranding,
-  emailTemplates,
-  notificationTemplates,
-  notificationTriggers,
-  triggerExecutionLog,
-  shiftTemplates, InsertShiftTemplate,
-  shifts, InsertShift,
-  employeeAvailability, InsertEmployeeAvailability,
-  breakRules, InsertBreakRule,
-  breakRecords, InsertBreakRecord,
-  complianceAuditTrail, InsertComplianceAuditTrail,
-  timesheetOfflineCache, InsertTimesheetOfflineCache,
-  jobSites, InsertJobSite,
-  geofences, InsertGeofence,
-  locationLogs, InsertLocationLog,
-  geofenceViolations, InsertGeofenceViolation
-} from "../drizzle/schema";
+import driver, { getSession } from './db/neo4j';
 import { ENV } from './_core/env';
+import { InsertUser, InsertDocument, InsertProject, InsertMaterial, InsertDelivery, InsertQualityTest, InsertEmployee, InsertWorkHour, InsertConcreteBase, InsertMachine, InsertMachineMaintenance, InsertMachineWorkHour, InsertAggregateInput, InsertMaterialConsumptionLog } from "../drizzle/schema";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+// Helper to convert Neo4j Node to JS Object
+const recordToObj = (record: any, key: string = 'n') => {
+  if (!record || !record.get(key)) return null;
+  const node = record.get(key);
+  return { ...node.properties, id: parseInt(node.properties.id) }; // Ensure ID is int for app compatibility
+};
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      const { createClient } = await import('@libsql/client');
-      const client = createClient({
-        url: process.env.DATABASE_URL
-      });
-      _db = drizzle(client);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
-  }
-  return _db;
-}
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
+  if (!user.openId) throw new Error("User openId is required for upsert");
 
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot upsert user: database not available");
-    return;
-  }
-
+  const session = getSession();
   try {
-    const values: InsertUser = {
+    const role = user.role || (user.openId === ENV.ownerOpenId ? 'admin' : 'user');
+
+    // We strictly assume Migrated Users have integer-like IDs coming back as integers or we handle them.
+    // Neo4j properties are just properties.
+    await session.run(`
+      MERGE (u:User {openId: $openId})
+      ON CREATE SET 
+        u.id = toInteger(timestamp()),  // Simple ID generation for new users
+        u.name = $name,
+        u.email = $email,
+        u.loginMethod = $loginMethod,
+        u.role = $role,
+        u.lastSignedIn = datetime(),
+        u.createdAt = datetime(),
+        u.updatedAt = datetime()
+      ON MATCH SET
+        u.name = COALESCE($name, u.name),
+        u.email = COALESCE($email, u.email),
+        u.loginMethod = COALESCE($loginMethod, u.loginMethod),
+        u.lastSignedIn = datetime(),
+        u.updatedAt = datetime()
+    `, {
       openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
-
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
-
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
-
-    textFields.forEach(assignNullable);
-
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
-    }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
+      name: user.name || null,
+      email: user.email || null,
+      loginMethod: user.loginMethod || null,
+      role: role
     });
+
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;
+  } finally {
+    await session.close();
   }
 }
 
 export async function getUserByOpenId(openId: string) {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
+  const session = getSession();
+  try {
+    const result = await session.run(
+      'MATCH (u:User {openId: $openId}) RETURN u',
+      { openId }
+    );
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'u');
+  } finally {
+    await session.close();
   }
-
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
 }
 
 // Documents
+// Documents
 export async function createDocument(doc: InsertDocument) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  const session = getSession();
+  try {
+    const query = `
+      CREATE (d:Document {
+        id: toInteger(timestamp()),
+        name: $name,
+        description: $description,
+        fileKey: $fileKey,
+        fileUrl: $fileUrl,
+        mimeType: $mimeType,
+        fileSize: $fileSize,
+        category: $category,
+        uploadedBy: $uploadedBy,
+        projectId: $projectId,
+        createdAt: datetime(),
+        updatedAt: datetime()
+      })
+      WITH d
+      MATCH (u:User {id: $uploadedBy})
+      MERGE (u)-[:UPLOADED]->(d)
+      WITH d
+      OPTIONAL MATCH (p:Project {id: $projectId})
+      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
+        MERGE (p)-[:HAS_DOCUMENT]->(d)
+      )
+      RETURN d
+    `;
 
-  const result = await db.insert(documents).values(doc);
-  return result;
+    await session.run(query, {
+      name: doc.name,
+      description: doc.description || '',
+      fileKey: doc.fileKey,
+      fileUrl: doc.fileUrl,
+      mimeType: doc.mimeType || '',
+      fileSize: doc.fileSize || 0,
+      category: doc.category || 'other',
+      uploadedBy: doc.uploadedBy,
+      projectId: doc.projectId || null
+    });
+  } catch (e) {
+    console.error("Failed to create document", e);
+    throw e;
+  } finally {
+    await session.close();
+  }
 }
 
 export async function getDocuments(filters?: { projectId?: number; category?: string; search?: string }) {
-  const db = await getDb();
-  if (!db) return [];
+  const session = getSession();
+  try {
+    let query = 'MATCH (d:Document)';
+    let params: any = {};
+    let whereClauses = [];
 
-  let conditions: any[] = [];
+    if (filters?.projectId) {
+      query = 'MATCH (p:Project {id: $projectId})-[:HAS_DOCUMENT]->(d)';
+      params.projectId = filters.projectId;
+    }
 
-  if (filters?.projectId) {
-    conditions.push(eq(documents.projectId, filters.projectId));
+    if (filters?.category) {
+      whereClauses.push('d.category = $category');
+      params.category = filters.category;
+    }
+
+    if (filters?.search) {
+      whereClauses.push('(toLower(d.name) CONTAINS toLower($search) OR toLower(d.description) CONTAINS toLower($search))');
+      params.search = filters.search;
+    }
+
+    if (whereClauses.length > 0) {
+      query += ' WHERE ' + whereClauses.join(' AND ');
+    }
+
+    query += ' RETURN d ORDER BY d.createdAt DESC';
+
+    const result = await session.run(query, params);
+    return result.records.map(r => recordToObj(r, 'd'));
+  } finally {
+    await session.close();
   }
-
-  if (filters?.category) {
-    conditions.push(eq(documents.category, filters.category as any));
-  }
-
-  if (filters?.search) {
-    conditions.push(
-      or(
-        like(documents.name, `%${filters.search}%`),
-        like(documents.description, `%${filters.search}%`)
-      )
-    );
-  }
-
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-  const result = await db
-    .select()
-    .from(documents)
-    .where(whereClause)
-    .orderBy(desc(documents.createdAt));
-
-  return result;
 }
 
 export async function getDocumentById(id: number) {
-  const db = await getDb();
-  if (!db) return undefined;
-
-  const result = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  const session = getSession();
+  try {
+    const result = await session.run('MATCH (d:Document {id: $id}) RETURN d', { id });
+    if (result.records.length === 0) return undefined;
+    return recordToObj(result.records[0], 'd');
+  } finally {
+    await session.close();
+  }
 }
 
 export async function deleteDocument(id: number) {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-
-  await db.delete(documents).where(eq(documents.id, id));
+  const session = getSession();
+  try {
+    await session.run('MATCH (d:Document {id: $id}) DETACH DELETE d', { id });
+  } finally {
+    await session.close();
+  }
 }
 
 // Projects
