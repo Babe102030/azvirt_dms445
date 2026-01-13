@@ -1,41 +1,16 @@
-import driver, { getSession, recordToNative } from './db/neo4j';
 import { ENV } from './_core/env';
-import { drizzle } from 'drizzle-orm/libsql';
-import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from '../drizzle/schema';
 
-// Temporary types to replace Drizzle schema types
-type InsertUser = any;
-type InsertDocument = any;
-type InsertProject = any;
-type InsertMaterial = any;
-type InsertDelivery = any;
-type InsertQualityTest = any;
-type InsertEmployee = any;
-type InsertWorkHour = any;
-type InsertConcreteBase = any;
-type InsertMachine = any;
-type InsertMachineMaintenance = any;
-type InsertMachineWorkHour = any;
-type InsertAggregateInput = any;
-type InsertMaterialConsumptionLog = any;
-type InsertPurchaseOrder = any;
-type InsertShift = any;
-type InsertShiftTemplate = any;
-type InsertEmployeeAvailability = any;
-type InsertComplianceAuditTrail = any;
-type InsertBreakRecord = any;
-type InsertTimesheetOfflineCache = any;
+// PostgreSQL connection for Neon
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required");
+}
 
-// Helper to convert Neo4j Node to JS Object
-const recordToObj = recordToNative;
-
-// Drizzle/SQLite connection for components that still need it
-const sqliteClient = createClient({
-  url: process.env.DATABASE_URL || 'file:local.db',
-});
-
-export const db = drizzle(sqliteClient, { schema });
+const sql = postgres(connectionString);
+export const db = drizzle(sql, { schema });
 
 export async function getDb() {
   return db;
