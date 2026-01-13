@@ -1,158 +1,107 @@
-import { getDb } from '../server/db';
-import {
-    users, projects, documents,
-    materials, deliveries, employees,
-    machines, concreteBases, mixingLogs
-} from '../drizzle/schema';
+import { createClient } from '@libsql/client';
 import driver from '../server/db/neo4j';
-import * as schema from '../drizzle/schema';
 import dotenv from 'dotenv';
 dotenv.config();
 
 async function migrate() {
-    console.log('🚀 Starting migration check...');
+    console.log('🚀 Starting migration...');
 
-    const db = await getDb();
-    if (!db) {
-        console.error('❌ Failed to connect to SQLite source database');
-        process.exit(1);
-    }
+    const client = createClient({
+        url: process.env.DATABASE_URL
+    });
 
     const session = driver.session();
 
     try {
         // 1. Users
         console.log('Migrating Users...');
-        const allUsers = await db.select().from(users);
-        for (const user of allUsers) {
+        const usersRes = await client.execute("SELECT * FROM users");
+        for (const row of usersRes.rows) {
+            // Use string IDs since source is TEXT
             await session.run(`
-        MERGE (u:User {id: $id})
+        MERGE (u:User {id: toString($id)})
         SET u.name = $name,
             u.email = $email,
-            u.openId = $openId,
             u.role = $role,
-            u.phoneNumber = $phoneNumber
+            u.phoneNumber = $phone,
+            u.department = $department,
+            u.isActive = $isActive,
+            u.createdAt = $createdAt
       `, {
-                id: user.id,
-                name: user.name || '',
-                email: user.email || '',
-                openId: user.openId,
-                role: user.role,
-                phoneNumber: user.phoneNumber || ''
+                id: row.id,
+                name: row.name || '',
+                email: row.email || '',
+                role: row.role || 'user',
+                phone: row.phone || '',
+                department: row.department || '',
+                isActive: row.isActive ? true : false,
+                createdAt: row.createdAt
             });
         }
-        console.log(`✅ Migrated ${allUsers.length} users`);
+        console.log(`✅ Migrated ${usersRes.rows.length} users`);
 
-        // 2. Projects
-        console.log('Migrating Projects...');
-        const allProjects = await db.select().from(projects);
-        for (const project of allProjects) {
-            await session.run(`
-        MERGE (p:Project {id: $id})
-        SET p.name = $name,
-            p.description = $description,
-            p.status = $status,
-            p.location = $location,
-            p.startDate = $startDate,
-            p.endDate = $endDate
-      `, {
-                id: project.id,
-                name: project.name,
-                description: project.description || '',
-                status: project.status,
-                location: project.location || '',
-                startDate: project.startDate ? project.startDate.toISOString() : null,
-                endDate: project.endDate ? project.endDate.toISOString() : null
-            });
-
-            // User -> Project (Created By)
-            await session.run(`
-        MATCH (u:User {id: $createdBy}), (p:Project {id: $projectId})
-        MERGE (u)-[:CREATED]->(p)
-      `, {
-                createdBy: project.createdBy,
-                projectId: project.id
-            });
-        }
-        console.log(`✅ Migrated ${allProjects.length} projects`);
-
-        // 3. Documents
+        // 2. Documents
         console.log('Migrating Documents...');
-        const allDocs = await db.select().from(documents);
-        for (const doc of allDocs) {
+        const docRes = await client.execute("SELECT * FROM documents");
+        for (const row of docRes.rows) {
             await session.run(`
-        MERGE (d:Document {id: $id})
-        SET d.name = $name,
-            d.fileUrl = $fileUrl,
-            d.category = $category
+        MERGE (d:Document {id: toString($id)})
+        SET d.name = $title,
+            d.description = $description,
+            d.fileUrl = $filePath,
+            d.mimeType = $mimeType,
+            d.fileSize = toInteger($fileSize),
+            d.category = $documentType,
+            d.createdAt = $createdAt
       `, {
-                id: doc.id,
-                name: doc.name,
-                fileUrl: doc.fileUrl,
-                category: doc.category
+                id: row.id,
+                title: row.title || 'Untitled',
+                description: row.description || '',
+                filePath: row.filePath || '',
+                mimeType: row.mimeType || '',
+                fileSize: row.fileSize || 0,
+                documentType: row.documentType || 'other',
+                createdAt: row.createdAt
             });
 
-            // Project -> Document
-            if (doc.projectId) {
+            // User -> Document
+            if (row.createdById) {
                 await session.run(`
-          MATCH (p:Project {id: $projectId}), (d:Document {id: $docId})
-          MERGE (p)-[:HAS_DOCUMENT]->(d)
+          MATCH (u:User {id: toString($userId)}), (d:Document {id: toString($docId)})
+          MERGE (u)-[:UPLOADED]->(d)
         `, {
-                    projectId: doc.projectId,
-                    docId: doc.id
+                    userId: row.createdById,
+                    docId: row.id
                 });
             }
-
-            // User -> Document (Uploaded By)
-            await session.run(`
-        MATCH (u:User {id: $uploadedBy}), (d:Document {id: $docId})
-        MERGE (u)-[:UPLOADED]->(d)
-      `, {
-                uploadedBy: doc.uploadedBy,
-                docId: doc.id
-            });
         }
-        console.log(`✅ Migrated ${allDocs.length} documents`);
+        console.log(`✅ Migrated ${docRes.rows.length} documents`);
 
-        // 4. Employees
-        console.log('Migrating Employees...');
-        const allEmployees = await db.select().from(employees);
-        for (const emp of allEmployees) {
+        // 3. Materials
+        console.log('Migrating Materials...');
+        const matRes = await client.execute("SELECT * FROM materials");
+        for (const row of matRes.rows) {
             await session.run(`
-        MERGE (e:Employee {id: $id})
-        SET e.firstName = $firstName,
-            e.lastName = $lastName,
-            e.position = $position,
-            e.department = $department
-      `, {
-                id: emp.id,
-                firstName: emp.firstName,
-                lastName: emp.lastName,
-                position: emp.position,
-                department: emp.department
-            });
-        }
-        console.log(`✅ Migrated ${allEmployees.length} employees`);
-
-        // 5. Machines
-        console.log('Migrating Machines...');
-        const allMachines = await db.select().from(machines);
-        for (const machine of allMachines) {
-            await session.run(`
-        MERGE (m:Machine {id: $id})
+        MERGE (m:Material {id: toString($id)})
         SET m.name = $name,
-            m.type = $type,
-            m.status = $status,
-            m.model = $model
+            m.sku = $sku,
+            m.category = $category,
+            m.quantity = toInteger($currentQuantity),
+            m.unit = $unitOfMeasure,
+            m.unitPrice = toInteger($unitCost),
+            m.minStock = toInteger($reorderPoint)
       `, {
-                id: machine.id,
-                name: machine.name,
-                type: machine.type,
-                status: machine.status,
-                model: machine.model || ''
+                id: row.id,
+                name: row.name,
+                sku: row.sku || '',
+                category: row.category || 'other',
+                currentQuantity: row.currentQuantity || 0,
+                unitOfMeasure: row.unitOfMeasure || '',
+                unitCost: row.unitCost || 0,
+                reorderPoint: row.reorderPoint || 0
             });
         }
-        console.log(`✅ Migrated ${allMachines.length} machines`);
+        console.log(`✅ Migrated ${matRes.rows.length} materials`);
 
     } catch (error) {
         console.error('❌ Migration failed:', error);
