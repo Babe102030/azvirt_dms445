@@ -23,7 +23,7 @@ export const clerkBaseMiddleware = clerkMiddleware();
 export async function syncClerkUser(req: Request) {
     try {
         // Get the auth object from Clerk
-        const { userId } = (req as any).auth;
+        const { userId } = req.auth();
 
         if (!userId) {
             throw new Error("No user ID found in Clerk session");

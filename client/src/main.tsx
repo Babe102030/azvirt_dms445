@@ -8,6 +8,7 @@ import App from "./App";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import RTLInitializer from "./components/RTLInitializer";
 import { ClerkProvider } from "./components/ClerkProvider";
+import { useAuth } from "@clerk/clerk-react";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -40,31 +41,46 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
-const trpcClient = trpc.createClient({
-  links: [
-    httpBatchLink({
-      url: "/api/trpc",
-      transformer: superjson,
-      fetch(input, init) {
-        return globalThis.fetch(input, {
-          ...(init ?? {}),
-          credentials: "include",
-        });
-      },
-    }),
-  ],
-});
+// TRPC Provider that includes Clerk auth headers
+function TRPCProvider({ children }: { children: React.ReactNode }) {
+  const { getToken } = useAuth();
+
+  const trpcClient = trpc.createClient({
+    links: [
+      httpBatchLink({
+        url: "/api/trpc",
+        transformer: superjson,
+        async headers() {
+          const token = await getToken();
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        },
+        fetch(input, init) {
+          return globalThis.fetch(input, {
+            ...(init ?? {}),
+            credentials: "include",
+          });
+        },
+      }),
+    ],
+  });
+
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </trpc.Provider>
+  );
+}
 
 createRoot(document.getElementById("root")!).render(
   <ClerkProvider>
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <RTLInitializer>
-            <App />
-          </RTLInitializer>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <TRPCProvider>
+      <LanguageProvider>
+        <RTLInitializer>
+          <App />
+        </RTLInitializer>
+      </LanguageProvider>
+    </TRPCProvider>
   </ClerkProvider>
 );
