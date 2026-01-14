@@ -221,7 +221,32 @@ export async function createQualityTest(test: typeof schema.qualityTests.$inferI
 }
 
 export async function getQualityTests(filters?: { deliveryId?: number; projectId?: number; status?: string }) {
-  let query = db.select().from(schema.qualityTests);
+  let query = db.select({
+    id: schema.qualityTests.id,
+    deliveryId: schema.qualityTests.deliveryId,
+    projectId: schema.qualityTests.projectId,
+    testType: schema.qualityTests.testType,
+    result: schema.qualityTests.result,
+    resultValue: schema.qualityTests.resultValue,
+    unit: schema.qualityTests.unit,
+    status: schema.qualityTests.status,
+    testedByUserId: schema.qualityTests.testedByUserId,
+    testedBy: schema.qualityTests.testedBy,
+    testedAt: schema.qualityTests.testedAt,
+    photos: schema.qualityTests.photos,
+    photoUrls: schema.qualityTests.photoUrls,
+    notes: schema.qualityTests.notes,
+    inspectorSignature: schema.qualityTests.inspectorSignature,
+    supervisorSignature: schema.qualityTests.supervisorSignature,
+    gpsLocation: schema.qualityTests.gpsLocation,
+    testLocation: schema.qualityTests.testLocation,
+    standardUsed: schema.qualityTests.standardUsed,
+    complianceStandard: schema.qualityTests.complianceStandard,
+    syncStatus: schema.qualityTests.syncStatus,
+    offlineSyncStatus: schema.qualityTests.offlineSyncStatus,
+    createdAt: schema.qualityTests.createdAt,
+    updatedAt: schema.qualityTests.updatedAt
+  }).from(schema.qualityTests);
 
   const conditions = [];
   if (filters?.deliveryId) conditions.push(eq(schema.qualityTests.deliveryId, filters.deliveryId));
@@ -257,7 +282,12 @@ export async function getQualityTestTrends(days: number = 30) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
 
-  const tests = await db.select().from(schema.qualityTests).where(gte(schema.qualityTests.testedAt, cutoff));
+  const tests = await db.select({
+    id: schema.qualityTests.id,
+    status: schema.qualityTests.status,
+    testType: schema.qualityTests.testType,
+    testedAt: schema.qualityTests.testedAt
+  }).from(schema.qualityTests).where(gte(schema.qualityTests.testedAt, cutoff));
 
   const totalTests = tests.length;
   if (totalTests === 0) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
