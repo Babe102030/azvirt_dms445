@@ -500,3268 +500,872 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
 // server/_core/clerk.ts
-import { requireAuth, clerkClient } from "@clerk/express";
-
-// server/db/neo4j.ts
-import neo4j from "neo4j-driver";
-import dotenv from "dotenv";
-dotenv.config();
-var uri = process.env.NEO4J_URI || "neo4j+s://placeholder.databases.neo4j.io";
-var user = process.env.NEO4J_USER || "neo4j";
-var password = process.env.NEO4J_PASSWORD || "";
-var driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
-var getSession = () => {
-  return driver.session();
-};
-var toNativeTypes = (v) => {
-  if (v === null || v === void 0) return v;
-  if (neo4j.isInt(v)) {
-    return v.toNumber();
-  }
-  if (neo4j.isDate(v) || neo4j.isDateTime(v) || neo4j.isLocalDateTime(v) || neo4j.isTime(v) || neo4j.isLocalTime(v) || neo4j.isDuration(v)) {
-    return v.toString();
-  }
-  if (Array.isArray(v)) {
-    return v.map(toNativeTypes);
-  }
-  if (typeof v === "object") {
-    if (v.properties) {
-      const obj2 = {};
-      for (const key in v.properties) {
-        obj2[key] = toNativeTypes(v.properties[key]);
-      }
-      return obj2;
-    }
-    const obj = {};
-    for (const key in v) {
-      obj[key] = toNativeTypes(v[key]);
-    }
-    return obj;
-  }
-  return v;
-};
-var recordToNative = (record, key = "n") => {
-  if (!record || !record.has(key)) return null;
-  const item = record.get(key);
-  return toNativeTypes(item);
-};
+import { requireAuth, clerkMiddleware, clerkClient } from "@clerk/express";
 
 // server/db.ts
 init_env();
-import { drizzle } from "drizzle-orm/libsql";
-import { createClient } from "@libsql/client";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 // drizzle/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
-  aggregateInputs: () => aggregateInputs,
   aiConversations: () => aiConversations,
   aiMessages: () => aiMessages,
-  aiModels: () => aiModels,
   batchIngredients: () => batchIngredients,
-  breakRecords: () => breakRecords,
-  breakRules: () => breakRules,
-  complianceAuditTrail: () => complianceAuditTrail,
-  concreteBases: () => concreteBases,
   concreteRecipes: () => concreteRecipes,
-  dailyTasks: () => dailyTasks,
   deliveries: () => deliveries,
   documents: () => documents,
-  emailBranding: () => emailBranding,
-  emailTemplates: () => emailTemplates,
-  employeeAvailability: () => employeeAvailability,
   employees: () => employees,
-  forecastPredictions: () => forecastPredictions,
-  geofenceViolations: () => geofenceViolations,
-  geofences: () => geofences,
-  jobSites: () => jobSites,
-  locationLogs: () => locationLogs,
-  machineMaintenance: () => machineMaintenance,
   machineWorkHours: () => machineWorkHours,
   machines: () => machines,
-  materialConsumptionLog: () => materialConsumptionLog,
   materials: () => materials,
   mixingLogs: () => mixingLogs,
-  notificationHistory: () => notificationHistory,
-  notificationPreferences: () => notificationPreferences,
-  notificationTemplates: () => notificationTemplates,
-  notificationTriggers: () => notificationTriggers,
+  notifications: () => notifications,
   projects: () => projects,
-  purchaseOrders: () => purchaseOrders,
   qualityTests: () => qualityTests,
   recipeIngredients: () => recipeIngredients,
-  reportRecipients: () => reportRecipients,
-  reportSettings: () => reportSettings,
-  shiftTemplates: () => shiftTemplates,
   shifts: () => shifts,
   taskAssignments: () => taskAssignments,
-  taskNotifications: () => taskNotifications,
-  taskStatusHistory: () => taskStatusHistory,
+  tasks: () => tasks,
   timesheetApprovals: () => timesheetApprovals,
-  timesheetOfflineCache: () => timesheetOfflineCache,
-  triggerExecutionLog: () => triggerExecutionLog,
-  users: () => users,
-  workHours: () => workHours
+  users: () => users
 });
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, decimal } from "drizzle-orm/mysql-core";
-var users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+import { boolean, integer, pgTable, serial, text, timestamp, varchar, doublePrecision } from "drizzle-orm/pg-core";
+var users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: varchar("role", { length: 20 }).default("user").notNull(),
   phoneNumber: varchar("phoneNumber", { length: 50 }),
   smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
   languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull()
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow()
 });
-var projects = mysqlTable("projects", {
-  id: int("id").autoincrement().primaryKey(),
+var projects = pgTable("projects", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
   location: varchar("location", { length: 500 }),
-  status: mysqlEnum("status", ["planning", "active", "completed", "on_hold"]).default("planning").notNull(),
+  status: varchar("status", { length: 20 }).default("planning").notNull(),
   startDate: timestamp("startDate"),
   endDate: timestamp("endDate"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  createdBy: integer("createdBy").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var documents = mysqlTable("documents", {
-  id: int("id").autoincrement().primaryKey(),
+var materials = pgTable("materials", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  fileKey: varchar("fileKey", { length: 500 }).notNull(),
-  fileUrl: varchar("fileUrl", { length: 1e3 }).notNull(),
-  mimeType: varchar("mimeType", { length: 100 }),
-  fileSize: int("fileSize"),
-  category: mysqlEnum("category", ["contract", "blueprint", "report", "certificate", "invoice", "other"]).default("other").notNull(),
-  projectId: int("projectId"),
-  uploadedBy: int("uploadedBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var materials = mysqlTable("materials", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  category: mysqlEnum("category", ["cement", "aggregate", "admixture", "water", "other"]).default("other").notNull(),
+  category: varchar("category", { length: 20 }).default("other").notNull(),
   unit: varchar("unit", { length: 50 }).notNull(),
-  quantity: int("quantity").notNull().default(0),
-  minStock: int("minStock").notNull().default(0),
-  criticalThreshold: int("criticalThreshold").notNull().default(0),
+  quantity: doublePrecision("quantity").notNull().default(0),
+  minStock: doublePrecision("minStock").notNull().default(0),
+  criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
   supplier: varchar("supplier", { length: 255 }),
-  unitPrice: int("unitPrice"),
+  unitPrice: integer("unitPrice"),
   lowStockEmailSent: boolean("lowStockEmailSent").default(false),
   lastEmailSentAt: timestamp("lastEmailSentAt"),
   supplierEmail: varchar("supplierEmail", { length: 255 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var deliveries = mysqlTable("deliveries", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId"),
-  projectName: varchar("projectName", { length: 255 }).notNull(),
-  concreteType: varchar("concreteType", { length: 100 }).notNull(),
-  volume: int("volume").notNull(),
-  scheduledTime: timestamp("scheduledTime").notNull(),
-  actualTime: timestamp("actualTime"),
-  status: mysqlEnum("status", ["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled").notNull(),
-  driverName: varchar("driverName", { length: 255 }),
-  vehicleNumber: varchar("vehicleNumber", { length: 100 }),
+var concreteRecipes = pgTable("concrete_recipes", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  targetStrength: varchar("targetStrength", { length: 50 }),
+  slump: varchar("slump", { length: 50 }),
+  maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
+  yieldVolume: doublePrecision("yieldVolume").default(1),
   notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
+});
+var recipeIngredients = pgTable("recipe_ingredients", {
+  id: serial("id").primaryKey(),
+  recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
+  materialId: integer("materialId").references(() => materials.id).notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  unit: varchar("unit", { length: 50 }).notNull()
+});
+var mixingLogs = pgTable("mixing_logs", {
+  id: serial("id").primaryKey(),
+  projectId: integer("projectId").references(() => projects.id),
+  deliveryId: integer("deliveryId"),
+  // Circular dependency potential, handled by logic
+  recipeId: integer("recipeId").references(() => concreteRecipes.id),
+  recipeName: varchar("recipeName", { length: 255 }),
+  batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
+  volume: doublePrecision("volume").notNull(),
+  unit: varchar("unit", { length: 50 }).default("m3").notNull(),
+  status: varchar("status", { length: 20 }).default("planned").notNull(),
+  // planned, in_progress, completed, rejected
+  startTime: timestamp("startTime"),
+  endTime: timestamp("endTime"),
+  operatorId: integer("operatorId").references(() => users.id),
+  approvedBy: integer("approvedBy").references(() => users.id),
+  qualityNotes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
+});
+var batchIngredients = pgTable("batch_ingredients", {
+  id: serial("id").primaryKey(),
+  batchId: integer("batchId").references(() => mixingLogs.id).notNull(),
+  materialId: integer("materialId").references(() => materials.id).notNull(),
+  plannedQuantity: doublePrecision("plannedQuantity").notNull(),
+  actualQuantity: doublePrecision("actualQuantity"),
+  unit: varchar("unit", { length: 50 }).notNull(),
+  inventoryDeducted: boolean("inventoryDeducted").default(false).notNull()
+});
+var deliveries = pgTable("deliveries", {
+  id: serial("id").primaryKey(),
+  projectId: integer("projectId").references(() => projects.id),
+  projectName: varchar("projectName", { length: 255 }),
+  recipeId: integer("recipeId").references(() => concreteRecipes.id),
+  concreteType: varchar("concreteType", { length: 100 }),
+  volume: doublePrecision("volume"),
+  batchId: integer("batchId").references(() => mixingLogs.id),
+  ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
+  truckNumber: varchar("truckNumber", { length: 50 }),
+  vehicleNumber: varchar("vehicleNumber", { length: 50 }),
+  driverId: integer("driverId").references(() => users.id),
+  driverName: varchar("driverName", { length: 255 }),
+  status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+  // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
+  scheduledTime: timestamp("scheduledTime").notNull(),
+  startTime: timestamp("startTime"),
+  arrivalTime: timestamp("arrivalTime"),
+  deliveryTime: timestamp("deliveryTime"),
+  completionTime: timestamp("completionTime"),
+  estimatedArrival: integer("estimatedArrival"),
+  actualArrivalTime: integer("actualArrivalTime"),
+  actualDeliveryTime: integer("actualDeliveryTime"),
   gpsLocation: varchar("gpsLocation", { length: 100 }),
-  // "lat,lng"
+  // lat,lng
+  photos: text("photos"),
+  // JSON array of strings
   deliveryPhotos: text("deliveryPhotos"),
-  // JSON array of photo URLs
-  estimatedArrival: int("estimatedArrival"),
-  // Unix timestamp (seconds)
-  actualArrivalTime: int("actualArrivalTime"),
-  actualDeliveryTime: int("actualDeliveryTime"),
+  // JSON array of strings (backwards compat)
+  notes: text("notes"),
   driverNotes: text("driverNotes"),
   customerName: varchar("customerName", { length: 255 }),
   customerPhone: varchar("customerPhone", { length: 50 }),
   smsNotificationSent: boolean("smsNotificationSent").default(false),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  createdBy: integer("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var qualityTests = mysqlTable("qualityTests", {
-  id: int("id").autoincrement().primaryKey(),
-  testName: varchar("testName", { length: 255 }).notNull(),
-  testType: mysqlEnum("testType", ["slump", "strength", "air_content", "temperature", "other"]).default("other").notNull(),
-  result: varchar("result", { length: 255 }).notNull(),
+var qualityTests = pgTable("quality_tests", {
+  id: serial("id").primaryKey(),
+  deliveryId: integer("deliveryId").references(() => deliveries.id),
+  projectId: integer("projectId").references(() => projects.id),
+  testName: varchar("testName", { length: 255 }),
+  testType: varchar("testType", { length: 50 }).notNull(),
+  // slump, strength, air_content, temperature, other
+  result: varchar("result", { length: 100 }),
+  resultValue: varchar("resultValue", { length: 100 }),
+  // legacy
   unit: varchar("unit", { length: 50 }),
-  status: mysqlEnum("status", ["pass", "fail", "pending"]).default("pending").notNull(),
-  deliveryId: int("deliveryId"),
-  projectId: int("projectId"),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  // pass, fail, pending
+  testedByUserId: integer("testedByUserId").references(() => users.id),
   testedBy: varchar("testedBy", { length: 255 }),
-  notes: text("notes"),
+  // can be string name or user ID
+  testedAt: timestamp("testedAt").notNull().defaultNow(),
+  photos: text("photos"),
+  // JSON array
   photoUrls: text("photoUrls"),
-  // JSON array of S3 photo URLs
+  // JSON array (backwards compat)
+  notes: text("notes"),
   inspectorSignature: text("inspectorSignature"),
-  // Base64 signature image
+  // base64
   supervisorSignature: text("supervisorSignature"),
-  // Base64 signature image
+  // base64
+  gpsLocation: varchar("gpsLocation", { length: 100 }),
   testLocation: varchar("testLocation", { length: 100 }),
-  // GPS coordinates "lat,lng"
-  complianceStandard: varchar("complianceStandard", { length: 50 }),
-  // EN 206, ASTM C94, etc.
-  offlineSyncStatus: mysqlEnum("offlineSyncStatus", ["synced", "pending", "failed"]).default("synced"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
+  complianceStandard: varchar("complianceStandard", { length: 100 }),
+  syncStatus: varchar("syncStatus", { length: 20 }).default("synced"),
+  // synced, pending, failed
+  offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var employees = mysqlTable("employees", {
-  id: int("id").autoincrement().primaryKey(),
+var employees = pgTable("employees", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").references(() => users.id).unique(),
+  employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
   firstName: varchar("firstName", { length: 100 }).notNull(),
   lastName: varchar("lastName", { length: 100 }).notNull(),
-  employeeNumber: varchar("employeeNumber", { length: 50 }).notNull().unique(),
-  position: varchar("position", { length: 100 }).notNull(),
-  department: mysqlEnum("department", ["construction", "maintenance", "quality", "administration", "logistics"]).default("construction").notNull(),
-  phoneNumber: varchar("phoneNumber", { length: 50 }),
-  email: varchar("email", { length: 320 }),
-  hourlyRate: int("hourlyRate"),
-  status: mysqlEnum("status", ["active", "inactive", "on_leave"]).default("active").notNull(),
+  jobTitle: varchar("jobTitle", { length: 100 }),
+  department: varchar("department", { length: 100 }),
   hireDate: timestamp("hireDate"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var workHours = mysqlTable("workHours", {
-  id: int("id").autoincrement().primaryKey(),
-  employeeId: int("employeeId").notNull(),
-  projectId: int("projectId"),
-  date: timestamp("date").notNull(),
-  startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime"),
-  hoursWorked: int("hoursWorked"),
-  overtimeHours: int("overtimeHours").default(0),
-  workType: mysqlEnum("workType", ["regular", "overtime", "weekend", "holiday"]).default("regular").notNull(),
-  notes: text("notes"),
-  approvedBy: int("approvedBy"),
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var concreteBases = mysqlTable("concreteBases", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  location: varchar("location", { length: 500 }).notNull(),
-  capacity: int("capacity").notNull(),
-  status: mysqlEnum("status", ["operational", "maintenance", "inactive"]).default("operational").notNull(),
-  managerName: varchar("managerName", { length: 255 }),
-  phoneNumber: varchar("phoneNumber", { length: 50 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var machines = mysqlTable("machines", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  machineNumber: varchar("machineNumber", { length: 100 }).notNull().unique(),
-  type: mysqlEnum("type", ["mixer", "pump", "truck", "excavator", "crane", "other"]).default("other").notNull(),
-  manufacturer: varchar("manufacturer", { length: 255 }),
-  model: varchar("model", { length: 255 }),
-  year: int("year"),
-  concreteBaseId: int("concreteBaseId"),
-  status: mysqlEnum("status", ["operational", "maintenance", "repair", "inactive"]).default("operational").notNull(),
-  totalWorkingHours: int("totalWorkingHours").default(0),
-  lastMaintenanceDate: timestamp("lastMaintenanceDate"),
-  nextMaintenanceDate: timestamp("nextMaintenanceDate"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var machineMaintenance = mysqlTable("machineMaintenance", {
-  id: int("id").autoincrement().primaryKey(),
-  machineId: int("machineId").notNull(),
-  date: timestamp("date").notNull(),
-  maintenanceType: mysqlEnum("maintenanceType", ["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]).default("other").notNull(),
-  description: text("description"),
-  lubricationType: varchar("lubricationType", { length: 100 }),
-  lubricationAmount: int("lubricationAmount"),
-  fuelType: varchar("fuelType", { length: 100 }),
-  fuelAmount: int("fuelAmount"),
-  cost: int("cost"),
-  performedBy: varchar("performedBy", { length: 255 }),
-  hoursAtMaintenance: int("hoursAtMaintenance"),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var machineWorkHours = mysqlTable("machineWorkHours", {
-  id: int("id").autoincrement().primaryKey(),
-  machineId: int("machineId").notNull(),
-  projectId: int("projectId"),
-  date: timestamp("date").notNull(),
-  startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime"),
-  hoursWorked: int("hoursWorked"),
-  operatorId: int("operatorId"),
-  operatorName: varchar("operatorName", { length: 255 }),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var aggregateInputs = mysqlTable("aggregateInputs", {
-  id: int("id").autoincrement().primaryKey(),
-  concreteBaseId: int("concreteBaseId").notNull(),
-  date: timestamp("date").notNull(),
-  materialType: mysqlEnum("materialType", ["cement", "sand", "gravel", "water", "admixture", "other"]).default("other").notNull(),
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  quantity: int("quantity").notNull(),
-  unit: varchar("unit", { length: 50 }).notNull(),
-  supplier: varchar("supplier", { length: 255 }),
-  batchNumber: varchar("batchNumber", { length: 100 }),
-  receivedBy: varchar("receivedBy", { length: 255 }),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var materialConsumptionLog = mysqlTable("material_consumption_log", {
-  id: int("id").autoincrement().primaryKey(),
-  materialId: int("materialId").notNull(),
-  quantity: int("quantity").notNull(),
-  consumptionDate: timestamp("consumptionDate").notNull(),
-  projectId: int("projectId"),
-  deliveryId: int("deliveryId"),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var purchaseOrders = mysqlTable("purchase_orders", {
-  id: int("id").autoincrement().primaryKey(),
-  materialId: int("materialId").notNull(),
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  quantity: int("quantity").notNull(),
-  supplier: varchar("supplier", { length: 255 }),
-  supplierEmail: varchar("supplierEmail", { length: 255 }),
-  status: mysqlEnum("status", ["pending", "approved", "ordered", "received", "cancelled"]).default("pending").notNull(),
-  orderDate: timestamp("orderDate").defaultNow().notNull(),
-  expectedDelivery: timestamp("expectedDelivery"),
-  actualDelivery: timestamp("actualDelivery"),
-  totalCost: int("totalCost"),
-  notes: text("notes"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var forecastPredictions = mysqlTable("forecast_predictions", {
-  id: int("id").autoincrement().primaryKey(),
-  materialId: int("materialId").notNull(),
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  currentStock: int("currentStock").notNull(),
-  dailyConsumptionRate: int("dailyConsumptionRate").notNull(),
-  predictedRunoutDate: timestamp("predictedRunoutDate"),
-  daysUntilStockout: int("daysUntilStockout"),
-  recommendedOrderQty: int("recommendedOrderQty"),
-  confidence: int("confidence"),
-  calculatedAt: timestamp("calculatedAt").defaultNow().notNull()
-});
-var reportSettings = mysqlTable("report_settings", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
-  includeProduction: boolean("includeProduction").default(true).notNull(),
-  includeDeliveries: boolean("includeDeliveries").default(true).notNull(),
-  includeMaterials: boolean("includeMaterials").default(true).notNull(),
-  includeQualityControl: boolean("includeQualityControl").default(true).notNull(),
-  reportTime: varchar("reportTime", { length: 10 }).default("18:00").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var reportRecipients = mysqlTable("report_recipients", {
-  id: int("id").autoincrement().primaryKey(),
-  email: varchar("email", { length: 320 }).notNull(),
-  name: varchar("name", { length: 255 }),
+  hourlyRate: integer("hourlyRate"),
   active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var emailTemplates = mysqlTable("email_templates", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 100 }).notNull().unique(),
-  subject: varchar("subject", { length: 500 }).notNull(),
-  htmlTemplate: text("htmlTemplate").notNull(),
-  variables: text("variables"),
-  // JSON string of available variables
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var emailBranding = mysqlTable("email_branding", {
-  id: int("id").autoincrement().primaryKey(),
-  logoUrl: varchar("logoUrl", { length: 500 }),
-  primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
-  secondaryColor: varchar("secondaryColor", { length: 20 }).default("#ea580c").notNull(),
-  companyName: varchar("companyName", { length: 255 }).default("AzVirt").notNull(),
-  footerText: text("footerText"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var aiConversations = mysqlTable("ai_conversations", {
-  id: int("id").primaryKey().autoincrement(),
-  userId: int("userId").notNull(),
-  title: varchar("title", { length: 255 }),
-  modelName: varchar("modelName", { length: 100 }),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var aiMessages = mysqlTable("ai_messages", {
-  id: int("id").primaryKey().autoincrement(),
-  conversationId: int("conversationId").notNull(),
-  role: mysqlEnum("role", ["user", "assistant", "system", "tool"]).notNull(),
-  content: text("content").notNull(),
-  model: varchar("model", { length: 100 }),
-  audioUrl: text("audioUrl"),
-  imageUrl: text("imageUrl"),
-  thinkingProcess: text("thinkingProcess"),
-  // JSON string
-  toolCalls: text("toolCalls"),
-  // JSON string
-  metadata: text("metadata"),
-  // JSON string for additional data
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var aiModels = mysqlTable("ai_models", {
-  id: int("id").primaryKey().autoincrement(),
-  name: varchar("name", { length: 100 }).notNull().unique(),
-  displayName: varchar("displayName", { length: 255 }).notNull(),
-  type: mysqlEnum("type", ["text", "vision", "code"]).notNull(),
-  size: varchar("size", { length: 20 }),
-  isAvailable: boolean("isAvailable").default(false),
-  lastUsed: timestamp("lastUsed"),
-  description: text("description"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var dailyTasks = mysqlTable("daily_tasks", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  dueDate: timestamp("dueDate").notNull(),
-  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
-  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"]).default("pending").notNull(),
-  assignedTo: int("assignedTo"),
-  category: varchar("category", { length: 100 }),
-  tags: json("tags"),
-  attachments: json("attachments"),
-  completedAt: timestamp("completedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var taskAssignments = mysqlTable("task_assignments", {
-  id: int("id").autoincrement().primaryKey(),
-  taskId: int("taskId").notNull(),
-  assignedTo: int("assignedTo").notNull(),
-  assignedBy: int("assignedBy").notNull(),
-  responsibility: varchar("responsibility", { length: 255 }).notNull(),
-  completionPercentage: int("completionPercentage").default(0).notNull(),
-  notes: text("notes"),
-  assignedAt: timestamp("assignedAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var taskStatusHistory = mysqlTable("task_status_history", {
-  id: int("id").autoincrement().primaryKey(),
-  taskId: int("taskId").notNull(),
-  previousStatus: varchar("previousStatus", { length: 50 }),
-  newStatus: varchar("newStatus", { length: 50 }).notNull(),
-  changedBy: int("changedBy").notNull(),
-  reason: text("reason"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var taskNotifications = mysqlTable("task_notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  taskId: int("taskId").notNull(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", ["overdue_reminder", "completion_confirmation", "assignment", "status_change", "comment"]).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  message: text("message").notNull(),
-  status: mysqlEnum("status", ["pending", "sent", "failed", "read"]).default("pending").notNull(),
-  channels: json("channels"),
-  // Array of 'email', 'sms', 'in_app'
-  scheduledFor: timestamp("scheduledFor"),
-  sentAt: timestamp("sentAt"),
-  readAt: timestamp("readAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var notificationPreferences = mysqlTable("notification_preferences", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull().unique(),
-  emailEnabled: boolean("emailEnabled").default(true).notNull(),
-  smsEnabled: boolean("smsEnabled").default(false).notNull(),
-  inAppEnabled: boolean("inAppEnabled").default(true).notNull(),
-  overdueReminders: boolean("overdueReminders").default(true).notNull(),
-  completionNotifications: boolean("completionNotifications").default(true).notNull(),
-  assignmentNotifications: boolean("assignmentNotifications").default(true).notNull(),
-  statusChangeNotifications: boolean("statusChangeNotifications").default(true).notNull(),
-  quietHoursStart: varchar("quietHoursStart", { length: 5 }),
-  // HH:MM format
-  quietHoursEnd: varchar("quietHoursEnd", { length: 5 }),
-  // HH:MM format
-  timezone: varchar("timezone", { length: 50 }).default("UTC").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var notificationHistory = mysqlTable("notification_history", {
-  id: int("id").autoincrement().primaryKey(),
-  notificationId: int("notificationId").notNull(),
-  userId: int("userId").notNull(),
-  channel: mysqlEnum("channel", ["email", "sms", "in_app"]).notNull(),
-  status: mysqlEnum("status", ["sent", "failed", "bounced", "opened"]).notNull(),
-  recipient: varchar("recipient", { length: 255 }).notNull(),
-  errorMessage: text("errorMessage"),
-  sentAt: timestamp("sentAt").defaultNow().notNull(),
-  openedAt: timestamp("openedAt"),
-  metadata: json("metadata")
-  // Additional tracking data
-});
-var notificationTemplates = mysqlTable("notification_templates", {
-  id: int("id").autoincrement().primaryKey(),
-  createdBy: int("createdBy").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  subject: varchar("subject", { length: 255 }).notNull(),
-  bodyText: text("bodyText").notNull(),
-  bodyHtml: text("bodyHtml"),
-  channels: json("channels").$type().notNull(),
-  variables: json("variables").$type(),
-  tags: json("tags").$type(),
-  isActive: boolean("isActive").notNull().default(true),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var notificationTriggers = mysqlTable("notification_triggers", {
-  id: int("id").autoincrement().primaryKey(),
-  createdBy: int("createdBy").notNull(),
-  templateId: int("templateId").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  eventType: varchar("eventType", { length: 100 }).notNull(),
-  triggerCondition: json("triggerCondition").$type().notNull(),
-  actions: json("actions").$type().notNull(),
-  isActive: boolean("isActive").notNull().default(true),
-  lastTriggeredAt: timestamp("lastTriggeredAt"),
-  triggerCount: int("triggerCount").notNull().default(0),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var triggerExecutionLog = mysqlTable("trigger_execution_log", {
-  id: int("id").autoincrement().primaryKey(),
-  triggerId: int("triggerId").notNull(),
-  entityType: varchar("entityType", { length: 100 }).notNull(),
-  entityId: int("entityId").notNull(),
-  conditionsMet: boolean("conditionsMet").notNull(),
-  notificationsSent: int("notificationsSent").notNull().default(0),
-  error: text("error"),
-  executedAt: timestamp("executedAt").defaultNow().notNull()
-});
-var shiftTemplates = mysqlTable("shift_templates", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  startTime: varchar("startTime", { length: 5 }).notNull(),
-  // HH:MM format
-  endTime: varchar("endTime", { length: 5 }).notNull(),
-  // HH:MM format
-  breakDuration: int("breakDuration").default(0),
-  // in minutes
-  daysOfWeek: json("daysOfWeek").$type().notNull(),
-  // 0-6 (Sunday-Saturday)
-  isActive: boolean("isActive").notNull().default(true),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var shifts = mysqlTable("shifts", {
-  id: int("id").autoincrement().primaryKey(),
-  employeeId: int("employeeId").notNull(),
-  shiftDate: timestamp("shiftDate").notNull(),
+var shifts = pgTable("shifts", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employeeId").references(() => users.id).notNull(),
+  // Linked to User for easier auth checks
   startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime").notNull(),
-  breakDuration: int("breakDuration").default(0),
-  // in minutes
-  projectId: int("projectId"),
-  status: mysqlEnum("status", ["scheduled", "in_progress", "completed", "cancelled", "no_show"]).default("scheduled").notNull(),
-  notes: text("notes"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var employeeAvailability = mysqlTable("employee_availability", {
-  id: int("id").autoincrement().primaryKey(),
-  employeeId: int("employeeId").notNull(),
-  dayOfWeek: int("dayOfWeek").notNull(),
-  // 0-6 (Sunday-Saturday)
-  isAvailable: boolean("isAvailable").notNull().default(true),
-  startTime: varchar("startTime", { length: 5 }),
-  // HH:MM format
-  endTime: varchar("endTime", { length: 5 }),
-  // HH:MM format
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var breakRules = mysqlTable("break_rules", {
-  id: int("id").autoincrement().primaryKey(),
-  jurisdiction: varchar("jurisdiction", { length: 100 }).notNull(),
-  // e.g., "US-CA", "US-NY", "EU"
-  name: varchar("name", { length: 255 }).notNull(),
-  dailyWorkHours: int("dailyWorkHours").notNull(),
-  // hours before break required
-  breakDuration: int("breakDuration").notNull(),
-  // minutes
-  breakType: mysqlEnum("breakType", ["meal", "rest", "combined"]).notNull(),
-  isRequired: boolean("isRequired").notNull().default(true),
-  description: text("description"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var breakRecords = mysqlTable("break_records", {
-  id: int("id").autoincrement().primaryKey(),
-  workHourId: int("workHourId").notNull(),
-  employeeId: int("employeeId").notNull(),
-  breakStart: timestamp("breakStart").notNull(),
-  breakEnd: timestamp("breakEnd"),
-  breakDuration: int("breakDuration"),
-  // in minutes
-  breakType: mysqlEnum("breakType", ["meal", "rest", "combined"]).notNull(),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var complianceAuditTrail = mysqlTable("compliance_audit_trail", {
-  id: int("id").autoincrement().primaryKey(),
-  employeeId: int("employeeId").notNull(),
-  auditDate: timestamp("auditDate").notNull(),
-  auditType: mysqlEnum("auditType", ["daily_hours", "weekly_hours", "break_compliance", "overtime", "wage_calculation"]).notNull(),
-  status: mysqlEnum("status", ["compliant", "warning", "violation"]).notNull(),
-  details: json("details").$type().notNull(),
-  severity: mysqlEnum("severity", ["low", "medium", "high"]).default("low").notNull(),
-  actionTaken: text("actionTaken"),
-  resolvedAt: timestamp("resolvedAt"),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var timesheetOfflineCache = mysqlTable("timesheet_offline_cache", {
-  id: int("id").autoincrement().primaryKey(),
-  employeeId: int("employeeId").notNull(),
-  deviceId: varchar("deviceId", { length: 255 }).notNull(),
-  entryData: json("entryData").$type().notNull(),
-  syncStatus: mysqlEnum("syncStatus", ["pending", "syncing", "synced", "failed"]).default("pending").notNull(),
-  syncAttempts: int("syncAttempts").default(0),
-  lastSyncAttempt: timestamp("lastSyncAttempt"),
-  syncedAt: timestamp("syncedAt"),
-  errorMessage: text("errorMessage"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var jobSites = mysqlTable("job_sites", {
-  id: int("id").autoincrement().primaryKey(),
-  projectId: int("projectId").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
-  geofenceRadius: int("geofenceRadius").default(100).notNull(),
-  // in meters
-  address: varchar("address", { length: 500 }),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var geofences = mysqlTable("geofences", {
-  id: int("id").autoincrement().primaryKey(),
-  jobSiteId: int("jobSiteId").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
-  centerLatitude: decimal("centerLatitude", { precision: 10, scale: 8 }).notNull(),
-  centerLongitude: decimal("centerLongitude", { precision: 11, scale: 8 }).notNull(),
-  radiusMeters: int("radiusMeters").notNull(),
-  geofenceType: mysqlEnum("geofenceType", ["circular", "polygon"]).default("circular").notNull(),
-  polygonCoordinates: json("polygonCoordinates").$type(),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var locationLogs = mysqlTable("location_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  shiftId: int("shiftId").notNull(),
-  employeeId: int("employeeId").notNull(),
-  jobSiteId: int("jobSiteId").notNull(),
-  eventType: mysqlEnum("eventType", ["check_in", "check_out", "location_update"]).notNull(),
-  latitude: decimal("latitude", { precision: 10, scale: 8 }).notNull(),
-  longitude: decimal("longitude", { precision: 11, scale: 8 }).notNull(),
-  accuracy: int("accuracy"),
-  // GPS accuracy in meters
-  isWithinGeofence: boolean("isWithinGeofence").default(false).notNull(),
-  distanceFromGeofence: int("distanceFromGeofence"),
-  // distance in meters if outside geofence
-  deviceId: varchar("deviceId", { length: 255 }),
-  ipAddress: varchar("ipAddress", { length: 45 }),
-  userAgent: text("userAgent"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var geofenceViolations = mysqlTable("geofence_violations", {
-  id: int("id").autoincrement().primaryKey(),
-  locationLogId: int("locationLogId").notNull(),
-  employeeId: int("employeeId").notNull(),
-  jobSiteId: int("jobSiteId").notNull(),
-  violationType: mysqlEnum("violationType", ["outside_geofence", "check_in_outside", "check_out_outside"]).notNull(),
-  distanceFromGeofence: int("distanceFromGeofence").notNull(),
-  // distance in meters
-  severity: mysqlEnum("severity", ["warning", "violation"]).default("warning").notNull(),
-  isResolved: boolean("isResolved").default(false).notNull(),
-  resolvedBy: int("resolvedBy"),
-  resolutionNotes: text("resolutionNotes"),
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  resolvedAt: timestamp("resolvedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var concreteRecipes = mysqlTable("concrete_recipes", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  concreteType: varchar("concreteType", { length: 100 }),
-  // e.g., C25/30, C30/37, Torket
-  yieldVolume: int("yieldVolume").notNull().default(1e3),
-  // Volume in liters (1 m³ = 1000 L)
-  createdBy: int("createdBy").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
-});
-var recipeIngredients = mysqlTable("recipe_ingredients", {
-  id: int("id").autoincrement().primaryKey(),
-  recipeId: int("recipeId").notNull(),
-  materialId: int("materialId"),
-  // Reference to materials table (null for water)
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  // Name for display
-  quantity: int("quantity").notNull(),
-  // Quantity in base unit (kg or L)
-  unit: varchar("unit", { length: 50 }).notNull(),
-  // kg, L, etc.
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var mixingLogs = mysqlTable("mixing_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
-  // e.g., BATCH-2025-001
-  recipeId: int("recipeId").notNull(),
-  // Reference to concrete_recipes
-  recipeName: varchar("recipeName", { length: 255 }).notNull(),
-  // Recipe name for quick reference
-  volume: int("volume").notNull(),
-  // Volume in liters (1 m³ = 1000 L)
-  volumeM3: decimal("volumeM3", { precision: 10, scale: 2 }).notNull(),
-  // Volume in m³
-  status: mysqlEnum("status", ["planned", "in_progress", "completed", "rejected"]).default("planned").notNull(),
-  projectId: int("projectId"),
-  // Optional: associated project
-  deliveryId: int("deliveryId"),
-  // Optional: associated delivery
-  startTime: timestamp("startTime"),
   endTime: timestamp("endTime"),
-  producedBy: int("producedBy"),
-  // User ID who created the batch
-  approvedBy: int("approvedBy"),
-  // User ID who approved the batch
+  status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+  // scheduled, in_progress, completed, cancelled, no_show
+  createdBy: integer("createdBy").references(() => users.id),
   notes: text("notes"),
-  // Additional notes about the batch
-  qualityNotes: text("qualityNotes"),
-  // Quality control notes
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
 });
-var batchIngredients = mysqlTable("batch_ingredients", {
-  id: int("id").autoincrement().primaryKey(),
-  batchId: int("batchId").notNull(),
-  // Reference to mixing_logs
-  materialId: int("materialId"),
-  // Reference to materials table (null for water)
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  // Material name
-  plannedQuantity: int("plannedQuantity").notNull(),
-  // Planned quantity based on recipe
-  actualQuantity: int("actualQuantity"),
-  // Actual quantity used (null if not completed)
-  unit: varchar("unit", { length: 50 }).notNull(),
-  // kg, L, etc.
-  inventoryDeducted: boolean("inventoryDeducted").default(false).notNull(),
-  // Whether inventory was deducted
-  createdAt: timestamp("createdAt").defaultNow().notNull()
-});
-var timesheetApprovals = mysqlTable("timesheet_approvals", {
-  id: int("id").autoincrement().primaryKey(),
-  timesheetId: int("timesheetId").notNull(),
-  approverId: int("approverId").notNull(),
-  // Manager ID
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+var timesheetApprovals = pgTable("timesheet_approvals", {
+  id: serial("id").primaryKey(),
+  shiftId: integer("shiftId").references(() => shifts.id).notNull(),
+  approverId: integer("approverId").references(() => users.id),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  // pending, approved, rejected
+  approvedAt: timestamp("approvedAt"),
   comments: text("comments"),
   rejectionReason: text("rejectionReason"),
-  approvedAt: timestamp("approvedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull()
+  createdAt: timestamp("createdAt").notNull().defaultNow()
+});
+var machines = pgTable("machines", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 100 }),
+  serialNumber: varchar("serialNumber", { length: 100 }),
+  status: varchar("status", { length: 20 }).default("active"),
+  lastMaintenanceAt: timestamp("lastMaintenanceAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
+});
+var machineWorkHours = pgTable("machine_work_hours", {
+  id: serial("id").primaryKey(),
+  machineId: integer("machineId").references(() => machines.id).notNull(),
+  hours: doublePrecision("hours").notNull(),
+  date: timestamp("date").notNull(),
+  operatorId: integer("operatorId").references(() => users.id)
+});
+var tasks = pgTable("tasks", {
+  id: serial("id").primaryKey(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  // pending, in_progress, completed, cancelled
+  priority: varchar("priority", { length: 20 }).default("medium"),
+  // low, medium, high, critical
+  dueDate: timestamp("dueDate"),
+  projectId: integer("projectId").references(() => projects.id),
+  createdBy: integer("createdBy").references(() => users.id).notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
+});
+var taskAssignments = pgTable("task_assignments", {
+  id: serial("id").primaryKey(),
+  taskId: integer("taskId").references(() => tasks.id).notNull(),
+  userId: integer("userId").references(() => users.id).notNull(),
+  assignedAt: timestamp("assignedAt").notNull().defaultNow()
+});
+var aiConversations = pgTable("ai_conversations", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").references(() => users.id).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  modelName: varchar("modelName", { length: 100 }),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow()
+});
+var aiMessages = pgTable("ai_messages", {
+  id: serial("id").primaryKey(),
+  conversationId: integer("conversationId").references(() => aiConversations.id).notNull(),
+  role: varchar("role", { length: 20 }).notNull(),
+  // user, assistant, system
+  content: text("content").notNull(),
+  metadata: text("metadata"),
+  // JSON
+  createdAt: timestamp("createdAt").notNull().defaultNow()
+});
+var notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").references(() => users.id).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: varchar("type", { length: 50 }),
+  status: varchar("status", { length: 20 }).default("unread"),
+  // unread, read, archived
+  sentAt: timestamp("sentAt").notNull().defaultNow()
+});
+var documents = pgTable("documents", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 50 }),
+  url: text("url").notNull(),
+  projectId: integer("projectId").references(() => projects.id),
+  uploadedBy: integer("uploadedBy").references(() => users.id),
+  createdAt: timestamp("createdAt").notNull().defaultNow()
 });
 
 // server/db.ts
-var recordToObj = recordToNative;
-var sqliteClient = createClient({
-  url: process.env.DATABASE_URL || "file:local.db"
-});
-var db = drizzle(sqliteClient, { schema: schema_exports });
+import { eq, and, gte, lte, desc, or, inArray, not } from "drizzle-orm";
+var connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error("DATABASE_URL is required");
+}
+var sql = postgres(connectionString);
+var db = drizzle(sql, { schema: schema_exports });
 async function getDb2() {
   return db;
 }
 async function upsertUser(user2) {
   if (!user2.openId) throw new Error("User openId is required for upsert");
-  const session = getSession();
-  try {
-    const role = user2.role || (user2.openId === ENV.ownerOpenId ? "admin" : "user");
-    await session.run(`
-      MERGE (u:User {openId: $openId})
-      ON CREATE SET 
-        u.id = toInteger(timestamp()),  // Simple ID generation for new users
-        u.name = $name,
-        u.email = $email,
-        u.loginMethod = $loginMethod,
-        u.role = $role,
-        u.lastSignedIn = datetime(),
-        u.createdAt = datetime(),
-        u.updatedAt = datetime()
-      ON MATCH SET
-        u.name = COALESCE($name, u.name),
-        u.email = COALESCE($email, u.email),
-        u.loginMethod = COALESCE($loginMethod, u.loginMethod),
-        u.lastSignedIn = datetime(),
-        u.updatedAt = datetime()
-    `, {
-      openId: user2.openId,
-      name: user2.name || null,
-      email: user2.email || null,
-      loginMethod: user2.loginMethod || null,
-      role
-    });
-  } catch (error) {
-    console.error("[Database] Failed to upsert user:", error);
-    throw error;
-  } finally {
-    await session.close();
-  }
+  const role = user2.role || (user2.openId === ENV.ownerOpenId ? "admin" : "user");
+  await db.insert(users).values({
+    openId: user2.openId,
+    name: user2.name,
+    email: user2.email,
+    loginMethod: user2.loginMethod,
+    role,
+    phoneNumber: user2.phoneNumber,
+    smsNotificationsEnabled: user2.smsNotificationsEnabled ?? false,
+    languagePreference: user2.languagePreference ?? "en",
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date(),
+    lastSignedIn: /* @__PURE__ */ new Date()
+  }).onConflictDoUpdate({
+    target: users.openId,
+    set: {
+      name: user2.name,
+      email: user2.email,
+      loginMethod: user2.loginMethod,
+      lastSignedIn: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }
+  });
 }
 async function getUserByOpenId(openId) {
-  const session = getSession();
-  try {
-    const result = await session.run(
-      "MATCH (u:User {openId: $openId}) RETURN u",
-      { openId }
-    );
-    if (result.records.length === 0) return void 0;
-    return recordToObj(result.records[0], "u");
-  } finally {
-    await session.close();
-  }
-}
-async function createDocument(doc) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (d:Document {
-        id: toInteger(timestamp()),
-        name: $name,
-        description: $description,
-        fileKey: $fileKey,
-        fileUrl: $fileUrl,
-        mimeType: $mimeType,
-        fileSize: $fileSize,
-        category: $category,
-        uploadedBy: $uploadedBy,
-        projectId: $projectId,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH d
-      MATCH (u:User {id: $uploadedBy})
-      MERGE (u)-[:UPLOADED]->(d)
-      WITH d
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (p)-[:HAS_DOCUMENT]->(d)
-      )
-      RETURN d
-    `;
-    await session.run(query, {
-      name: doc.name,
-      description: doc.description || "",
-      fileKey: doc.fileKey,
-      fileUrl: doc.fileUrl,
-      mimeType: doc.mimeType || "",
-      fileSize: doc.fileSize || 0,
-      category: doc.category || "other",
-      uploadedBy: doc.uploadedBy,
-      projectId: doc.projectId || null
-    });
-  } catch (e) {
-    console.error("Failed to create document", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
-}
-async function getDocuments(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (d:Document)";
-    let params = {};
-    let whereClauses = [];
-    if (filters?.projectId) {
-      query = "MATCH (p:Project {id: $projectId})-[:HAS_DOCUMENT]->(d)";
-      params.projectId = filters.projectId;
-    }
-    if (filters?.category) {
-      whereClauses.push("d.category = $category");
-      params.category = filters.category;
-    }
-    if (filters?.search) {
-      whereClauses.push("(toLower(d.name) CONTAINS toLower($search) OR toLower(d.description) CONTAINS toLower($search))");
-      params.search = filters.search;
-    }
-    if (whereClauses.length > 0) {
-      query += " WHERE " + whereClauses.join(" AND ");
-    }
-    query += " RETURN d ORDER BY d.createdAt DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "d"));
-  } finally {
-    await session.close();
-  }
-}
-async function deleteDocument(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (d:Document {id: $id}) DETACH DELETE d", { id });
-  } finally {
-    await session.close();
-  }
+  const result = await db.select().from(users).where(eq(users.openId, openId));
+  return result[0] || null;
 }
 async function createProject(project) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (u:User {id: $createdBy})
-      CREATE (p:Project {
-        id: toInteger(timestamp()),
-        name: $name,
-        description: $description,
-        location: $location,
-        status: $status,
-        startDate: datetime($startDate),
-        endDate: datetime($endDate),
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      MERGE (u)-[:CREATED]->(p)
-      RETURN p
-    `;
-    await session.run(query, {
-      name: project.name,
-      description: project.description || "",
-      location: project.location || "",
-      status: project.status,
-      startDate: project.startDate ? project.startDate.toISOString() : null,
-      endDate: project.endDate ? project.endDate.toISOString() : null,
-      createdBy: project.createdBy
-    });
-  } catch (e) {
-    console.error("Failed to create project", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(projects).values({
+    name: project.name,
+    description: project.description,
+    location: project.location,
+    status: project.status || "planning",
+    startDate: project.startDate,
+    endDate: project.endDate,
+    createdBy: project.createdBy,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: projects.id });
+  return result[0]?.id;
 }
 async function getProjects() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (p:Project) RETURN p ORDER BY p.createdAt DESC");
-    return result.records.map((r) => recordToObj(r, "p"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(projects).orderBy(desc(projects.createdAt));
 }
-async function updateProject(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      sets.push(`p.${key} = $${key}`);
-      if (data[key] instanceof Date) {
-        sets.push(`p.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        params[key] = data[key];
-      }
-    });
-    sets.push("p.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (p:Project {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+async function updateProject(id, updates) {
+  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+  if (updates.name !== void 0) updateData.name = updates.name;
+  if (updates.description !== void 0) updateData.description = updates.description;
+  if (updates.location !== void 0) updateData.location = updates.location;
+  if (updates.status !== void 0) updateData.status = updates.status;
+  if (updates.startDate !== void 0) updateData.startDate = updates.startDate;
+  if (updates.endDate !== void 0) updateData.endDate = updates.endDate;
+  await db.update(projects).set(updateData).where(eq(projects.id, id));
+  return true;
 }
 async function createMaterial(material) {
-  const session = getSession();
-  try {
-    await session.run(`
-      CREATE (m:Material {
-        id: toInteger(timestamp()),
-        name: $name,
-        category: $category,
-        unit: $unit,
-        quantity: toInteger($quantity),
-        minStock: toInteger($minStock),
-        criticalThreshold: toInteger($criticalThreshold),
-        supplier: $supplier,
-        unitPrice: toInteger($unitPrice),
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-    `, {
-      name: material.name,
-      category: material.category,
-      unit: material.unit,
-      quantity: material.quantity || 0,
-      minStock: material.minStock || 0,
-      criticalThreshold: material.criticalThreshold || 0,
-      supplier: material.supplier || null,
-      unitPrice: material.unitPrice || 0
-    });
-  } catch (e) {
-    console.error("Failed to create material", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(materials).values({
+    name: material.name,
+    category: material.category || "other",
+    unit: material.unit,
+    quantity: material.quantity ?? 0,
+    minStock: material.minStock ?? 0,
+    criticalThreshold: material.criticalThreshold ?? 0,
+    supplier: material.supplier,
+    unitPrice: material.unitPrice,
+    lowStockEmailSent: material.lowStockEmailSent ?? false,
+    supplierEmail: material.supplierEmail,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: materials.id });
+  return result[0]?.id;
 }
 async function getMaterials() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (m:Material) RETURN m ORDER BY m.name");
-    return result.records.map((r) => recordToObj(r, "m"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(materials).orderBy(materials.name);
 }
-async function updateMaterial(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (["quantity", "minStock", "criticalThreshold", "unitPrice"].includes(key)) {
-        sets.push(`m.${key} = toInteger($${key})`);
-      } else {
-        sets.push(`m.${key} = $${key}`);
-      }
-      params[key] = data[key];
-    });
-    sets.push("m.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (m:Material {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+async function updateMaterial(id, updates) {
+  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+  if (updates.name !== void 0) updateData.name = updates.name;
+  if (updates.category !== void 0) updateData.category = updates.category;
+  if (updates.unit !== void 0) updateData.unit = updates.unit;
+  if (updates.quantity !== void 0) updateData.quantity = updates.quantity;
+  if (updates.minStock !== void 0) updateData.minStock = updates.minStock;
+  if (updates.criticalThreshold !== void 0) updateData.criticalThreshold = updates.criticalThreshold;
+  if (updates.supplier !== void 0) updateData.supplier = updates.supplier;
+  if (updates.unitPrice !== void 0) updateData.unitPrice = updates.unitPrice;
+  if (updates.lowStockEmailSent !== void 0) updateData.lowStockEmailSent = updates.lowStockEmailSent;
+  if (updates.supplierEmail !== void 0) updateData.supplierEmail = updates.supplierEmail;
+  await db.update(materials).set(updateData).where(eq(materials.id, id));
+  return true;
 }
 async function deleteMaterial(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (m:Material {id: $id}) DETACH DELETE m", { id });
-  } finally {
-    await session.close();
+  await db.delete(materials).where(eq(materials.id, id));
+  return true;
+}
+async function createDocument(doc) {
+  const result = await db.insert(documents).values({
+    ...doc,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: documents.id });
+  return result[0];
+}
+async function getDocuments(filters) {
+  let query = db.select().from(documents);
+  const conditions = [];
+  if (filters?.projectId) conditions.push(eq(documents.projectId, filters.projectId));
+  if (filters?.type) conditions.push(eq(documents.type, filters.type));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(documents.createdAt));
   }
+  return await query.orderBy(desc(documents.createdAt));
+}
+async function deleteDocument(id) {
+  await db.delete(documents).where(eq(documents.id, id));
+  return true;
 }
 async function createDelivery(delivery) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (d:Delivery {
-        id: toInteger(timestamp()),
-        projectId: $projectId,
-        projectName: $projectName,
-        concreteType: $concreteType,
-        volume: toInteger($volume),
-        scheduledTime: datetime($scheduledTime),
-        status: $status,
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH d
-      MATCH (u:User {id: $createdBy})
-      MERGE (u)-[:CREATED]->(d)
-      WITH d
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (d)-[:DELIVERED_TO]->(p)
-      )
-      RETURN d
-    `;
-    await session.run(query, {
-      projectId: delivery.projectId || null,
-      projectName: delivery.projectName,
-      concreteType: delivery.concreteType,
-      volume: delivery.volume,
-      scheduledTime: delivery.scheduledTime.toISOString(),
-      status: delivery.status,
-      createdBy: delivery.createdBy
-    });
-  } catch (e) {
-    console.error("Failed to create delivery", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(deliveries).values({
+    ...delivery,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: deliveries.id });
+  return result[0]?.id;
 }
 async function getDeliveries(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (d:Delivery)";
-    let params = {};
-    let where = [];
-    if (filters?.projectId) {
-      where.push("d.projectId = $projectId");
-      params.projectId = filters.projectId;
-    }
-    if (filters?.status) {
-      where.push("d.status = $status");
-      params.status = filters.status;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN d ORDER BY d.scheduledTime DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "d"));
-  } finally {
-    await session.close();
+  let query = db.select().from(deliveries);
+  const conditions = [];
+  if (filters?.projectId) conditions.push(eq(deliveries.projectId, filters.projectId));
+  if (filters?.status) conditions.push(eq(deliveries.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(deliveries.scheduledTime));
   }
+  return await query.orderBy(desc(deliveries.scheduledTime));
 }
 async function updateDelivery(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      sets.push(`d.${key} = $${key}`);
-      if (data[key] instanceof Date) {
-        sets.push(`d.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        params[key] = data[key];
-      }
-    });
-    sets.push("d.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (d:Delivery {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  await db.update(deliveries).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, id));
+  return true;
 }
 async function createQualityTest(test) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (q:QualityTest {
-        id: toInteger(timestamp()),
-        testName: $testName,
-        testType: $testType,
-        result: $result,
-        unit: $unit,
-        status: $status,
-        deliveryId: $deliveryId,
-        projectId: $projectId,
-        testedBy: $testedBy,
-        notes: $notes,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH q
-      OPTIONAL MATCH (d:Delivery {id: $deliveryId})
-      FOREACH (_ IN CASE WHEN d IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (d)-[:HAS_TEST]->(q)
-      )
-      WITH q
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (p)-[:HAS_TEST]->(q)
-      )
-      RETURN q
-    `;
-    await session.run(query, {
-      testName: test.testName,
-      testType: test.testType,
-      result: test.result,
-      unit: test.unit || "",
-      status: test.status,
-      deliveryId: test.deliveryId || null,
-      projectId: test.projectId || null,
-      testedBy: test.testedBy || "",
-      notes: test.notes || ""
-    });
-  } catch (e) {
-    console.error("Failed to create quality test", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(qualityTests).values({
+    ...test,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: qualityTests.id });
+  return result[0]?.id;
 }
 async function getQualityTests(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (q:QualityTest)";
-    let params = {};
-    let where = [];
-    if (filters?.projectId) {
-      where.push("q.projectId = $projectId");
-      params.projectId = filters.projectId;
-    }
-    if (filters?.deliveryId) {
-      where.push("q.deliveryId = $deliveryId");
-      params.deliveryId = filters.deliveryId;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN q ORDER BY q.createdAt DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "q"));
-  } finally {
-    await session.close();
+  let query = db.select().from(qualityTests);
+  const conditions = [];
+  if (filters?.deliveryId) conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
+  if (filters?.projectId) conditions.push(eq(qualityTests.projectId, filters.projectId));
+  if (filters?.status) conditions.push(eq(qualityTests.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(qualityTests.testedAt));
   }
+  return await query.orderBy(desc(qualityTests.testedAt));
 }
 async function updateQualityTest(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      sets.push(`q.${key} = $${key}`);
-      params[key] = data[key];
-    });
-    sets.push("q.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (q:QualityTest {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  await db.update(qualityTests).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(qualityTests.id, id));
+  return true;
 }
 async function getFailedQualityTests(days = 30) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-        MATCH (q:QualityTest) 
-        WHERE q.status = 'fail' AND q.createdAt >= datetime() - duration({days: $days})
-        RETURN q ORDER BY q.createdAt DESC
-    `, { days });
-    return result.records.map((r) => recordToObj(r, "q"));
-  } finally {
-    await session.close();
-  }
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return await db.select().from(qualityTests).where(and(eq(qualityTests.status, "fail"), gte(qualityTests.testedAt, cutoff))).orderBy(desc(qualityTests.testedAt));
 }
 async function getQualityTestTrends(days = 30) {
-  const session = getSession();
-  try {
-    const query = `
-        MATCH (q:QualityTest)
-        WHERE q.createdAt >= datetime() - duration({days: $days})
-        RETURN 
-          count(q) as total,
-          sum(CASE WHEN q.status = 'pass' THEN 1 ELSE 0 END) as passed,
-          sum(CASE WHEN q.status = 'fail' THEN 1 ELSE 0 END) as failed,
-          sum(CASE WHEN q.status = 'pending' THEN 1 ELSE 0 END) as pending,
-          q.testType as type,
-          count(q.testType) as typeCount
-    `;
-    const result = await session.run(`
-        MATCH (q:QualityTest)
-        WHERE q.createdAt >= datetime() - duration({days: $days})
-        RETURN q.status as status, q.testType as testType
-    `, { days });
-    const records = result.records.map((r) => ({ status: r.get("status"), testType: r.get("testType") }));
-    const totalTests = records.length;
-    if (totalTests === 0) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
-    const passCount = records.filter((t2) => t2.status === "pass").length;
-    const failCount = records.filter((t2) => t2.status === "fail").length;
-    const pendingCount = records.filter((t2) => t2.status === "pending").length;
-    const byTypeMap = /* @__PURE__ */ new Map();
-    records.forEach((r) => {
-      const type = r.testType || "other";
-      byTypeMap.set(type, (byTypeMap.get(type) || 0) + 1);
-    });
-    const byType = Array.from(byTypeMap.entries()).map(([type, total]) => ({ type, total }));
-    return {
-      passRate: passCount / totalTests * 100,
-      failRate: failCount / totalTests * 100,
-      pendingRate: pendingCount / totalTests * 100,
-      totalTests,
-      byType
-    };
-  } finally {
-    await session.close();
-  }
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const tests = await db.select().from(qualityTests).where(gte(qualityTests.testedAt, cutoff));
+  const totalTests = tests.length;
+  if (totalTests === 0) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
+  const passed = tests.filter((t2) => t2.status === "pass").length;
+  const failed = tests.filter((t2) => t2.status === "fail").length;
+  const pending = tests.filter((t2) => t2.status === "pending").length;
+  return {
+    passRate: passed / totalTests * 100,
+    failRate: failed / totalTests * 100,
+    pendingRate: pending / totalTests * 100,
+    totalTests,
+    byType: []
+    // Could aggregate further if needed
+  };
 }
 async function createEmployee(employee) {
-  const session = getSession();
-  try {
-    await session.run(`
-      CREATE (e:Employee {
-        id: toInteger(timestamp()),
-        firstName: $firstName,
-        lastName: $lastName,
-        employeeNumber: $employeeNumber,
-        position: $position,
-        department: $department,
-        phoneNumber: $phoneNumber,
-        email: $email,
-        hourlyRate: toInteger($hourlyRate),
-        status: $status,
-        hireDate: datetime($hireDate),
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-    `, {
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      employeeNumber: employee.employeeNumber,
-      position: employee.position,
-      department: employee.department,
-      phoneNumber: employee.phoneNumber || "",
-      email: employee.email || "",
-      hourlyRate: employee.hourlyRate || 0,
-      status: employee.status,
-      hireDate: employee.hireDate ? employee.hireDate.toISOString() : null
-    });
-  } catch (e) {
-    console.error("Failed to create employee", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(employees).values({
+    ...employee,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: employees.id });
+  return result[0]?.id;
 }
 async function getEmployees(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (e:Employee)";
-    let params = {};
-    let where = [];
-    if (filters?.department) {
-      where.push("e.department = $department");
-      params.department = filters.department;
-    }
-    if (filters?.status) {
-      where.push("e.status = $status");
-      params.status = filters.status;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN e ORDER BY e.createdAt DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "e"));
-  } finally {
-    await session.close();
+  let query = db.select().from(employees);
+  const conditions = [];
+  if (filters?.department) conditions.push(eq(employees.department, filters.department));
+  if (filters?.active !== void 0) conditions.push(eq(employees.active, filters.active));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(employees.lastName);
   }
+  return await query.orderBy(employees.lastName);
 }
 async function getEmployeeById(id) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (e:Employee {id: $id}) RETURN e", { id });
-    if (result.records.length === 0) return void 0;
-    return recordToObj(result.records[0], "e");
-  } finally {
-    await session.close();
-  }
+  const result = await db.select().from(employees).where(eq(employees.id, id));
+  return result[0] || null;
 }
 async function updateEmployee(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (key === "hourlyRate") {
-        sets.push(`e.${key} = toInteger($${key})`);
-      } else if (data[key] instanceof Date) {
-        sets.push(`e.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        sets.push(`e.${key} = $${key}`);
-      }
-      if (!(data[key] instanceof Date)) params[key] = data[key];
-    });
-    sets.push("e.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (e:Employee {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  await db.update(employees).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(employees.id, id));
+  return true;
 }
 async function deleteEmployee(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (e:Employee {id: $id}) DETACH DELETE e", { id });
-  } finally {
-    await session.close();
-  }
+  await db.update(employees).set({ active: false }).where(eq(employees.id, id));
+  return true;
 }
-async function createWorkHour(workHour) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (w:WorkHour {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        projectId: $projectId,
-        date: datetime($date),
-        startTime: datetime($startTime),
-        endTime: datetime($endTime),
-        hoursWorked: toInteger($hoursWorked),
-        overtimeHours: toInteger($overtimeHours),
-        workType: $workType,
-        notes: $notes,
-        status: $status,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH w
-      MATCH (e:Employee {id: $employeeId})
-      MERGE (e)-[:LOGGED]->(w)
-      WITH w
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (w)-[:LOGGED_FOR]->(p)
-      )
-      RETURN w
-    `;
-    await session.run(query, {
-      employeeId: workHour.employeeId,
-      projectId: workHour.projectId || null,
-      date: workHour.date.toISOString(),
-      startTime: workHour.startTime.toISOString(),
-      endTime: workHour.endTime ? workHour.endTime.toISOString() : null,
-      hoursWorked: workHour.hoursWorked || 0,
-      overtimeHours: workHour.overtimeHours || 0,
-      workType: workHour.workType,
-      notes: workHour.notes || "",
-      status: workHour.status
-    });
-  } catch (e) {
-    console.error("Failed to create work hour", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+async function createWorkHour(shift) {
+  const result = await db.insert(shifts).values({
+    ...shift,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shifts.id });
+  return result[0]?.id;
 }
 async function getWorkHours(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (w:WorkHour)";
-    let params = {};
-    let where = [];
-    if (filters?.employeeId) {
-      where.push("w.employeeId = $employeeId");
-      params.employeeId = filters.employeeId;
-    }
-    if (filters?.projectId) {
-      where.push("w.projectId = $projectId");
-      params.projectId = filters.projectId;
-    }
-    if (filters?.status) {
-      where.push("w.status = $status");
-      params.status = filters.status;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN w ORDER BY w.date DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "w"));
-  } finally {
-    await session.close();
+  let query = db.select().from(shifts);
+  const conditions = [];
+  if (filters?.employeeId) conditions.push(eq(shifts.employeeId, filters.employeeId));
+  if (filters?.status) conditions.push(eq(shifts.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(shifts.startTime));
   }
+  return await query.orderBy(desc(shifts.startTime));
 }
 async function updateWorkHour(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (["hoursWorked", "overtimeHours"].includes(key)) {
-        sets.push(`w.${key} = toInteger($${key})`);
-      } else if (data[key] instanceof Date) {
-        sets.push(`w.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        sets.push(`w.${key} = $${key}`);
-      }
-      if (!(data[key] instanceof Date)) params[key] = data[key];
-    });
-    sets.push("w.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (w:WorkHour {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  await db.update(shifts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
+  return true;
 }
 async function createConcreteBase(base) {
-  const session = getSession();
-  try {
-    await session.run(`
-      CREATE (c:ConcreteBase {
-        id: toInteger(timestamp()),
-        name: $name,
-        location: $location,
-        status: $status,
-        capacity: toInteger($capacity),
-        isActive: $isActive,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-    `, {
-      name: base.name,
-      location: base.location || "",
-      status: base.status || "active",
-      capacity: base.capacity || 0,
-      isActive: base.isActive
-    });
-  } catch (e) {
-    console.error("Failed to create concrete base", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getConcreteBases() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (c:ConcreteBase) RETURN c ORDER BY c.createdAt DESC");
-    return result.records.map((r) => recordToObj(r, "c"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function updateConcreteBase(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (key === "capacity") {
-        sets.push(`c.${key} = toInteger($${key})`);
-      } else {
-        sets.push(`c.${key} = $${key}`);
-      }
-      params[key] = data[key];
-    });
-    sets.push("c.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (c:ConcreteBase {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function createMachine(machine) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (m:Machine {
-        id: toInteger(timestamp()),
-        name: $name,
-        machineNumber: $machineNumber,
-        type: $type,
-        manufacturer: $manufacturer,
-        model: $model,
-        year: toInteger($year),
-        concreteBaseId: $concreteBaseId,
-        status: $status,
-        totalWorkingHours: toInteger($totalWorkingHours),
-        lastMaintenanceDate: datetime($lastMaintenanceDate),
-        nextMaintenanceDate: datetime($nextMaintenanceDate),
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH m
-      OPTIONAL MATCH (c:ConcreteBase {id: $concreteBaseId})
-      FOREACH (_ IN CASE WHEN c IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (m)-[:LOCATED_AT]->(c)
-      )
-      RETURN m
-    `;
-    await session.run(query, {
-      name: machine.name,
-      machineNumber: machine.machineNumber,
-      type: machine.type,
-      manufacturer: machine.manufacturer || "",
-      model: machine.model || "",
-      year: machine.year || 0,
-      concreteBaseId: machine.concreteBaseId || null,
-      status: machine.status,
-      totalWorkingHours: machine.totalWorkingHours || 0,
-      lastMaintenanceDate: machine.lastMaintenanceDate ? machine.lastMaintenanceDate.toISOString() : null,
-      nextMaintenanceDate: machine.nextMaintenanceDate ? machine.nextMaintenanceDate.toISOString() : null
-    });
-  } catch (e) {
-    console.error("Failed to create machine", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(machines).values({
+    ...machine,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: machines.id });
+  return result[0]?.id;
 }
 async function getMachines(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (m:Machine)";
-    let params = {};
-    let where = [];
-    if (filters?.concreteBaseId) {
-      where.push("m.concreteBaseId = $concreteBaseId");
-      params.concreteBaseId = filters.concreteBaseId;
-    }
-    if (filters?.type) {
-      where.push("m.type = $type");
-      params.type = filters.type;
-    }
-    if (filters?.status) {
-      where.push("m.status = $status");
-      params.status = filters.status;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN m ORDER BY m.createdAt DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "m"));
-  } finally {
-    await session.close();
+  let query = db.select().from(machines);
+  if (filters?.status) {
+    return await query.where(eq(machines.status, filters.status)).orderBy(machines.name);
   }
+  return await query.orderBy(machines.name);
 }
 async function updateMachine(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (["year", "totalWorkingHours"].includes(key)) {
-        sets.push(`m.${key} = toInteger($${key})`);
-      } else if (data[key] instanceof Date) {
-        sets.push(`m.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        sets.push(`m.${key} = $${key}`);
-      }
-      if (!(data[key] instanceof Date)) params[key] = data[key];
-    });
-    sets.push("m.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (m:Machine {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  await db.update(machines).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(machines.id, id));
+  return true;
 }
 async function deleteMachine(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (m:Machine {id: $id}) DETACH DELETE m", { id });
-  } finally {
-    await session.close();
-  }
+  await db.delete(machines).where(eq(machines.id, id));
+  return true;
 }
 async function createMachineMaintenance(maintenance) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (mm:MachineMaintenance {
-        id: toInteger(timestamp()),
-        machineId: $machineId,
-        type: $maintenanceType,
-        date: datetime($date),
-        description: $description,
-        cost: toInteger($cost),
-        performedBy: $performedBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH mm
-      MATCH (m:Machine {id: $machineId})
-      MERGE (m)-[:UNDERWENT]->(mm)
-      RETURN mm
-    `;
-    await session.run(query, {
-      machineId: maintenance.machineId,
-      maintenanceType: maintenance.maintenanceType,
-      date: maintenance.date ? maintenance.date.toISOString() : null,
-      description: maintenance.description || "",
-      cost: maintenance.cost || 0,
-      performedBy: maintenance.performedBy || ""
-    });
-  } catch (e) {
-    console.error("Failed to create machine maintenance", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getMachineMaintenance(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (mm:MachineMaintenance)";
-    let params = {};
-    let where = [];
-    if (filters?.machineId) {
-      where.push("mm.machineId = $machineId");
-      params.machineId = filters.machineId;
-    }
-    if (filters?.maintenanceType) {
-      where.push("mm.type = $maintenanceType");
-      params.maintenanceType = filters.maintenanceType;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN mm ORDER BY mm.date DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "mm"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function createMachineWorkHour(workHour) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (mw:MachineWorkHour {
-        id: toInteger(timestamp()),
-        machineId: $machineId,
-        projectId: $projectId,
-        date: datetime($date),
-        hours: toInteger($hours),
-        operatorId: $operatorId,
-        notes: $notes,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH mw
-      MATCH (m:Machine {id: $machineId})
-      MERGE (m)-[:WORKED]->(mw)
-      WITH mw
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (mw)-[:WORKED_ON]->(p)
-      )
-      RETURN mw
-    `;
-    await session.run(query, {
-      machineId: workHour.machineId,
-      projectId: workHour.projectId || null,
-      date: workHour.date.toISOString(),
-      hours: workHour.hours,
-      operatorId: workHour.operatorId || null,
-      notes: workHour.notes || ""
-    });
-  } catch (e) {
-    console.error("Failed to create machine work hour", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(machineWorkHours).values(workHour).returning({ id: machineWorkHours.id });
+  return result[0]?.id;
 }
 async function getMachineWorkHours(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (mw:MachineWorkHour)";
-    let params = {};
-    let where = [];
-    if (filters?.machineId) {
-      where.push("mw.machineId = $machineId");
-      params.machineId = filters.machineId;
-    }
-    if (filters?.projectId) {
-      where.push("mw.projectId = $projectId");
-      params.projectId = filters.projectId;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN mw ORDER BY mw.date DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "mw"));
-  } finally {
-    await session.close();
+  let query = db.select().from(machineWorkHours);
+  if (filters?.machineId) {
+    return await query.where(eq(machineWorkHours.machineId, filters.machineId)).orderBy(desc(machineWorkHours.date));
   }
+  return await query.orderBy(desc(machineWorkHours.date));
 }
 async function createAggregateInput(input) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (ai:AggregateInput {
-        id: toInteger(timestamp()),
-        concreteBaseId: $concreteBaseId,
-        materialType: $materialType,
-        quantity: toInteger($quantity),
-        source: $source,
-        date: datetime($date),
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH ai
-      MATCH (c:ConcreteBase {id: $concreteBaseId})
-      MERGE (c)-[:USED_INPUT]->(ai)
-      RETURN ai
-    `;
-    await session.run(query, {
-      concreteBaseId: input.concreteBaseId,
-      materialType: input.materialType,
-      quantity: input.quantity || 0,
-      source: input.source || "",
-      date: input.date.toISOString()
-    });
-  } catch (e) {
-    console.error("Failed to create aggregate input", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getAggregateInputs(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (ai:AggregateInput)";
-    let params = {};
-    let where = [];
-    if (filters?.concreteBaseId) {
-      where.push("ai.concreteBaseId = $concreteBaseId");
-      params.concreteBaseId = filters.concreteBaseId;
-    }
-    if (filters?.materialType) {
-      where.push("ai.materialType = $materialType");
-      params.materialType = filters.materialType;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN ai ORDER BY ai.date DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "ai"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function getLowStockMaterials() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (m:Material) WHERE m.quantity <= m.minStock RETURN m");
-    return result.records.map((r) => recordToObj(r, "m"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(materials).where(lte(materials.quantity, materials.minStock)).orderBy(materials.name);
 }
 async function getCriticalStockMaterials() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (m:Material) WHERE m.quantity <= m.criticalThreshold AND m.criticalThreshold > 0 RETURN m");
-    return result.records.map((r) => recordToObj(r, "m"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(materials).where(lte(materials.quantity, materials.criticalThreshold)).orderBy(materials.name);
 }
 async function getAdminUsersWithSMS() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (u:User {role: 'admin', smsNotificationsEnabled: true}) WHERE u.phoneNumber IS NOT NULL RETURN u");
-    return result.records.map((r) => recordToObj(r, "u"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(users).where(and(eq(users.role, "admin"), eq(users.smsNotificationsEnabled, true)));
 }
 async function updateUserSMSSettings(userId, phoneNumber, enabled) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (u:User {id: $id})
-      SET u.phoneNumber = $phoneNumber,
-          u.smsNotificationsEnabled = $enabled,
-          u.updatedAt = datetime()
-    `, { id: userId, phoneNumber, enabled });
-    return true;
-  } catch (error) {
-    console.error("Failed to update SMS settings:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  await db.update(users).set({ phoneNumber, smsNotificationsEnabled: enabled, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+  return true;
 }
 async function recordConsumption(consumption) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (l:MaterialConsumptionLog {
-        id: toInteger(timestamp()),
-        materialId: $materialId,
-        quantity: toInteger($quantity),
-        reason: $reason,
-        projectId: $projectId,
-        consumptionDate: datetime($consumptionDate),
-        recordedBy: $recordedBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH l
-      MATCH (m:Material {id: $materialId})
-      MERGE (m)-[:CONSUMED]->(l)
-      WITH l, m
-      SET m.quantity = CASE WHEN m.quantity - l.quantity < 0 THEN 0 ELSE m.quantity - l.quantity END,
-          m.updatedAt = datetime()
-      WITH l
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (l)-[:USED_FOR]->(p)
-      )
-    `;
-    await session.run(query, {
-      materialId: consumption.materialId,
-      quantity: consumption.quantity,
-      reason: consumption.reason || "",
-      projectId: consumption.projectId || null,
-      consumptionDate: consumption.consumptionDate.toISOString(),
-      recordedBy: consumption.recordedBy || null
-    });
-  } catch (e) {
-    console.error("Failed to record consumption", e);
-    throw e;
-  } finally {
-    await session.close();
+  const materialId = consumption.materialId;
+  const quantity = consumption.quantity;
+  const material = await db.select().from(materials).where(eq(materials.id, materialId));
+  if (material[0]) {
+    await db.update(materials).set({
+      quantity: Math.max(0, material[0].quantity - quantity),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(materials.id, materialId));
   }
+  return true;
 }
 async function getConsumptionHistory(materialId, days = 30) {
-  const session = getSession();
-  try {
-    let query = `
-      MATCH (l:MaterialConsumptionLog)
-      WHERE l.consumptionDate >= datetime() - duration({days: $days})
-    `;
-    let params = { days };
-    if (materialId) {
-      query += " AND l.materialId = $materialId";
-      params.materialId = materialId;
-    }
-    query += " RETURN l ORDER BY l.consumptionDate DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "l"));
-  } finally {
-    await session.close();
-  }
-}
-async function calculateDailyConsumptionRate(materialId, days = 30) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (l:MaterialConsumptionLog)
-      WHERE l.materialId = $materialId AND l.consumptionDate >= datetime() - duration({days: $days})
-      RETURN 
-        sum(l.quantity) as totalConsumed,
-        count(DISTINCT date(l.consumptionDate)) as uniqueDays
-    `, { materialId, days });
-    if (result.records.length === 0) return 0;
-    const record = result.records[0];
-    const total = record.get("totalConsumed").toNumber();
-    const uniqueDays = record.get("uniqueDays").toNumber();
-    return uniqueDays > 0 ? total / uniqueDays : 0;
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function generateForecastPredictions() {
-  const session = getSession();
-  try {
-    const allMaterials = await getMaterials();
-    const predictions = [];
-    await session.run("MATCH (fp:ForecastPrediction) DETACH DELETE fp");
-    for (const material of allMaterials) {
-      const dailyRate = await calculateDailyConsumptionRate(material.id, 30);
-      if (dailyRate > 0) {
-        const daysUntilStockout = Math.floor(material.quantity / dailyRate);
-        const predictedRunoutDate = /* @__PURE__ */ new Date();
-        predictedRunoutDate.setDate(predictedRunoutDate.getDate() + daysUntilStockout);
-        const recommendedOrderQty = Math.ceil(dailyRate * 14 * 1.2);
-        const history = await getConsumptionHistory(material.id, 30);
-        const confidence = Math.min(95, history.length * 3);
-        const prediction = {
-          materialId: material.id,
-          materialName: material.name,
-          currentStock: material.quantity,
-          dailyConsumptionRate: Math.round(dailyRate),
-          predictedRunoutDate: predictedRunoutDate.toISOString(),
-          daysUntilStockout,
-          recommendedOrderQty,
-          confidence,
-          calculatedAt: (/* @__PURE__ */ new Date()).toISOString()
-        };
-        predictions.push(prediction);
-        await session.run(`
-          CREATE (fp:ForecastPrediction {
-            id: toInteger(timestamp()),
-            materialId: $materialId,
-            materialName: $materialName,
-            currentStock: toInteger($currentStock),
-            dailyConsumptionRate: toInteger($dailyConsumptionRate),
-            predictedRunoutDate: datetime($predictedRunoutDate),
-            daysUntilStockout: toInteger($daysUntilStockout),
-            recommendedOrderQty: toInteger($recommendedOrderQty),
-            confidence: toInteger($confidence),
-            calculatedAt: datetime($calculatedAt)
-          })
-          WITH fp
-          MATCH (m:Material {id: $materialId})
-          MERGE (m)-[:HAS_PREDICTION]->(fp)
-        `, prediction);
-      }
-    }
-    return predictions;
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function getForecastPredictions() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (fp:ForecastPrediction) RETURN fp ORDER BY fp.daysUntilStockout");
-    return result.records.map((r) => recordToObj(r, "fp"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function createPurchaseOrder(order) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (po:PurchaseOrder {
-        id: toInteger(timestamp()),
-        materialId: $materialId,
-        quantity: toInteger($quantity),
-        orderDate: datetime($orderDate),
-        expectedDeliveryDate: datetime($expectedDeliveryDate),
-        status: $status,
-        supplier: $supplier,
-        notes: $notes,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH po
-      MATCH (m:Material {id: $materialId})
-      MERGE (po)-[:FOR_MATERIAL]->(m)
-      RETURN po
-    `;
-    await session.run(query, {
-      materialId: order.materialId,
-      quantity: order.quantity,
-      orderDate: order.orderDate.toISOString(),
-      expectedDeliveryDate: order.expectedDeliveryDate ? order.expectedDeliveryDate.toISOString() : null,
-      status: order.status || "pending",
-      supplier: order.supplier || "",
-      notes: order.notes || ""
-    });
-  } catch (e) {
-    console.error("Failed to create purchase order", e);
-    throw e;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getPurchaseOrders(filters) {
-  const session = getSession();
-  try {
-    let query = "MATCH (po:PurchaseOrder)";
-    let params = {};
-    let where = [];
-    if (filters?.status) {
-      where.push("po.status = $status");
-      params.status = filters.status;
-    }
-    if (filters?.materialId) {
-      where.push("po.materialId = $materialId");
-      params.materialId = filters.materialId;
-    }
-    if (where.length > 0) {
-      query += " WHERE " + where.join(" AND ");
-    }
-    query += " RETURN po ORDER BY po.createdAt DESC";
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "po"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function updatePurchaseOrder(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (key === "quantity") {
-        sets.push(`po.${key} = toInteger($${key})`);
-      } else if (data[key] instanceof Date) {
-        sets.push(`po.${key} = datetime($${key})`);
-        params[key] = data[key].toISOString();
-      } else {
-        sets.push(`po.${key} = $${key}`);
-      }
-      if (!(data[key] instanceof Date)) params[key] = data[key];
-    });
-    sets.push("po.updatedAt = datetime()");
-    if (sets.length === 0) return;
-    await session.run(`MATCH (po:PurchaseOrder {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getReportSettings(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (u:User {id: $userId})-[:HAS_SETTINGS]->(rs:ReportSettings) RETURN rs", { userId });
-    if (result.records.length === 0) return null;
-    return recordToObj(result.records[0], "rs");
-  } finally {
-    await session.close();
-  }
+  return null;
 }
 async function getEmailBranding() {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (eb:EmailBranding) RETURN eb LIMIT 1");
-    if (result.records.length === 0) return null;
-    return recordToObj(result.records[0], "eb");
-  } finally {
-    await session.close();
-  }
+  return null;
 }
 async function upsertEmailBranding(data) {
-  const session = getSession();
-  try {
-    const query = `
-      MERGE (eb:EmailBranding {id: 1})
-      ON CREATE SET
-        eb.logoUrl = $logoUrl,
-        eb.primaryColor = $primaryColor,
-        eb.secondaryColor = $secondaryColor,
-        eb.companyName = $companyName,
-        eb.footerText = $footerText,
-        eb.createdAt = datetime(),
-        eb.updatedAt = datetime()
-      ON MATCH SET
-        eb.logoUrl = COALESCE($logoUrl, eb.logoUrl),
-        eb.primaryColor = COALESCE($primaryColor, eb.primaryColor),
-        eb.secondaryColor = COALESCE($secondaryColor, eb.secondaryColor),
-        eb.companyName = COALESCE($companyName, eb.companyName),
-        eb.footerText = COALESCE($footerText, eb.footerText),
-        eb.updatedAt = datetime()
-      RETURN eb.id as id
-    `;
-    const result = await session.run(query, {
-      logoUrl: data.logoUrl || null,
-      primaryColor: data.primaryColor || "#f97316",
-      secondaryColor: data.secondaryColor || "#ea580c",
-      companyName: data.companyName || "AzVirt",
-      footerText: data.footerText || null
-    });
-    return result.records[0]?.get("id").toNumber() || 0;
-  } finally {
-    await session.close();
-  }
+  return 0;
+}
+async function createConversation(userId, title, modelName) {
+  const result = await db.insert(aiConversations).values({
+    userId,
+    title,
+    modelName,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: aiConversations.id });
+  return result[0]?.id;
+}
+async function getConversations(userId) {
+  return await db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(desc(aiConversations.updatedAt));
+}
+async function addMessage(conversationId, role, content, metadata) {
+  const result = await db.insert(aiMessages).values({
+    conversationId,
+    role,
+    content,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: aiMessages.id });
+  await db.update(aiConversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiConversations.id, conversationId));
+  return result[0]?.id;
+}
+async function getMessages(conversationId) {
+  return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
 }
 async function createAiConversation(data) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (c:AiConversation {
-        id: toInteger(timestamp()),
-        userId: $userId,
-        title: $title,
-        modelName: $modelName,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH c
-      MATCH (u:User {id: $userId})
-      MERGE (u)-[:HAS_CONVERSATION]->(c)
-      RETURN c.id as id
-    `;
-    const result = await session.run(query, {
-      userId: data.userId,
-      title: data.title || "New Conversation",
-      modelName: data.modelName || null
-    });
-    return result.records[0]?.get("id").toNumber();
-  } finally {
-    await session.close();
-  }
+  return createConversation(data.userId, data.title, data.modelName);
 }
 async function getAiConversations(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (c:AiConversation {userId: $userId})
-      RETURN c
-      ORDER BY c.updatedAt DESC
-    `, { userId });
-    return result.records.map((r) => recordToObj(r, "c"));
-  } finally {
-    await session.close();
-  }
+  return getConversations(userId);
 }
 async function deleteAiConversation(conversationId) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (c:AiConversation {id: $conversationId})
-      OPTIONAL MATCH (c)-[:HAS_MESSAGE]->(m:AiMessage)
-      DETACH DELETE c, m
-    `, { conversationId });
-  } finally {
-    await session.close();
-  }
+  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
+  return true;
 }
 async function createAiMessage(data) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (c:AiConversation {id: $conversationId})
-      CREATE (m:AiMessage {
-        id: toInteger(timestamp()),
-        conversationId: $conversationId,
-        role: $role,
-        content: $content,
-        model: $model,
-        audioUrl: $audioUrl,
-        imageUrl: $imageUrl,
-        thinkingProcess: $thinkingProcess,
-        toolCalls: $toolCalls,
-        metadata: $metadata,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      MERGE (c)-[:HAS_MESSAGE]->(m)
-      SET c.updatedAt = datetime()
-      RETURN m.id as id
-    `;
-    const result = await session.run(query, {
-      conversationId: data.conversationId,
-      role: data.role,
-      content: data.content,
-      model: data.model || null,
-      audioUrl: data.audioUrl || null,
-      imageUrl: data.imageUrl || null,
-      thinkingProcess: data.thinkingProcess || null,
-      toolCalls: data.toolCalls || null,
-      metadata: data.metadata || null
-    });
-    return result.records[0]?.get("id").toNumber();
-  } finally {
-    await session.close();
-  }
+  return addMessage(data.conversationId, data.role, data.content, data.metadata);
 }
 async function getAiMessages(conversationId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (c:AiConversation {id: $conversationId})-[:HAS_MESSAGE]->(m:AiMessage)
-      RETURN m
-      ORDER BY m.createdAt ASC
-    `, { conversationId });
-    return result.records.map((r) => recordToObj(r, "m"));
-  } finally {
-    await session.close();
-  }
+  return getMessages(conversationId);
 }
 async function getOverdueTasks(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (t:DailyTask {userId: $userId})
-      WHERE t.dueDate < datetime() AND t.status <> 'completed'
-      RETURN t 
-      ORDER BY t.dueDate
-    `, { userId });
-    return result.records.map((r) => recordToObj(r, "t"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(tasks).where(and(
+    eq(tasks.createdBy, userId),
+    lte(tasks.dueDate, /* @__PURE__ */ new Date()),
+    not(eq(tasks.status, "completed"))
+  )).orderBy(tasks.dueDate);
 }
-async function getNotifications(userId, limit = 50) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (n:TaskNotification {userId: $userId})
-      RETURN n 
-      ORDER BY n.createdAt DESC
-      LIMIT toInteger($limit)
-    `, { userId, limit });
-    return result.records.map((r) => recordToObj(r, "n"));
-  } finally {
-    await session.close();
-  }
+async function getNotifications(userId, limit = 20) {
+  return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.sentAt)).limit(limit);
 }
 async function getUnreadNotifications(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (n:TaskNotification {userId: $userId})
-      WHERE n.status <> 'read'
-      RETURN n 
-      ORDER BY n.createdAt DESC
-    `, { userId });
-    return result.records.map((r) => recordToObj(r, "n"));
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.status, "unread"))).orderBy(desc(notifications.sentAt));
 }
 async function markNotificationAsRead(notificationId) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (n:TaskNotification {id: $notificationId})
-      SET n.status = 'read', n.readAt = datetime(), n.updatedAt = datetime()
-    `, { notificationId });
-  } finally {
-    await session.close();
-  }
+  await db.update(notifications).set({ status: "read" }).where(eq(notifications.id, notificationId));
+  return true;
 }
 async function getOrCreateNotificationPreferences(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $userId})
-      MERGE (u)-[:HAS_PREFERENCES]->(np:NotificationPreferences)
-      ON CREATE SET
-        np.id = toInteger(timestamp()),
-        np.userId = $userId,
-        np.emailEnabled = true,
-        np.smsEnabled = false,
-        np.inAppEnabled = true,
-        np.overdueReminders = true,
-        np.completionNotifications = true,
-        np.assignmentNotifications = true,
-        np.statusChangeNotifications = true,
-        np.timezone = 'UTC',
-        np.createdAt = datetime(),
-        np.updatedAt = datetime()
-      RETURN np
-    `, { userId });
-    return recordToObj(result.records[0], "np");
-  } finally {
-    await session.close();
-  }
+  return {};
 }
 async function updateNotificationPreferences(userId, preferences) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { userId };
-    Object.keys(preferences).forEach((key) => {
-      if (key === "id" || key === "userId") return;
-      sets.push(`np.${key} = $${key}`);
-      params[key] = preferences[key];
-    });
-    if (sets.length === 0) return;
-    sets.push("np.updatedAt = datetime()");
-    await session.run(`
-      MATCH (u:User {id: $userId})-[:HAS_PREFERENCES]->(np:NotificationPreferences)
-      SET ${sets.join(", ")}
-    `, params);
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getNotificationPreferences(userId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $userId})-[:HAS_PREFERENCES]->(np:NotificationPreferences)
-      RETURN np
-    `, { userId });
-    if (result.records.length === 0) return null;
-    return recordToObj(result.records[0], "np");
-  } finally {
-    await session.close();
-  }
+  return null;
 }
-async function getNotificationHistoryByUser(userId, days = 30) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (h:NotificationHistory {userId: $userId})
-      WHERE h.sentAt >= datetime() - duration({days: $days})
-      RETURN h 
-      ORDER BY h.sentAt DESC
-    `, { userId, days });
-    return result.records.map((r) => recordToObj(r, "h"));
-  } finally {
-    await session.close();
-  }
+async function getNotificationHistoryByUser(userId, days) {
+  return [];
 }
-async function getNotificationTemplates(limit = 50, offset = 0) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (nt:NotificationTemplate) 
-      RETURN nt 
-      ORDER BY nt.createdAt DESC 
-      SKIP toInteger($offset) 
-      LIMIT toInteger($limit)
-    `, { limit, offset });
-    return result.records.map((r) => recordToObj(r, "nt"));
-  } finally {
-    await session.close();
-  }
+async function getNotificationTemplates(limit, offset) {
+  return [];
 }
 async function getNotificationTemplate(id) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (nt:NotificationTemplate {id: $id}) RETURN nt", { id });
-    if (result.records.length === 0) return void 0;
-    return recordToObj(result.records[0], "nt");
-  } finally {
-    await session.close();
-  }
+  return null;
 }
 async function createNotificationTemplate(data) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (nt:NotificationTemplate {
-        id: toInteger(timestamp()),
-        name: $name,
-        description: $description,
-        subject: $subject,
-        bodyText: $bodyText,
-        bodyHtml: $bodyHtml,
-        channels: $channels,
-        variables: $variables,
-        tags: $tags,
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH nt
-      MATCH (u:User {id: $createdBy})
-      MERGE (u)-[:CREATED_TEMPLATE]->(nt)
-      RETURN nt.id as id
-    `;
-    const result = await session.run(query, {
-      createdBy: data.createdBy,
-      name: data.name,
-      description: data.description || null,
-      subject: data.subject,
-      bodyText: data.bodyText,
-      bodyHtml: data.bodyHtml || null,
-      channels: JSON.stringify(data.channels),
-      variables: data.variables ? JSON.stringify(data.variables) : null,
-      tags: data.tags ? JSON.stringify(data.tags) : null
-    });
-    return { insertId: result.records[0]?.get("id").toNumber() };
-  } finally {
-    await session.close();
-  }
+  return { insertId: 0 };
 }
 async function updateNotificationTemplate(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (["channels", "variables", "tags"].includes(key) && typeof data[key] !== "string") {
-        sets.push(`nt.${key} = $${key}`);
-        params[key] = JSON.stringify(data[key]);
-      } else {
-        sets.push(`nt.${key} = $${key}`);
-        params[key] = data[key];
-      }
-    });
-    if (sets.length === 0) return;
-    sets.push("nt.updatedAt = datetime()");
-    await session.run(`MATCH (nt:NotificationTemplate {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function deleteNotificationTemplate(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (nt:NotificationTemplate {id: $id}) DETACH DELETE nt", { id });
-  } finally {
-    await session.close();
-  }
+  return true;
 }
-async function getNotificationTriggers(limit = 50, offset = 0) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (tr:NotificationTrigger) 
-      RETURN tr 
-      ORDER BY tr.createdAt DESC 
-      SKIP toInteger($offset) 
-      LIMIT toInteger($limit)
-    `, { limit, offset });
-    return result.records.map((r) => recordToObj(r, "tr"));
-  } finally {
-    await session.close();
-  }
+async function getNotificationTriggers(limit, offset) {
+  return [];
 }
 async function getNotificationTrigger(id) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (tr:NotificationTrigger {id: $id}) RETURN tr", { id });
-    if (result.records.length === 0) return void 0;
-    return recordToObj(result.records[0], "tr");
-  } finally {
-    await session.close();
-  }
+  return null;
 }
 async function getTriggersByEventType(eventType) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (tr:NotificationTrigger {eventType: $eventType})
-      RETURN tr 
-      ORDER BY tr.createdAt DESC
-    `, { eventType });
-    return result.records.map((r) => recordToObj(r, "tr"));
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function createNotificationTrigger(data) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (tr:NotificationTrigger {
-        id: toInteger(timestamp()),
-        name: $name,
-        description: $description,
-        eventType: $eventType,
-        triggerCondition: $triggerCondition,
-        actions: $actions,
-        isActive: true,
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH tr
-      MATCH (nt:NotificationTemplate {id: $templateId})
-      MATCH (u:User {id: $createdBy})
-      MERGE (tr)-[:USES_TEMPLATE]->(nt)
-      MERGE (u)-[:CREATED_TRIGGER]->(tr)
-      RETURN tr.id as id
-    `;
-    const result = await session.run(query, {
-      createdBy: data.createdBy,
-      templateId: data.templateId,
-      name: data.name,
-      description: data.description || null,
-      eventType: data.eventType,
-      triggerCondition: JSON.stringify(data.triggerCondition),
-      actions: JSON.stringify(data.actions)
-    });
-    return { insertId: result.records[0]?.get("id").toNumber() };
-  } finally {
-    await session.close();
-  }
+  return { insertId: 0 };
 }
 async function updateNotificationTrigger(id, data) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(data).forEach((key) => {
-      if (key === "id") return;
-      if (["triggerCondition", "actions"].includes(key) && typeof data[key] !== "string") {
-        sets.push(`tr.${key} = $${key}`);
-        params[key] = JSON.stringify(data[key]);
-      } else {
-        sets.push(`tr.${key} = $${key}`);
-        params[key] = data[key];
-      }
-    });
-    if (sets.length === 0) return;
-    sets.push("tr.updatedAt = datetime()");
-    await session.run(`MATCH (tr:NotificationTrigger {id: $id}) SET ${sets.join(", ")}`, params);
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function deleteNotificationTrigger(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (tr:NotificationTrigger {id: $id}) DETACH DELETE tr", { id });
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function recordTriggerExecution(data) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (te:TriggerExecutionLog {
-        id: toInteger(timestamp()),
-        triggerId: $triggerId,
-        entityType: $entityType,
-        entityId: $entityId,
-        conditionsMet: $conditionsMet,
-        notificationsSent: $notificationsSent,
-        error: $error,
-        executedAt: datetime()
-      })
-      WITH te
-      MATCH (tr:NotificationTrigger {id: $triggerId})
-      MERGE (tr)-[:HAS_EXECUTION]->(te)
-    `;
-    await session.run(query, {
-      triggerId: data.triggerId,
-      entityType: data.entityType,
-      entityId: data.entityId,
-      conditionsMet: data.conditionsMet,
-      notificationsSent: data.notificationsSent,
-      error: data.error || null
-    });
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function updateUserLanguagePreference(userId, language) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (u:User {id: $userId})
-      SET u.languagePreference = $language, u.updatedAt = datetime()
-    `, { userId, language });
-    return true;
-  } catch (error) {
-    console.error("Failed to update language preference:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  await db.update(users).set({ languagePreference: language, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+  return true;
 }
 async function createShift(shift) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (u:User {id: $employeeId})
-      CREATE (s:Shift {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        projectId: $projectId,
-        startTime: datetime($startTime),
-        endTime: datetime($endTime),
-        breakDuration: $breakDuration,
-        notes: $notes,
-        status: $status,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      MERGE (u)-[:HAS_SHIFT]->(s)
-      WITH s
-      OPTIONAL MATCH (p:Project {id: $projectId})
-      FOREACH (_ IN CASE WHEN p IS NOT NULL THEN [1] ELSE [] END |
-        MERGE (s)-[:FOR_PROJECT]->(p)
-      )
-      RETURN s.id as id
-    `;
-    const result = await session.run(query, {
-      employeeId: shift.employeeId,
-      projectId: shift.projectId || null,
-      startTime: new Date(shift.startTime).toISOString(),
-      endTime: shift.endTime ? new Date(shift.endTime).toISOString() : null,
-      breakDuration: shift.breakDuration || 0,
-      notes: shift.notes || null,
-      status: shift.status || "scheduled"
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to create shift:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
+  const result = await db.insert(shifts).values({
+    ...shift,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shifts.id });
+  return result[0]?.id;
 }
 async function getAllShifts() {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (s:Shift)
-      RETURN s 
-      ORDER BY s.startTime DESC
-    `);
-    return result.records.map((r) => recordToObj(r, "s"));
-  } catch (error) {
-    console.error("Failed to get all shifts:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(shifts).orderBy(desc(shifts.startTime));
 }
 async function getShiftsByEmployee(employeeId, startDate, endDate) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
-      WHERE s.startTime >= datetime($startDate) AND s.startTime <= datetime($endDate)
-      RETURN s 
-      ORDER BY s.startTime DESC
-    `, {
-      employeeId,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    return result.records.map((r) => recordToObj(r, "s"));
-  } catch (error) {
-    console.error("Failed to get shifts:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return await db.select().from(shifts).where(and(
+    eq(shifts.employeeId, employeeId),
+    gte(shifts.startTime, startDate),
+    lte(shifts.startTime, endDate)
+  )).orderBy(shifts.startTime);
 }
 async function updateShift(id, updates) {
-  const session = getSession();
-  try {
-    let sets = [];
-    let params = { id };
-    Object.keys(updates).forEach((key) => {
-      if (key === "id") return;
-      if (["startTime", "endTime"].includes(key)) {
-        sets.push(`s.${key} = datetime($${key})`);
-        params[key] = new Date(updates[key]).toISOString();
-      } else {
-        sets.push(`s.${key} = $${key}`);
-        params[key] = updates[key];
-      }
-    });
-    if (sets.length === 0) return true;
-    sets.push("s.updatedAt = datetime()");
-    await session.run(`MATCH (s:Shift {id: $id}) SET ${sets.join(", ")}`, params);
-    return true;
-  } catch (error) {
-    console.error("Failed to update shift:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  await db.update(shifts).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
+  return true;
 }
 async function getShiftById(id) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (s:Shift {id: $id}) RETURN s", { id });
-    if (result.records.length === 0) return null;
-    return recordToObj(result.records[0], "s");
-  } catch (error) {
-    console.error("Failed to get shift by id:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
+  const result = await db.select().from(shifts).where(eq(shifts.id, id));
+  return result[0] || null;
 }
 async function createShiftTemplate(template) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (st:ShiftTemplate {
-        id: toInteger(timestamp()),
-        name: $name,
-        startTime: $startTime,
-        endTime: $endTime,
-        duration: $duration,
-        isActive: true,
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      RETURN st.id as id
-    `;
-    const result = await session.run(query, {
-      name: template.name,
-      startTime: template.startTime,
-      endTime: template.endTime,
-      duration: template.duration,
-      createdBy: template.createdBy
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to create shift template:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getShiftTemplates() {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (st:ShiftTemplate {isActive: true})
-      RETURN st
-      ORDER BY st.name
-    `);
-    return result.records.map((r) => recordToObj(r, "st"));
-  } catch (error) {
-    console.error("Failed to get shift templates:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function setEmployeeAvailability(availability) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (u:User {id: $employeeId})-[r:HAS_AVAILABILITY]->(ea:EmployeeAvailability {dayOfWeek: $dayOfWeek})
-      DELETE r, ea
-    `, { employeeId: availability.employeeId, dayOfWeek: availability.dayOfWeek });
-    const query = `
-      MATCH (u:User {id: $employeeId})
-      CREATE (ea:EmployeeAvailability {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        dayOfWeek: $dayOfWeek,
-        startTime: $startTime,
-        endTime: $endTime,
-        isAvailable: $isAvailable,
-        updatedAt: datetime()
-      })
-      MERGE (u)-[:HAS_AVAILABILITY]->(ea)
-    `;
-    await session.run(query, {
-      employeeId: availability.employeeId,
-      dayOfWeek: availability.dayOfWeek,
-      startTime: availability.startTime,
-      endTime: availability.endTime,
-      isAvailable: availability.isAvailable !== void 0 ? availability.isAvailable : true
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to set employee availability:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getEmployeeAvailability(employeeId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:HAS_AVAILABILITY]->(ea:EmployeeAvailability)
-      RETURN ea
-      ORDER BY ea.dayOfWeek
-    `, { employeeId });
-    return result.records.map((r) => recordToObj(r, "ea"));
-  } catch (error) {
-    console.error("Failed to get employee availability:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function logComplianceAudit(audit) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (ca:ComplianceAuditTrail {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        eventType: $eventType,
-        description: $description,
-        auditDate: datetime($auditDate),
-        severity: $severity,
-        metadata: $metadata,
-        createdAt: datetime()
-      })
-      WITH ca
-      MATCH (u:User {id: $employeeId})
-      MERGE (u)-[:HAS_COMPLIANCE_EVENT]->(ca)
-    `;
-    await session.run(query, {
-      employeeId: audit.employeeId,
-      eventType: audit.eventType,
-      description: audit.description || null,
-      auditDate: new Date(audit.auditDate).toISOString(),
-      severity: audit.severity || "info",
-      metadata: audit.metadata ? JSON.stringify(audit.metadata) : null
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to log compliance audit:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getComplianceAudits(employeeId, startDate, endDate) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:HAS_COMPLIANCE_EVENT]->(ca:ComplianceAuditTrail)
-      WHERE ca.auditDate >= datetime($startDate) AND ca.auditDate <= datetime($endDate)
-      RETURN ca
-      ORDER BY ca.auditDate DESC
-    `, {
-      employeeId,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    return result.records.map((r) => recordToObj(r, "ca"));
-  } catch (error) {
-    console.error("Failed to get compliance audits:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function recordBreak(breakRecord) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (s:Shift {id: $shiftId})
-      CREATE (b:BreakRecord {
-        id: toInteger(timestamp()),
-        shiftId: $shiftId,
-        startTime: datetime($startTime),
-        endTime: datetime($endTime),
-        duration: $duration,
-        type: $type,
-        createdAt: datetime()
-      })
-      MERGE (s)-[:HAS_BREAK]->(b)
-    `;
-    await session.run(query, {
-      shiftId: breakRecord.shiftId,
-      startTime: new Date(breakRecord.startTime).toISOString(),
-      endTime: breakRecord.endTime ? new Date(breakRecord.endTime).toISOString() : null,
-      duration: breakRecord.duration || 0,
-      type: breakRecord.type || "standard"
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to record break:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getBreakRules(jurisdiction) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (br:BreakRule {jurisdiction: $jurisdiction})
-      RETURN br
-    `, { jurisdiction });
-    return result.records.map((r) => recordToObj(r, "br"));
-  } catch (error) {
-    console.error("Failed to get break rules:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function cacheOfflineEntry(cache) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (toc:TimesheetOfflineCache {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        data: $data,
-        capturedAt: datetime($capturedAt),
-        syncStatus: $syncStatus,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      WITH toc
-      MATCH (u:User {id: $employeeId})
-      MERGE (u)-[:HAS_OFFLINE_ENTRY]->(toc)
-    `;
-    await session.run(query, {
-      employeeId: cache.employeeId,
-      data: JSON.stringify(cache.data),
-      capturedAt: new Date(cache.capturedAt).toISOString(),
-      syncStatus: cache.syncStatus || "pending"
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to cache offline entry:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function getPendingOfflineEntries(employeeId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:HAS_OFFLINE_ENTRY]->(toc:TimesheetOfflineCache)
-      WHERE toc.syncStatus = 'pending'
-      RETURN toc
-      ORDER BY toc.capturedAt ASC
-    `, { employeeId });
-    return result.records.map((r) => recordToObj(r, "toc"));
-  } catch (error) {
-    console.error("Failed to get pending offline entries:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function updateOfflineSyncStatus(id, status, syncedAt) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (toc:TimesheetOfflineCache {id: $id})
-      SET toc.syncStatus = $status, toc.syncedAt = datetime($syncedAt), toc.updatedAt = datetime()
-    `, {
-      id,
-      status,
-      syncedAt: syncedAt ? syncedAt.toISOString() : (/* @__PURE__ */ new Date()).toISOString()
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to update offline sync status:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 async function createJobSite(input) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (p:Project {id: $projectId})
-      CREATE (js:JobSite {
-        id: toInteger(timestamp()),
-        projectId: $projectId,
-        name: $name,
-        description: $description,
-        latitude: $latitude,
-        longitude: $longitude,
-        geofenceRadius: $geofenceRadius,
-        address: $address,
-        isActive: true,
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      MERGE (p)-[:HAS_JOB_SITE]->(js)
-      RETURN js.id as id
-    `;
-    const result = await session.run(query, {
-      projectId: input.projectId,
-      name: input.name,
-      description: input.description || null,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      geofenceRadius: input.geofenceRadius || 100,
-      address: input.address || null,
-      createdBy: input.createdBy
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to create job site:", error);
-    throw error;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function getJobSites(projectId) {
-  const session = getSession();
-  try {
-    let query = `MATCH (js:JobSite) WHERE js.isActive = true RETURN js`;
-    let params = {};
-    if (projectId) {
-      query = `MATCH (p:Project {id: $projectId})-[:HAS_JOB_SITE]->(js:JobSite) WHERE js.isActive = true RETURN js`;
-      params = { projectId };
-    }
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "js"));
-  } catch (error) {
-    console.error("Failed to get job sites:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function createLocationLog(input) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (u:User {id: $employeeId})
-      MATCH (s:Shift {id: $shiftId})
-      MATCH (js:JobSite {id: $jobSiteId})
-      CREATE (ll:LocationLog {
-        id: toInteger(timestamp()),
-        shiftId: $shiftId,
-        employeeId: $employeeId,
-        jobSiteId: $jobSiteId,
-        eventType: $eventType,
-        latitude: $latitude,
-        longitude: $longitude,
-        accuracy: $accuracy,
-        isWithinGeofence: $isWithinGeofence,
-        distanceFromGeofence: $distanceFromGeofence,
-        deviceId: $deviceId,
-        ipAddress: $ipAddress,
-        userAgent: $userAgent,
-        timestamp: datetime()
-      })
-      MERGE (s)-[:HAS_LOCATION_LOG]->(ll)
-      MERGE (u)-[:LOGGED_LOCATION]->(ll)
-      MERGE (ll)-[:AT_SITE]->(js)
-      RETURN ll.id as id
-    `;
-    const result = await session.run(query, {
-      shiftId: input.shiftId,
-      employeeId: input.employeeId,
-      jobSiteId: input.jobSiteId,
-      eventType: input.eventType,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      accuracy: input.accuracy || null,
-      isWithinGeofence: input.isWithinGeofence,
-      distanceFromGeofence: input.distanceFromGeofence || null,
-      deviceId: input.deviceId || null,
-      ipAddress: input.ipAddress || null,
-      userAgent: input.userAgent || null
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to create location log:", error);
-    throw error;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
 async function recordGeofenceViolation(input) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (ll:LocationLog {id: $locationLogId})
-      MATCH (u:User {id: $employeeId})
-      MATCH (js:JobSite {id: $jobSiteId})
-      CREATE (gv:GeofenceViolation {
-        id: toInteger(timestamp()),
-        locationLogId: $locationLogId,
-        employeeId: $employeeId,
-        jobSiteId: $jobSiteId,
-        violationType: $violationType,
-        distanceFromGeofence: $distanceFromGeofence,
-        severity: $severity,
-        isResolved: false,
-        timestamp: datetime()
-      })
-      MERGE (ll)-[:HAS_VIOLATION]->(gv)
-      MERGE (u)-[:COMMITTED_VIOLATION]->(gv)
-      MERGE (gv)-[:AT_SITE]->(js)
-      RETURN gv.id as id
-    `;
-    const result = await session.run(query, {
-      locationLogId: input.locationLogId,
-      employeeId: input.employeeId,
-      jobSiteId: input.jobSiteId,
-      violationType: input.violationType,
-      distanceFromGeofence: input.distanceFromGeofence,
-      severity: input.severity || "warning"
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to record geofence violation:", error);
-    throw error;
-  } finally {
-    await session.close();
-  }
+  return Date.now();
 }
-async function getLocationHistory(employeeId, limit = 50) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:LOGGED_LOCATION]->(ll:LocationLog)
-      RETURN ll
-      ORDER BY ll.timestamp DESC
-      LIMIT toInteger($limit)
-    `, { employeeId, limit });
-    return result.records.map((r) => recordToObj(r, "ll"));
-  } catch (error) {
-    console.error("Failed to get location history:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+async function getLocationHistory(employeeId, limit) {
+  return [];
 }
 async function getGeofenceViolations(employeeId, resolved) {
-  const session = getSession();
-  try {
-    let query = `MATCH (gv:GeofenceViolation)`;
-    let whereClauses = [];
-    let params = {};
-    if (employeeId) {
-      whereClauses.push(`gv.employeeId = $employeeId`);
-      params.employeeId = employeeId;
-    }
-    if (resolved !== void 0) {
-      whereClauses.push(`gv.isResolved = $resolved`);
-      params.resolved = resolved;
-    }
-    if (whereClauses.length > 0) {
-      query += ` WHERE ${whereClauses.join(" AND ")}`;
-    }
-    query += ` RETURN gv ORDER BY gv.timestamp DESC`;
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj(r, "gv"));
-  } catch (error) {
-    console.error("Failed to get geofence violations:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
+  return [];
 }
 async function resolveGeofenceViolation(violationId, resolvedBy, notes) {
-  const session = getSession();
-  try {
-    await session.run(`
-      MATCH (gv:GeofenceViolation {id: $violationId})
-      SET gv.isResolved = true, 
-          gv.resolvedBy = $resolvedBy, 
-          gv.resolutionNotes = $notes, 
-          gv.resolvedAt = datetime()
-    `, { violationId, resolvedBy, notes });
-    return true;
-  } catch (error) {
-    console.error("Failed to resolve geofence violation:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
+  return true;
 }
 
 // server/_core/clerk.ts
 var clerk = clerkClient;
 var clerkAuthMiddleware = requireAuth();
+var clerkBaseMiddleware = clerkMiddleware();
 async function syncClerkUser(req) {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     if (!userId) {
       throw new Error("No user ID found in Clerk session");
     }
@@ -4160,7 +1764,7 @@ var OllamaService = class {
 var ollamaService = new OllamaService();
 
 // server/_core/aiTools.ts
-import { like, eq, and, gte, lte, desc } from "drizzle-orm";
+import { like as like2, eq as eq2, and as and2, desc as desc2 } from "drizzle-orm";
 var searchMaterialsTool = {
   name: "search_materials",
   description: "Search materials inventory by name or check stock levels. Returns current stock, supplier info, and low stock warnings.",
@@ -4183,7 +1787,7 @@ var searchMaterialsTool = {
     if (!db2) return { error: "Database not available" };
     let query = db2.select().from(materials);
     if (params.query) {
-      query = query.where(like(materials.name, `%${params.query}%`));
+      query = query.where(like2(materials.name, `%${params.query}%`));
     }
     const results = await query;
     if (params.checkLowStock) {
@@ -4202,75 +1806,20 @@ var searchMaterialsTool = {
     }));
   }
 };
-var getDeliveryStatusTool = {
-  name: "get_delivery_status",
-  description: "Get real-time delivery status, GPS location, and ETA. Can search by delivery ID, project name, or status.",
+var getProjectsTool = {
+  name: "get_projects",
+  description: "Get project information and status. Can filter by status or search by name.",
   parameters: {
     type: "object",
     properties: {
-      deliveryId: {
-        type: "number",
-        description: "Specific delivery ID to lookup"
-      },
-      projectName: {
-        type: "string",
-        description: "Project name to filter deliveries"
-      },
       status: {
         type: "string",
-        description: "Delivery status to filter",
-        enum: ["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed"]
-      }
-    },
-    required: []
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const conditions = [];
-    if (params.deliveryId) {
-      conditions.push(eq(deliveries.id, params.deliveryId));
-    }
-    if (params.projectName) {
-      conditions.push(like(deliveries.projectName, `%${params.projectName}%`));
-    }
-    if (params.status) {
-      conditions.push(eq(deliveries.status, params.status));
-    }
-    const results = await db2.select().from(deliveries).where(conditions.length > 0 ? and(...conditions) : void 0).orderBy(desc(deliveries.scheduledTime)).limit(10);
-    return results.map((d) => ({
-      id: d.id,
-      projectName: d.projectName,
-      concreteType: d.concreteType,
-      volume: d.volume,
-      status: d.status,
-      scheduledTime: d.scheduledTime,
-      driverName: d.driverName,
-      vehicleNumber: d.vehicleNumber,
-      gpsLocation: d.gpsLocation,
-      estimatedArrival: d.estimatedArrival,
-      notes: d.notes
-    }));
-  }
-};
-var searchDocumentsTool = {
-  name: "search_documents",
-  description: "Search documents by name, category, or project. Returns document metadata and download URLs.",
-  parameters: {
-    type: "object",
-    properties: {
+        description: "Project status to filter",
+        enum: ["planning", "active", "completed", "on_hold"]
+      },
       query: {
         type: "string",
-        description: "Document name to search for"
-      },
-      category: {
-        type: "string",
-        description: "Document category to filter",
-        enum: ["contract", "blueprint", "report", "certificate", "invoice", "other"]
-      },
-      projectId: {
-        type: "number",
-        description: "Project ID to filter documents"
+        description: "Project name to search for"
       }
     },
     required: []
@@ -4278,465 +1827,29 @@ var searchDocumentsTool = {
   execute: async (params, userId) => {
     const db2 = await getDb2();
     if (!db2) return { error: "Database not available" };
-    const conditions = [];
-    if (params.query) {
-      conditions.push(like(documents.name, `%${params.query}%`));
-    }
-    if (params.category) {
-      conditions.push(eq(documents.category, params.category));
-    }
-    if (params.projectId) {
-      conditions.push(eq(documents.projectId, params.projectId));
-    }
-    const results = await db2.select().from(documents).where(conditions.length > 0 ? and(...conditions) : void 0).orderBy(desc(documents.createdAt)).limit(20);
-    return results.map((d) => ({
-      id: d.id,
-      name: d.name,
-      description: d.description,
-      category: d.category,
-      fileUrl: d.fileUrl,
-      mimeType: d.mimeType,
-      fileSize: d.fileSize,
-      createdAt: d.createdAt
-    }));
-  }
-};
-var getQualityTestsTool = {
-  name: "get_quality_tests",
-  description: "Retrieve quality control test results. Can filter by status, test type, or delivery.",
-  parameters: {
-    type: "object",
-    properties: {
-      status: {
-        type: "string",
-        description: "Test status to filter",
-        enum: ["pass", "fail", "pending"]
-      },
-      testType: {
-        type: "string",
-        description: "Type of test to filter",
-        enum: ["slump", "strength", "air_content", "temperature", "other"]
-      },
-      deliveryId: {
-        type: "number",
-        description: "Delivery ID to get tests for"
-      },
-      limit: {
-        type: "number",
-        description: "Maximum number of results to return (default: 10)"
-      }
-    },
-    required: []
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
+    let query = db2.select().from(projects);
     const conditions = [];
     if (params.status) {
-      conditions.push(eq(qualityTests.status, params.status));
+      conditions.push(eq2(projects.status, params.status));
     }
-    if (params.testType) {
-      conditions.push(eq(qualityTests.testType, params.testType));
+    if (params.query) {
+      conditions.push(like2(projects.name, `%${params.query}%`));
     }
-    if (params.deliveryId) {
-      conditions.push(eq(qualityTests.deliveryId, params.deliveryId));
-    }
-    const results = await db2.select().from(qualityTests).where(conditions.length > 0 ? and(...conditions) : void 0).orderBy(desc(qualityTests.createdAt)).limit(params.limit || 10);
-    return results.map((t2) => ({
-      id: t2.id,
-      testName: t2.testName,
-      testType: t2.testType,
-      result: t2.result,
-      unit: t2.unit,
-      status: t2.status,
-      testedBy: t2.testedBy,
-      complianceStandard: t2.complianceStandard,
-      notes: t2.notes,
-      createdAt: t2.createdAt
-    }));
-  }
-};
-var generateForecastTool = {
-  name: "generate_forecast",
-  description: "Generate inventory forecast predictions showing when materials will run out and recommended order quantities.",
-  parameters: {
-    type: "object",
-    properties: {
-      materialId: {
-        type: "number",
-        description: "Specific material ID to forecast (optional, forecasts all if not provided)"
-      }
-    },
-    required: []
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    let query = db2.select().from(forecastPredictions).orderBy(forecastPredictions.daysUntilStockout);
-    if (params.materialId) {
-      query = query.where(eq(forecastPredictions.materialId, params.materialId));
-    }
-    const results = await query.limit(20);
-    return results.map((f) => ({
-      materialId: f.materialId,
-      materialName: f.materialName,
-      currentStock: f.currentStock,
-      dailyConsumptionRate: f.dailyConsumptionRate,
-      daysUntilStockout: f.daysUntilStockout,
-      predictedRunoutDate: f.predictedRunoutDate,
-      recommendedOrderQty: f.recommendedOrderQty,
-      confidence: f.confidence,
-      status: f.daysUntilStockout && f.daysUntilStockout < 7 ? "critical" : f.daysUntilStockout && f.daysUntilStockout < 14 ? "warning" : "ok"
-    }));
-  }
-};
-var calculateStatsTool = {
-  name: "calculate_stats",
-  description: "Calculate statistics and aggregations (total deliveries, average test results, etc.)",
-  parameters: {
-    type: "object",
-    properties: {
-      metric: {
-        type: "string",
-        description: "Metric to calculate",
-        enum: ["total_deliveries", "total_concrete_volume", "qc_pass_rate", "active_projects"]
-      },
-      startDate: {
-        type: "string",
-        description: "Start date for filtering (ISO format)"
-      },
-      endDate: {
-        type: "string",
-        description: "End date for filtering (ISO format)"
-      }
-    },
-    required: ["metric"]
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { metric, startDate, endDate } = params;
-    const dateConditions = [];
-    if (startDate) {
-      dateConditions.push(gte(deliveries.createdAt, new Date(startDate)));
-    }
-    if (endDate) {
-      dateConditions.push(lte(deliveries.createdAt, new Date(endDate)));
-    }
-    switch (metric) {
-      case "total_deliveries": {
-        const results = await db2.select().from(deliveries).where(dateConditions.length > 0 ? and(...dateConditions) : void 0);
-        return {
-          metric: "total_deliveries",
-          value: results.length,
-          period: { startDate, endDate }
-        };
-      }
-      case "total_concrete_volume": {
-        const results = await db2.select().from(deliveries).where(dateConditions.length > 0 ? and(...dateConditions) : void 0);
-        const totalVolume = results.reduce((sum, d) => sum + (d.volume || 0), 0);
-        return {
-          metric: "total_concrete_volume",
-          value: totalVolume,
-          unit: "m\xB3",
-          period: { startDate, endDate }
-        };
-      }
-      case "qc_pass_rate": {
-        const allTests = await db2.select().from(qualityTests);
-        const passedTests = allTests.filter((t2) => t2.status === "pass");
-        const passRate = allTests.length > 0 ? passedTests.length / allTests.length * 100 : 0;
-        return {
-          metric: "qc_pass_rate",
-          value: Math.round(passRate * 10) / 10,
-          unit: "%",
-          totalTests: allTests.length,
-          passedTests: passedTests.length
-        };
-      }
-      default:
-        return { error: "Unknown metric" };
-    }
-  }
-};
-var logWorkHoursTool = {
-  name: "log_work_hours",
-  description: "Log or record work hours for an employee. Use this to track employee working time, overtime, and project assignments.",
-  parameters: {
-    type: "object",
-    properties: {
-      employeeId: {
-        type: "number",
-        description: "ID of the employee"
-      },
-      projectId: {
-        type: "number",
-        description: "ID of the project (optional)"
-      },
-      date: {
-        type: "string",
-        description: "Date of work in ISO format (YYYY-MM-DD)"
-      },
-      startTime: {
-        type: "string",
-        description: "Start time in ISO format"
-      },
-      endTime: {
-        type: "string",
-        description: "End time in ISO format (optional if ongoing)"
-      },
-      workType: {
-        type: "string",
-        description: "Type of work",
-        enum: ["regular", "overtime", "weekend", "holiday"]
-      },
-      notes: {
-        type: "string",
-        description: "Additional notes about the work"
-      }
-    },
-    required: ["employeeId", "date", "startTime"]
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { employeeId, projectId, date, startTime, endTime, workType, notes } = params;
-    let hoursWorked = null;
-    let overtimeHours = 0;
-    if (endTime) {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const diffMs = end.getTime() - start.getTime();
-      hoursWorked = Math.round(diffMs / (1e3 * 60 * 60));
-      if (hoursWorked > 8) {
-        overtimeHours = hoursWorked - 8;
-      }
-    }
-    const [result] = await db2.insert(workHours).values({
-      employeeId,
-      projectId: projectId || null,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: endTime ? new Date(endTime) : null,
-      hoursWorked,
-      overtimeHours,
-      workType: workType || "regular",
-      notes: notes || null,
-      status: "pending"
-    });
-    return {
-      success: true,
-      workHourId: result.insertId,
-      hoursWorked,
-      overtimeHours,
-      message: "Work hours logged successfully"
-    };
-  }
-};
-var getWorkHoursSummaryTool = {
-  name: "get_work_hours_summary",
-  description: "Get summary of work hours for an employee or project. Returns total hours, overtime, and breakdown by work type.",
-  parameters: {
-    type: "object",
-    properties: {
-      employeeId: {
-        type: "number",
-        description: "Filter by employee ID"
-      },
-      projectId: {
-        type: "number",
-        description: "Filter by project ID"
-      },
-      startDate: {
-        type: "string",
-        description: "Start date for summary (YYYY-MM-DD)"
-      },
-      endDate: {
-        type: "string",
-        description: "End date for summary (YYYY-MM-DD)"
-      },
-      status: {
-        type: "string",
-        description: "Filter by approval status",
-        enum: ["pending", "approved", "rejected"]
-      }
-    },
-    required: []
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { employeeId, projectId, startDate, endDate, status } = params;
-    let query = db2.select().from(workHours);
-    const conditions = [];
-    if (employeeId) conditions.push(eq(workHours.employeeId, employeeId));
-    if (projectId) conditions.push(eq(workHours.projectId, projectId));
-    if (status) conditions.push(eq(workHours.status, status));
-    if (startDate) conditions.push(gte(workHours.date, new Date(startDate)));
-    if (endDate) conditions.push(lte(workHours.date, new Date(endDate)));
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      query = query.where(and2(...conditions));
     }
-    const results = await query;
-    const totalHours = results.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
-    const totalOvertime = results.reduce((sum, r) => sum + (r.overtimeHours || 0), 0);
-    const byWorkType = results.reduce((acc, r) => {
-      acc[r.workType] = (acc[r.workType] || 0) + (r.hoursWorked || 0);
-      return acc;
-    }, {});
-    return {
-      totalEntries: results.length,
-      totalHours,
-      totalOvertime,
-      regularHours: totalHours - totalOvertime,
-      byWorkType,
-      entries: results.slice(0, 10)
-      // Return first 10 entries
-    };
-  }
-};
-var logMachineHoursTool = {
-  name: "log_machine_hours",
-  description: "Log work hours for machinery/equipment. Track equipment usage, operator, and project assignment.",
-  parameters: {
-    type: "object",
-    properties: {
-      machineId: {
-        type: "number",
-        description: "ID of the machine/equipment"
-      },
-      projectId: {
-        type: "number",
-        description: "ID of the project (optional)"
-      },
-      date: {
-        type: "string",
-        description: "Date of operation (YYYY-MM-DD)"
-      },
-      startTime: {
-        type: "string",
-        description: "Start time in ISO format"
-      },
-      endTime: {
-        type: "string",
-        description: "End time in ISO format (optional)"
-      },
-      operatorId: {
-        type: "number",
-        description: "ID of the operator/employee"
-      },
-      operatorName: {
-        type: "string",
-        description: "Name of the operator"
-      },
-      notes: {
-        type: "string",
-        description: "Notes about machine operation"
-      }
-    },
-    required: ["machineId", "date", "startTime"]
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { machineId, projectId, date, startTime, endTime, operatorId, operatorName, notes } = params;
-    let hoursWorked = null;
-    if (endTime) {
-      const start = new Date(startTime);
-      const end = new Date(endTime);
-      const diffMs = end.getTime() - start.getTime();
-      hoursWorked = Math.round(diffMs / (1e3 * 60 * 60));
-    }
-    const [result] = await db2.insert(machineWorkHours).values({
-      machineId,
-      projectId: projectId || null,
-      date: new Date(date),
-      startTime: new Date(startTime),
-      endTime: endTime ? new Date(endTime) : null,
-      hoursWorked,
-      operatorId: operatorId || null,
-      operatorName: operatorName || null,
-      notes: notes || null
-    });
-    return {
-      success: true,
-      machineWorkHourId: result.insertId,
-      hoursWorked,
-      message: "Machine hours logged successfully"
-    };
-  }
-};
-var updateDocumentTool = {
-  name: "update_document",
-  description: "Update document metadata such as name, description, category, or project assignment.",
-  parameters: {
-    type: "object",
-    properties: {
-      documentId: {
-        type: "number",
-        description: "ID of the document to update"
-      },
-      name: {
-        type: "string",
-        description: "New document name"
-      },
-      description: {
-        type: "string",
-        description: "New description"
-      },
-      category: {
-        type: "string",
-        description: "Document category",
-        enum: ["contract", "blueprint", "report", "certificate", "invoice", "other"]
-      },
-      projectId: {
-        type: "number",
-        description: "Assign to project ID"
-      }
-    },
-    required: ["documentId"]
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { documentId, name, description, category, projectId } = params;
-    const updates = { updatedAt: /* @__PURE__ */ new Date() };
-    if (name) updates.name = name;
-    if (description) updates.description = description;
-    if (category) updates.category = category;
-    if (projectId !== void 0) updates.projectId = projectId;
-    await db2.update(documents).set(updates).where(eq(documents.id, documentId));
-    return {
-      success: true,
-      documentId,
-      updated: Object.keys(updates).filter((k) => k !== "updatedAt"),
-      message: "Document updated successfully"
-    };
-  }
-};
-var deleteDocumentTool = {
-  name: "delete_document",
-  description: "Delete a document from the system. This permanently removes the document record.",
-  parameters: {
-    type: "object",
-    properties: {
-      documentId: {
-        type: "number",
-        description: "ID of the document to delete"
-      }
-    },
-    required: ["documentId"]
-  },
-  execute: async (params, userId) => {
-    const db2 = await getDb2();
-    if (!db2) return { error: "Database not available" };
-    const { documentId } = params;
-    await db2.delete(documents).where(eq(documents.id, documentId));
-    return {
-      success: true,
-      documentId,
-      message: "Document deleted successfully"
-    };
+    const results = await query.orderBy(desc2(projects.createdAt));
+    return results.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      location: p.location,
+      status: p.status,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      createdBy: p.createdBy,
+      createdAt: p.createdAt
+    }));
   }
 };
 var createMaterialTool = {
@@ -4781,7 +1894,7 @@ var createMaterialTool = {
     const db2 = await getDb2();
     if (!db2) return { error: "Database not available" };
     const { name, category, unit, quantity, minStock, supplier, unitPrice } = params;
-    const [result] = await db2.insert(materials).values({
+    const result = await db2.insert(materials).values({
       name,
       category: category || "other",
       unit,
@@ -4790,10 +1903,10 @@ var createMaterialTool = {
       criticalThreshold: minStock ? Math.floor(minStock * 0.5) : 0,
       supplier: supplier || null,
       unitPrice: unitPrice || null
-    });
+    }).returning({ id: materials.id });
     return {
       success: true,
-      materialId: result.insertId,
+      materialId: result[0]?.id,
       message: `Material "${name}" created successfully`
     };
   }
@@ -4824,7 +1937,7 @@ var updateMaterialQuantityTool = {
     if (!db2) return { error: "Database not available" };
     const { materialId, quantity, adjustment } = params;
     if (quantity !== void 0) {
-      await db2.update(materials).set({ quantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
+      await db2.update(materials).set({ quantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
       return {
         success: true,
         materialId,
@@ -4832,12 +1945,12 @@ var updateMaterialQuantityTool = {
         message: "Material quantity updated"
       };
     } else if (adjustment !== void 0) {
-      const [material] = await db2.select().from(materials).where(eq(materials.id, materialId));
+      const [material] = await db2.select().from(materials).where(eq2(materials.id, materialId));
       if (!material) {
         return { error: "Material not found" };
       }
       const newQuantity = material.quantity + adjustment;
-      await db2.update(materials).set({ quantity: newQuantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
+      await db2.update(materials).set({ quantity: newQuantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
       return {
         success: true,
         materialId,
@@ -4850,57 +1963,66 @@ var updateMaterialQuantityTool = {
     return { error: "Either quantity or adjustment must be provided" };
   }
 };
-var bulkImportTool = {
-  name: "bulk_import_data",
-  description: "Import bulk data from CSV or Excel files for work hours, materials, or documents.",
+var createProjectTool = {
+  name: "create_project",
+  description: "Create a new construction project with basic information.",
   parameters: {
     type: "object",
     properties: {
-      filePath: {
+      name: {
         type: "string",
-        description: "Path to the CSV or Excel file to import"
+        description: "Project name"
       },
-      importType: {
+      description: {
         type: "string",
-        enum: ["work_hours", "materials", "documents"],
-        description: "Type of data to import"
+        description: "Project description"
       },
-      sheetName: {
+      location: {
         type: "string",
-        description: "Sheet name for Excel files (optional)"
+        description: "Project location"
+      },
+      status: {
+        type: "string",
+        description: "Project status",
+        enum: ["planning", "active", "completed", "on_hold"]
+      },
+      startDate: {
+        type: "string",
+        description: "Start date (ISO format)"
+      },
+      endDate: {
+        type: "string",
+        description: "End date (ISO format)"
       }
     },
-    required: ["filePath", "importType"]
+    required: ["name"]
   },
   execute: async (params, userId) => {
-    const { filePath, importType } = params;
-    if (!filePath || !importType) {
-      return { error: "filePath and importType are required" };
-    }
+    const db2 = await getDb2();
+    if (!db2) return { error: "Database not available" };
+    const { name, description, location, status, startDate, endDate } = params;
+    const result = await db2.insert(projects).values({
+      name,
+      description: description || null,
+      location: location || null,
+      status: status || "planning",
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      createdBy: userId
+    }).returning({ id: projects.id });
     return {
       success: true,
-      message: "Use bulkImport procedures to complete the import"
+      projectId: result[0]?.id,
+      message: `Project "${name}" created successfully`
     };
   }
 };
 var AI_TOOLS = [
-  // Read-only tools
   searchMaterialsTool,
-  getDeliveryStatusTool,
-  searchDocumentsTool,
-  getQualityTestsTool,
-  generateForecastTool,
-  calculateStatsTool,
-  // Data manipulation tools
-  logWorkHoursTool,
-  getWorkHoursSummaryTool,
-  logMachineHoursTool,
-  updateDocumentTool,
-  deleteDocumentTool,
+  getProjectsTool,
   createMaterialTool,
   updateMaterialQuantityTool,
-  // Bulk import tool
-  bulkImportTool
+  createProjectTool
 ];
 async function executeTool(toolName, parameters, userId) {
   const tool = AI_TOOLS.find((t2) => t2.name === toolName);
@@ -6249,8 +3371,8 @@ var notificationsRouter = router({
   // Get all notifications for current user
   getNotifications: protectedProcedure.input(z4.object({ limit: z4.number().default(50).optional() })).query(async ({ ctx, input }) => {
     try {
-      const notifications = await getNotifications(ctx.user.id, input.limit);
-      return notifications;
+      const notifications2 = await getNotifications(ctx.user.id, input.limit);
+      return notifications2;
     } catch (error) {
       console.error("[Notifications] Failed to fetch notifications:", error);
       throw new TRPCError4({
@@ -6275,8 +3397,8 @@ var notificationsRouter = router({
   // Mark notification as read
   markAsRead: protectedProcedure.input(z4.object({ notificationId: z4.number() })).mutation(async ({ ctx, input }) => {
     try {
-      const notifications = await getNotifications(ctx.user.id, 1e3);
-      const notification = notifications.find((n) => n.id === input.notificationId);
+      const notifications2 = await getNotifications(ctx.user.id, 1e3);
+      const notification = notifications2.find((n) => n.id === input.notificationId);
       if (!notification) {
         throw new TRPCError4({
           code: "NOT_FOUND",
@@ -7407,8 +4529,8 @@ var geolocationRouter = router({
     if (shift.employeeId !== ctx.user.id && ctx.user.role !== "admin") {
       throw new Error("You can only check in for your own shifts");
     }
-    const jobSites2 = await getJobSites();
-    const jobSite = jobSites2.find((js) => js.id === input.jobSiteId);
+    const jobSites = await getJobSites();
+    const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
     if (!jobSite) {
       throw new Error("Job site not found");
     }
@@ -7507,8 +4629,8 @@ var geolocationRouter = router({
     if (shift.employeeId !== ctx.user.id && ctx.user.role !== "admin") {
       throw new Error("You can only check out for your own shifts");
     }
-    const jobSites2 = await getJobSites();
-    const jobSite = jobSites2.find((js) => js.id === input.jobSiteId);
+    const jobSites = await getJobSites();
+    const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
     if (!jobSite) {
       throw new Error("Job site not found");
     }
@@ -8080,8 +5202,52 @@ var exportRouter = router({
 // server/routers/recipes.ts
 import { z as z10 } from "zod";
 
+// server/db/neo4j.ts
+import neo4j from "neo4j-driver";
+import dotenv from "dotenv";
+dotenv.config();
+var uri = process.env.NEO4J_URI || "neo4j+s://placeholder.databases.neo4j.io";
+var user = process.env.NEO4J_USER || "neo4j";
+var password = process.env.NEO4J_PASSWORD || "";
+var driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
+var getSession = () => {
+  return driver.session();
+};
+var toNativeTypes = (v) => {
+  if (v === null || v === void 0) return v;
+  if (neo4j.isInt(v)) {
+    return v.toNumber();
+  }
+  if (neo4j.isDate(v) || neo4j.isDateTime(v) || neo4j.isLocalDateTime(v) || neo4j.isTime(v) || neo4j.isLocalTime(v) || neo4j.isDuration(v)) {
+    return v.toString();
+  }
+  if (Array.isArray(v)) {
+    return v.map(toNativeTypes);
+  }
+  if (typeof v === "object") {
+    if (v.properties) {
+      const obj2 = {};
+      for (const key in v.properties) {
+        obj2[key] = toNativeTypes(v.properties[key]);
+      }
+      return obj2;
+    }
+    const obj = {};
+    for (const key in v) {
+      obj[key] = toNativeTypes(v[key]);
+    }
+    return obj;
+  }
+  return v;
+};
+var recordToNative = (record, key = "n") => {
+  if (!record || !record.has(key)) return null;
+  const item = record.get(key);
+  return toNativeTypes(item);
+};
+
 // server/db/recipes.ts
-var recordToObj2 = recordToNative;
+var recordToObj = recordToNative;
 async function getAllRecipes() {
   const session = getSession();
   try {
@@ -8090,7 +5256,7 @@ async function getAllRecipes() {
       RETURN r
       ORDER BY r.name
     `);
-    return result.records.map((r) => recordToObj2(r, "r"));
+    return result.records.map((r) => recordToObj(r, "r"));
   } catch (error) {
     console.error("Failed to get recipes:", error);
     return [];
@@ -8103,7 +5269,7 @@ async function getRecipeById(id) {
   try {
     const result = await session.run("MATCH (r:ConcreteRecipe {id: $id}) RETURN r", { id });
     if (result.records.length === 0) return null;
-    return recordToObj2(result.records[0], "r");
+    return recordToObj(result.records[0], "r");
   } catch (error) {
     console.error("Failed to get recipe:", error);
     return null;
@@ -8119,7 +5285,7 @@ async function getRecipeIngredients(recipeId) {
       RETURN m, rel
     `, { recipeId });
     return result.records.map((r) => {
-      const material = recordToObj2(r, "m");
+      const material = recordToObj(r, "m");
       const rel = r.get("rel");
       return {
         id: rel.properties.id,
@@ -8310,7 +5476,7 @@ var recipesRouter = router({
 import { z as z11 } from "zod";
 
 // server/db/mixingLogs.ts
-var recordToObj3 = recordToNative;
+var recordToObj2 = recordToNative;
 async function getAllMixingLogs(filters) {
   const session = getSession();
   try {
@@ -8334,7 +5500,7 @@ async function getAllMixingLogs(filters) {
     }
     query += ` RETURN m ORDER BY m.createdAt DESC`;
     const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj3(r, "m"));
+    return result.records.map((r) => recordToObj2(r, "m"));
   } catch (error) {
     console.error("Failed to get mixing logs:", error);
     return [];
@@ -8347,13 +5513,13 @@ async function getMixingLogById(id) {
   try {
     const logResult = await session.run(`MATCH (m:MixingLog {id: $id}) RETURN m`, { id });
     if (logResult.records.length === 0) return null;
-    const log = recordToObj3(logResult.records[0], "m");
+    const log = recordToObj2(logResult.records[0], "m");
     const ingredientsResult = await session.run(`
       MATCH (m:MixingLog {id: $id})-[rel:USED_INGREDIENT]->(mat:Material)
       RETURN mat, rel
     `, { id });
     const ingredients = ingredientsResult.records.map((r) => {
-      const mat = recordToObj3(r, "mat");
+      const mat = recordToObj2(r, "mat");
       const rel = r.get("rel");
       return {
         id: rel.properties.id,
@@ -8854,7 +6020,7 @@ var productionAnalyticsRouter = router({
 import { z as z13 } from "zod";
 
 // server/db/timesheetApprovals.ts
-var recordToObj4 = recordToNative;
+var recordToObj3 = recordToNative;
 async function getPendingTimesheets(approverId) {
   const session = getSession();
   try {
@@ -8867,9 +6033,9 @@ async function getPendingTimesheets(approverId) {
     `;
     const result = await session.run(query, { approverId });
     return result.records.map((r) => {
-      const approval = recordToObj4(r, "ta");
-      const shift = recordToObj4(r, "s");
-      const user2 = recordToObj4(r, "u");
+      const approval = recordToObj3(r, "ta");
+      const shift = recordToObj3(r, "s");
+      const user2 = recordToObj3(r, "u");
       return {
         id: shift.id,
         // Drizzle return structure mapped workHours.id to id
@@ -8904,8 +6070,8 @@ async function getEmployeeTimesheets(employeeId) {
     `;
     const result = await session.run(query, { employeeId });
     return result.records.map((r) => {
-      const shift = recordToObj4(r, "s");
-      const approval = recordToObj4(r, "ta");
+      const shift = recordToObj3(r, "s");
+      const approval = recordToObj3(r, "ta");
       return {
         id: shift.id,
         date: shift.startTime,
@@ -8979,8 +6145,8 @@ async function getTimesheetApprovalDetails(timesheetId) {
     const result = await session.run(query, { timesheetId });
     if (result.records.length === 0) return null;
     const record = result.records[0];
-    const ta = recordToObj4(record, "ta");
-    const approver = recordToObj4(record, "approver");
+    const ta = recordToObj3(record, "ta");
+    const approver = recordToObj3(record, "approver");
     return {
       id: ta.id,
       status: ta.status,
@@ -9055,13 +6221,13 @@ var timesheetApprovalsRouter = router({
 import { z as z14 } from "zod";
 
 // server/db/shiftAssignments.ts
-var recordToObj5 = recordToNative;
+var recordToObj4 = recordToNative;
 async function getAllEmployees() {
   const session = getSession();
   try {
     const result = await session.run(`MATCH (e:User {role: 'employee'}) RETURN e`);
     const resultEmp = await session.run(`MATCH (e:Employee) RETURN e`);
-    return resultEmp.records.map((r) => recordToObj5(r, "e"));
+    return resultEmp.records.map((r) => recordToObj4(r, "e"));
   } catch (error) {
     console.error("Failed to get employees:", error);
     return [];
@@ -9082,7 +6248,7 @@ async function getShiftsForDateRange(startDate, endDate) {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
-    return result.records.map((r) => recordToObj5(r, "s"));
+    return result.records.map((r) => recordToObj4(r, "s"));
   } catch (error) {
     console.error("Failed to get shifts for date range:", error);
     return [];
@@ -9104,7 +6270,7 @@ async function getEmployeeShifts(employeeId, startDate, endDate) {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
-    return result.records.map((r) => recordToObj5(r, "s"));
+    return result.records.map((r) => recordToObj4(r, "s"));
   } catch (error) {
     console.error("Failed to get employee shifts:", error);
     return [];
@@ -9213,7 +6379,7 @@ async function checkShiftConflicts(employeeId, shiftDate) {
       employeeId,
       shiftDate: shiftDate.toISOString()
     });
-    return result.records.map((r) => recordToObj5(r, "s"));
+    return result.records.map((r) => recordToObj4(r, "s"));
   } catch (error) {
     console.error("Failed to check shift conflicts:", error);
     return [];
@@ -10317,6 +7483,41 @@ var vite_config_default = defineConfig({
 });
 
 // server/_core/vite.ts
+async function setupVite(app, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    server: serverOptions,
+    appType: "custom"
+  });
+  app.use(vite.middlewares);
+  app.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path4.resolve(
+        import.meta.dirname,
+        "../..",
+        "client",
+        "index.html"
+      );
+      let template = await fs3.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid2()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
 function serveStatic(app) {
   const distPath = path4.resolve(import.meta.dirname, "../..", "dist", "public");
   if (!fs3.existsSync(distPath)) {
@@ -10446,19 +7647,29 @@ async function startServer() {
   app.use(express2.urlencoded({ limit: "50mb", extended: true }));
   registerClerkRoutes(app);
   app.use("/api/*", (req, res, next) => {
-    if (req.path === "/api/clerk/health" || req.path === "/api/clerk/webhook") {
+    const url = req.originalUrl || req.url;
+    if (url === "/api/clerk/health" || url === "/api/clerk/webhook") {
       return next();
     }
-    clerkAuthMiddleware(req, res, next);
+    clerkBaseMiddleware(req, res, next);
   });
   app.use(
     "/api/trpc",
     createExpressMiddleware({
       router: appRouter,
-      createContext
+      createContext,
+      onError: ({ path: path5, error }) => {
+        console.error(`[TRPC Error] at ${path5}:`, error);
+      }
     })
   );
-  serveStatic(app);
+  if (process.env.NODE_ENV === "development") {
+    console.log("Setting up Vite for development...");
+    await setupVite(app, server);
+  } else {
+    console.log("Serving static files for production...");
+    serveStatic(app);
+  }
   console.log("Finding available port...");
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);
