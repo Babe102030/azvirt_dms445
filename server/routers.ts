@@ -575,8 +575,19 @@ export const appRouter = router({
       }),
 
     /**
+     * Get delivery with full details including project and recipe
+     */
+    getById: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const delivery = await db.getDeliveries({ id: input.id } as any);
+        return delivery[0] || null;
+      }),
+
+    /**
      * Calculate ETA for delivery
-     * Returns estimated arrival time in milliseconds (Unix timestamp)
      */
     calculateETA: protectedProcedure
       .input(z.object({
@@ -1134,8 +1145,24 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        await db.updatePurchaseOrder(id, data);
+
+        // If status is being set to 'received', use the specialized receive function
+        if (data.status === 'received') {
+          await db.receivePurchaseOrder(id);
+        } else {
+          await db.updatePurchaseOrder(id, data);
+        }
+
         return { success: true };
+      }),
+
+    receive: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const success = await db.receivePurchaseOrder(input.id);
+        return { success };
       }),
 
     sendToSupplier: protectedProcedure

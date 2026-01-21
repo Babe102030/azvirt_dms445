@@ -258,6 +258,9 @@ export async function updateDeliveryStatusWithGPS(
   if (status === 'delivered') {
     updateData.deliveryTime = new Date();
     updateData.actualDeliveryTime = now;
+
+    // Deduct materials from inventory when delivered
+    await deductDeliveryMaterials(deliveryId);
   }
   if (status === 'completed') {
     updateData.completionTime = new Date();
@@ -279,6 +282,40 @@ export async function updateDeliveryStatusWithGPS(
   });
 
   return { success: true, status, timestamp: now };
+}
+
+/**
+ * Deduct materials from inventory based on delivery volume and recipe
+ */
+export async function deductDeliveryMaterials(deliveryId: number) {
+  try {
+    const delivery = await db.select().from(schema.deliveries).where(eq(schema.deliveries.id, deliveryId)).limit(1);
+    if (!delivery || delivery.length === 0) return false;
+
+    const { recipeId, volume, projectId } = delivery[0];
+    if (!recipeId || !volume) return false;
+
+    // Get recipe ingredients
+    const ingredients = await db.select()
+      .from(schema.recipeIngredients)
+      .where(eq(schema.recipeIngredients.recipeId, recipeId));
+
+    for (const ingredient of ingredients) {
+      const quantityToDeduct = ingredient.quantity * (volume || 0);
+      await recordConsumptionWithHistory({
+        materialId: ingredient.materialId,
+        quantity: quantityToDeduct,
+        deliveryId,
+        projectId: projectId || undefined,
+        date: new Date(),
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deducting delivery materials:', error);
+    return false;
+  }
 }
 
 /**
@@ -978,19 +1015,68 @@ export async function getReorderNeeds() {
 // ============================================================================
 
 /**
- * Create purchase order from reorder recommendations
+ * Get or create a supplier by name
  */
-export async function createPurchaseOrder(order: typeof schema.purchaseOrders.$inferInsert) {
+export async function getOrCreateSupplier(name: string, email?: string) {
+  const existing = await db.select().from(schema.suppliers).where(eq(schema.suppliers.name, name)).limit(1);
+  if (existing && existing.length > 0) return existing[0];
+
+  const result = await db.insert(schema.suppliers).values({
+    name,
+    email,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }).returning();
+
+  return result[0];
+}
+
+/**
+ * Create purchase order from reorder recommendations
+ * Handles both PO and PO Items
+ */
+export async function createPurchaseOrder(data: {
+  materialId?: number;
+  quantity?: number;
+  supplier?: string;
+  supplierEmail?: string;
+  expectedDelivery?: Date;
+  totalCost?: number;
+  notes?: string;
+  status?: string;
+  orderDate?: Date;
+}) {
   try {
-    const result = await db.insert(schema.purchaseOrders).values({
-      ...order,
-      orderDate: order.orderDate || new Date(),
-      status: order.status || 'draft',
+    // 1. Handle Supplier
+    let supplierId = 1; // Default or fallback
+    if (data.supplier) {
+      const supplier = await getOrCreateSupplier(data.supplier, data.supplierEmail);
+      supplierId = supplier.id;
+    }
+
+    // 2. Create Purchase Order
+    const [po] = await db.insert(schema.purchaseOrders).values({
+      supplierId,
+      orderDate: data.orderDate || new Date(),
+      expectedDeliveryDate: data.expectedDelivery,
+      status: (data.status as any) || 'draft',
+      totalCost: data.totalCost,
+      notes: data.notes,
       createdAt: new Date(),
       updatedAt: new Date(),
-    }).returning({ id: schema.purchaseOrders.id });
+    }).returning();
 
-    return result[0]?.id;
+    // 3. Create PO Item if materialId provided
+    if (data.materialId && data.quantity) {
+      await db.insert(schema.purchaseOrderItems).values({
+        purchaseOrderId: po.id,
+        materialId: data.materialId,
+        quantity: data.quantity,
+        unitPrice: data.totalCost ? data.totalCost / data.quantity : 0,
+      });
+    }
+
+    return po.id;
   } catch (error) {
     console.error('Error creating purchase order:', error);
     return null;
@@ -998,14 +1084,36 @@ export async function createPurchaseOrder(order: typeof schema.purchaseOrders.$i
 }
 
 /**
- * Get purchase orders with optional filtering
+ * Get purchase orders with optional filtering and joined data
  */
 export async function getPurchaseOrders(filters?: {
   supplierId?: number;
   status?: string;
+  materialId?: number;
 }) {
   try {
-    let query = db.select().from(schema.purchaseOrders);
+    let query = db.select({
+      id: schema.purchaseOrders.id,
+      supplierId: schema.purchaseOrders.supplierId,
+      supplierName: schema.suppliers.name,
+      supplierEmail: schema.suppliers.email,
+      orderDate: schema.purchaseOrders.orderDate,
+      expectedDelivery: schema.purchaseOrders.expectedDeliveryDate,
+      actualDelivery: schema.purchaseOrders.actualDeliveryDate,
+      status: schema.purchaseOrders.status,
+      totalCost: schema.purchaseOrders.totalCost,
+      notes: schema.purchaseOrders.notes,
+      createdAt: schema.purchaseOrders.createdAt,
+      // Aggregated material info for single-item POs (common case)
+      materialId: schema.purchaseOrderItems.materialId,
+      materialName: schema.materials.name,
+      quantity: schema.purchaseOrderItems.quantity,
+    })
+      .from(schema.purchaseOrders)
+      .leftJoin(schema.suppliers, eq(schema.purchaseOrders.supplierId, schema.suppliers.id))
+      .leftJoin(schema.purchaseOrderItems, eq(schema.purchaseOrderItems.purchaseOrderId, schema.purchaseOrders.id))
+      .leftJoin(schema.materials, eq(schema.purchaseOrderItems.materialId, schema.materials.id));
+
     const conditions = [];
 
     if (filters?.supplierId) {
@@ -1013,6 +1121,9 @@ export async function getPurchaseOrders(filters?: {
     }
     if (filters?.status) {
       conditions.push(eq(schema.purchaseOrders.status, filters.status));
+    }
+    if (filters?.materialId) {
+      conditions.push(eq(schema.purchaseOrderItems.materialId, filters.materialId));
     }
 
     if (conditions.length > 0) {
@@ -1030,14 +1141,68 @@ export async function getPurchaseOrders(filters?: {
 /**
  * Update purchase order status and details
  */
-export async function updatePurchaseOrder(id: number, data: Partial<typeof schema.purchaseOrders.$inferInsert>) {
+export async function updatePurchaseOrder(id: number, data: any) {
   try {
+    // Handle specific field mapping if necessary
+    const updatePayload: any = { ...data, updatedAt: new Date() };
+
+    // In schema it is expectedDeliveryDate
+    if (data.expectedDelivery) {
+      updatePayload.expectedDeliveryDate = data.expectedDelivery;
+      delete updatePayload.expectedDelivery;
+    }
+    if (data.actualDelivery) {
+      updatePayload.actualDeliveryDate = data.actualDelivery;
+      delete updatePayload.actualDelivery;
+    }
+
     await db.update(schema.purchaseOrders)
-      .set({ ...data, updatedAt: new Date() })
+      .set(updatePayload)
       .where(eq(schema.purchaseOrders.id, id));
     return true;
   } catch (error) {
     console.error('Error updating purchase order:', error);
+    return false;
+  }
+}
+
+/**
+ * Receive a purchase order and update material stock
+ */
+export async function receivePurchaseOrder(id: number) {
+  try {
+    // 1. Get the PO and its items
+    const po = await db.select().from(schema.purchaseOrders).where(eq(schema.purchaseOrders.id, id)).limit(1);
+    if (!po || po.length === 0) return false;
+
+    const items = await db.select().from(schema.purchaseOrderItems).where(eq(schema.purchaseOrderItems.purchaseOrderId, id));
+
+    // 2. Update material stock levels
+    for (const item of items) {
+      const material = await db.select().from(schema.materials).where(eq(schema.materials.id, item.materialId)).limit(1);
+      if (material[0]) {
+        await db.update(schema.materials)
+          .set({
+            quantity: material[0].quantity + item.quantity,
+            lastOrderDate: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(schema.materials.id, item.materialId));
+      }
+    }
+
+    // 3. Update PO status
+    await db.update(schema.purchaseOrders)
+      .set({
+        status: 'received',
+        actualDeliveryDate: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(schema.purchaseOrders.id, id));
+
+    return true;
+  } catch (error) {
+    console.error('Error receiving purchase order:', error);
     return false;
   }
 }
