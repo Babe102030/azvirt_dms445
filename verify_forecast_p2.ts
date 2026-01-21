@@ -5,10 +5,33 @@ async function testForecast() {
     console.log('Testing 30-Day Forecast Projection...');
 
     // Get all materials
-    const materials = await db.getMaterials();
+    let materials = await db.getMaterials();
     if (materials.length === 0) {
-        console.log('No materials found to test.');
-        return;
+        console.log('No materials found. Seeding test material...');
+        await db.createMaterial({
+            name: 'Test Cement',
+            category: 'cement',
+            unit: 'kg',
+            quantity: 1000,
+            minStock: 200,
+            criticalThreshold: 100,
+            unitPrice: 50,
+            leadTimeDays: 7
+        });
+        materials = await db.getMaterials();
+
+        // Also seed some consumption history so trend calculation works
+        const testMaterial = materials[0];
+        console.log('Seeding consumption history...');
+        for (let i = 1; i <= 30; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            await db.recordConsumptionWithHistory({
+                materialId: testMaterial.id,
+                quantity: 20 + Math.random() * 10, // ~25 kg/day
+                date: date
+            });
+        }
     }
 
     const testMaterial = materials[0];
