@@ -61,6 +61,10 @@ export default function ForecastingDashboard() {
     return days !== null && days >= 7 && days < 14;
   }) || [];
 
+  const filteredForecasts = forecasts?.filter(f =>
+    f.materialName.toLowerCase().includes(searchTerm.toLowerCase())
+  ) || [];
+
   const handleMaterialClick = (id: number) => {
     setSelectedMaterial(id);
     const tabsElement = document.querySelector('[data-value="details"]');
@@ -219,6 +223,8 @@ export default function ForecastingDashboard() {
                       type="text"
                       placeholder="Filter materials..."
                       className="pl-9 pr-4 py-2 text-sm rounded-full bg-background border border-border w-64 focus:ring-2 focus:ring-primary focus:outline-none"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                 </div>
@@ -252,7 +258,7 @@ export default function ForecastingDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/50">
-                        {forecasts.map((forecast) => {
+                        {filteredForecasts.map((forecast) => {
                           const material = materials?.find(m => m.id === forecast.materialId);
                           const daysLeft = forecast.daysUntilStockout;
                           const urgency = forecast.urgency || 'low';
