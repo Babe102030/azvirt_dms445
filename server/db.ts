@@ -461,6 +461,48 @@ export async function getQualityTestTrends(days: number = 30) {
     byType: [] // Could aggregate further if needed
   };
 }
+
+/**
+ * Get quality test with related project and delivery data
+ * Used for generating compliance certificates
+ */
+export async function getQualityTestWithDetails(testId: number) {
+  const test = await db.select()
+    .from(schema.qualityTests)
+    .where(eq(schema.qualityTests.id, testId))
+    .limit(1);
+
+  if (!test || test.length === 0) return null;
+
+  const testData = test[0];
+  let projectData = null;
+  let deliveryData = null;
+
+  // Get project if exists
+  if (testData.projectId) {
+    const project = await db.select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, testData.projectId))
+      .limit(1);
+    projectData = project[0] || null;
+  }
+
+  // Get delivery if exists
+  if (testData.deliveryId) {
+    const delivery = await db.select()
+      .from(schema.deliveries)
+      .where(eq(schema.deliveries.id, testData.deliveryId))
+      .limit(1);
+    deliveryData = delivery[0] || null;
+  }
+
+  return {
+    test: testData,
+    project: projectData,
+    delivery: deliveryData,
+  };
+}
+
 export async function createEmployee(employee: typeof schema.employees.$inferInsert) {
   const result = await db.insert(schema.employees).values({
     ...employee,

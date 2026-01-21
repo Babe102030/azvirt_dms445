@@ -19,6 +19,8 @@ import { mixingLogsRouter } from "./routers/mixingLogs";
 import { productionAnalyticsRouter } from "./routers/productionAnalytics";
 import { timesheetApprovalsRouter } from "./routers/timesheetApprovals";
 import { shiftAssignmentsRouter } from "./routers/shiftAssignments";
+import { generateComplianceCertificateHTML, getDefaultCompanyInfo } from "./_core/complianceCertificate";
+
 
 export const appRouter = router({
   system: systemRouter,
@@ -35,6 +37,47 @@ export const appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
+
+  purchaseOrders: router({
+    list: protectedProcedure
+      .input(z.object({
+        supplierId: z.number().optional(),
+        status: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getPurchaseOrders(input);
+      }),
+
+    create: protectedProcedure
+      .input(z.object({
+        supplierId: z.number(),
+        orderDate: z.date().optional(),
+        expectedDeliveryDate: z.date().optional(),
+        totalCost: z.number().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.createPurchaseOrder({
+          ...input,
+          status: "draft",
+        });
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          actualDeliveryDate: z.date().optional(),
+          status: z.enum(["draft", "sent", "confirmed", "received", "cancelled"]).optional(),
+          totalCost: z.number().optional(),
+          notes: z.string().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        return await db.updatePurchaseOrder(input.id, input.data);
+      }),
+  }),
+
 
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
@@ -216,15 +259,32 @@ export const appRouter = router({
       .input(z.object({
         materialId: z.number(),
         quantity: z.number(),
-        consumptionDate: z.date(),
+        consumptionDate: z.date().optional(),
         projectId: z.number().optional(),
         deliveryId: z.number().optional(),
         notes: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
-        await db.recordConsumption(input);
+        await db.recordConsumptionWithHistory({
+          materialId: input.materialId,
+          quantity: input.quantity,
+          date: input.consumptionDate,
+          projectId: input.projectId,
+          deliveryId: input.deliveryId,
+        });
         return { success: true };
       }),
+
+    getReorderNeeds: protectedProcedure.query(async () => {
+      return await db.getReorderNeeds();
+    }),
+
+    getSupplierPerformance: protectedProcedure
+      .input(z.object({ supplierId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getSupplierPerformance(input.supplierId);
+      }),
+
 
     getConsumptionHistory: protectedProcedure
       .input(z.object({
@@ -649,7 +709,32 @@ export const appRouter = router({
         await db.updateQualityTest(id, data);
         return { success: true };
       }),
+
+    /**
+     * Generate compliance certificate HTML for a quality test
+     * Pulls related project and delivery data to create a complete certificate
+     */
+    generateCertificate: protectedProcedure
+      .input(z.object({
+        testId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const details = await db.getQualityTestWithDetails(input.testId);
+        if (!details) {
+          throw new Error(`Quality test with ID ${input.testId} not found`);
+        }
+
+        const html = generateComplianceCertificateHTML({
+          test: details.test as any,
+          project: details.project as any,
+          delivery: details.delivery as any,
+          companyInfo: getDefaultCompanyInfo(),
+        });
+
+        return { html };
+      }),
   }),
+
 
   dashboard: router({
     stats: protectedProcedure.query(async () => {
