@@ -1241,7 +1241,7 @@ export const appRouter = router({
           const material = materials.find(m => m.id === c.materialId);
           return {
             name: material?.name || 'Unknown',
-            quantity: c.quantity,
+            quantity: c.quantityUsed,
             unit: material?.unit || 'units',
           };
         });
@@ -1298,7 +1298,7 @@ export const appRouter = router({
           const material = materials.find(m => m.id === c.materialId);
           return {
             name: material?.name || 'Unknown',
-            quantity: c.quantity,
+            quantity: c.quantityUsed,
             unit: material?.unit || 'units',
           };
         });
