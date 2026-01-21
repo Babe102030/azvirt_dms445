@@ -518,12 +518,18 @@ export const appRouter = router({
           return { success: false, message: 'No customer phone number' };
         }
 
-        // In production, integrate with SMS service (Twilio, AWS SNS, etc.)
-        // For now, just mark as sent
-        await db.updateDelivery(input.deliveryId, { smsNotificationSent: true });
+        // Integration with SMS service
+        const { sendSMS } = await import('./_core/sms');
+        const { success } = await sendSMS({
+          phoneNumber: delivery.customerPhone,
+          message: input.message,
+        });
 
-        console.log(`[SMS] To: ${delivery.customerPhone}, Message: ${input.message}`);
-        return { success: true, message: 'SMS notification sent' };
+        if (success) {
+          await db.updateDelivery(input.deliveryId, { smsNotificationSent: true });
+        }
+
+        return { success, message: success ? 'SMS notification sent' : 'Failed to send SMS' };
       }),
 
     // ============================================================================
