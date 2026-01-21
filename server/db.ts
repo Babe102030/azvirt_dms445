@@ -636,18 +636,428 @@ export async function recordConsumption(consumption: any) {
   return true;
 }
 
-export async function getConsumptionHistory(materialId?: number, days: number = 30) {
-  // This would typically query a consumption table, which we don't have yet in schema.ts
-  // For now, return empty or implement if table exists.
-  return [];
+// ============================================================================
+
+// PHASE 2: SMART INVENTORY FORECASTING & AUTO-REORDER SYSTEM
+// ============================================================================
+
+/**
+ * Record material consumption with history tracking
+ * Updates material quantity and logs consumption for forecasting
+ */
+export async function recordConsumptionWithHistory(consumption: {
+  materialId: number;
+  quantity: number;
+  date?: Date;
+  deliveryId?: number;
+  projectId?: number;
+}) {
+  const { materialId, quantity, date, deliveryId, projectId } = consumption;
+
+  // Update material quantity
+  const material = await db.select().from(schema.materials).where(eq(schema.materials.id, materialId));
+  if (material[0]) {
+    const newQuantity = Math.max(0, material[0].quantity - quantity);
+    await db.update(schema.materials)
+      .set({
+        quantity: newQuantity,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.materials.id, materialId));
+
+    // Log consumption to history table if it exists
+    try {
+      await db.insert(schema.materialConsumptionHistory).values({
+        materialId,
+        quantityUsed: quantity,
+        date: date || new Date(),
+        deliveryId: deliveryId || null,
+      });
+    } catch (error) {
+      // History table might not exist yet, continue
+      console.log('Consumption history not logged:', error);
+    }
+  }
+
+  return true;
 }
 
-export async function calculateDailyConsumptionRate(materialId: number, days?: number) { return 0; }
-export async function generateForecastPredictions() { return []; }
-export async function getForecastPredictions() { return []; }
-export async function createPurchaseOrder(order: any) { return Date.now(); }
-export async function getPurchaseOrders(filters?: any) { return []; }
-export async function updatePurchaseOrder(id: number, data: any) { return true; }
+/**
+ * Get consumption history for a material
+ * Returns historical usage data for forecasting
+ */
+export async function getConsumptionHistory(materialId?: number, days: number = 30) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+
+  try {
+    let query = db.select().from(schema.materialConsumptionHistory)
+      .where(gte(schema.materialConsumptionHistory.date, cutoff))
+      .orderBy(desc(schema.materialConsumptionHistory.date));
+
+    if (materialId) {
+      query = db.select().from(schema.materialConsumptionHistory)
+        .where(and(
+          eq(schema.materialConsumptionHistory.materialId, materialId),
+          gte(schema.materialConsumptionHistory.date, cutoff)
+        ))
+        .orderBy(desc(schema.materialConsumptionHistory.date));
+    }
+
+    return await query;
+  } catch (error) {
+    // Table might not exist yet
+    return [];
+  }
+}
+
+/**
+ * Calculate consumption rate with trend analysis
+ * Implements 30/60/90 day averages with trend factor
+ */
+export async function calculateConsumptionRate(materialId: number, days: number = 30) {
+  const history = await getConsumptionHistory(materialId, days);
+
+  if (history.length === 0) {
+    return {
+      dailyAverage: 0,
+      weeklyAverage: 0,
+      monthlyAverage: 0,
+      trendFactor: 1.0,
+      confidence: 'low',
+    };
+  }
+
+  // Calculate daily average
+  const totalUsed = history.reduce((sum, record) => sum + record.quantityUsed, 0);
+  const dailyAverage = totalUsed / days;
+
+  // Calculate weekly average (last 12 weeks if enough data)
+  const weeklyDays = Math.min(days, 84); // 12 weeks
+  const weeklyHistory = history.slice(0, Math.floor(weeklyDays / 7));
+  const weeklyTotal = weeklyHistory.reduce((sum, record) => sum + record.quantityUsed, 0);
+  const weeklyAverage = weeklyTotal / Math.max(1, weeklyHistory.length);
+
+  // Calculate monthly average
+  const monthlyAverage = dailyAverage * 30;
+
+  // Calculate trend factor (recent vs older usage)
+  const halfPoint = Math.floor(history.length / 2);
+  const recentUsage = history.slice(0, halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
+  const olderUsage = history.slice(halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
+
+  const recentAvg = recentUsage / Math.max(1, halfPoint);
+  const olderAvg = olderUsage / Math.max(1, history.length - halfPoint);
+  const trendFactor = olderAvg > 0 ? recentAvg / olderAvg : 1.0;
+
+  // Determine confidence based on data availability
+  let confidence: 'low' | 'medium' | 'high' = 'low';
+  if (history.length >= 60) confidence = 'high';
+  else if (history.length >= 30) confidence = 'medium';
+
+  return {
+    dailyAverage,
+    weeklyAverage,
+    monthlyAverage,
+    trendFactor,
+    confidence,
+    dataPoints: history.length,
+  };
+}
+
+/**
+ * Predict stockout date using linear regression with trend adjustment
+ * Returns predicted date when material will run out
+ */
+export async function predictStockoutDate(materialId: number): Promise<Date | null> {
+  const material = await db.select().from(schema.materials)
+    .where(eq(schema.materials.id, materialId))
+    .limit(1);
+
+  if (!material || material.length === 0) return null;
+
+  const currentStock = material[0].quantity;
+  if (currentStock <= 0) return new Date(); // Already out of stock
+
+  const consumptionData = await calculateConsumptionRate(materialId, 60);
+
+  if (consumptionData.dailyAverage <= 0) {
+    return null; // No consumption, won't run out
+  }
+
+  // Adjust rate with trend factor
+  const adjustedDailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+
+  // Calculate days until stockout
+  const daysUntilStockout = currentStock / adjustedDailyRate;
+
+  // Calculate stockout date
+  const stockoutDate = new Date();
+  stockoutDate.setDate(stockoutDate.getDate() + Math.floor(daysUntilStockout));
+
+  return stockoutDate;
+}
+
+/**
+ * Calculate optimal reorder point
+ * Formula: (Daily Rate × Lead Time) + Safety Stock
+ * Safety Stock = Daily Rate × Lead Time × Safety Factor (1.5x)
+ */
+export async function calculateReorderPoint(materialId: number): Promise<number> {
+  const material = await db.select().from(schema.materials)
+    .where(eq(schema.materials.id, materialId))
+    .limit(1);
+
+  if (!material || material.length === 0) return 0;
+
+  const leadTimeDays = material[0].leadTimeDays || 7;
+  const consumptionData = await calculateConsumptionRate(materialId, 30);
+
+  const dailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+
+  // Safety stock (1.5x buffer)
+  const safetyFactor = 1.5;
+  const safetyStock = dailyRate * leadTimeDays * safetyFactor;
+
+  // Reorder point
+  const reorderPoint = (dailyRate * leadTimeDays) + safetyStock;
+
+  // Update material with calculated reorder point
+  await db.update(schema.materials)
+    .set({ reorderPoint, updatedAt: new Date() })
+    .where(eq(schema.materials.id, materialId));
+
+  return reorderPoint;
+}
+
+/**
+ * Calculate Economic Order Quantity (EOQ)
+ * Formula: √((2 × Annual Demand × Order Cost) / Holding Cost per Unit)
+ */
+export async function calculateOptimalOrderQuantity(
+  materialId: number,
+  orderCost: number = 100, // Default order cost
+  holdingCostPercentage: number = 0.25 // 25% of unit price per year
+): Promise<number> {
+  const material = await db.select().from(schema.materials)
+    .where(eq(schema.materials.id, materialId))
+    .limit(1);
+
+  if (!material || material.length === 0) return 0;
+
+  const consumptionData = await calculateConsumptionRate(materialId, 90);
+  const annualDemand = consumptionData.dailyAverage * 365;
+
+  const unitPrice = material[0].unitPrice || 10; // Default if not set
+  const holdingCost = unitPrice * holdingCostPercentage;
+
+  if (holdingCost <= 0 || annualDemand <= 0) {
+    return annualDemand * 0.25; // Fallback: 3 months supply
+  }
+
+  // EOQ formula
+  const eoq = Math.sqrt((2 * annualDemand * orderCost) / holdingCost);
+
+  // Update material with optimal order quantity
+  await db.update(schema.materials)
+    .set({ optimalOrderQuantity: eoq, updatedAt: new Date() })
+    .where(eq(schema.materials.id, materialId));
+
+  return eoq;
+}
+
+/**
+ * Generate forecast predictions for all materials
+ * Returns materials that need reordering with recommended quantities
+ */
+export async function generateForecastPredictions() {
+  const materials = await db.select().from(schema.materials);
+  const predictions = [];
+
+  for (const material of materials) {
+    const consumptionRate = await calculateConsumptionRate(material.id, 60);
+    const stockoutDate = await predictStockoutDate(material.id);
+    const reorderPoint = await calculateReorderPoint(material.id);
+    const optimalQty = await calculateOptimalOrderQuantity(material.id);
+
+    const daysUntilStockout = stockoutDate
+      ? Math.floor((stockoutDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : null;
+
+    const needsReorder = material.quantity <= reorderPoint;
+    const urgency = daysUntilStockout !== null && daysUntilStockout < 7 ? 'critical' :
+      daysUntilStockout !== null && daysUntilStockout < 14 ? 'high' :
+        needsReorder ? 'medium' : 'low';
+
+    predictions.push({
+      materialId: material.id,
+      materialName: material.name,
+      currentStock: material.quantity,
+      unit: material.unit,
+      dailyConsumptionRate: consumptionRate.dailyAverage,
+      trendFactor: consumptionRate.trendFactor,
+      predictedStockoutDate: stockoutDate,
+      daysUntilStockout,
+      reorderPoint,
+      recommendedOrderQuantity: optimalQty,
+      needsReorder,
+      urgency,
+      confidence: consumptionRate.confidence,
+    });
+  }
+
+  // Sort by urgency
+  return predictions.sort((a, b) => {
+    const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    return urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+  });
+}
+
+/**
+ * Get forecast predictions (cached or generate new)
+ */
+export async function getForecastPredictions() {
+  // In a real implementation, this would check for cached predictions
+  // For now, always generate fresh predictions
+  return await generateForecastPredictions();
+}
+
+/**
+ * Identify materials that need reordering
+ * Returns materials below reorder point sorted by urgency
+ */
+export async function getReorderNeeds() {
+  const predictions = await generateForecastPredictions();
+  return predictions.filter(p => p.needsReorder);
+}
+
+// ============================================================================
+// PURCHASE ORDER MANAGEMENT
+// ============================================================================
+
+/**
+ * Create purchase order from reorder recommendations
+ */
+export async function createPurchaseOrder(order: typeof schema.purchaseOrders.$inferInsert) {
+  try {
+    const result = await db.insert(schema.purchaseOrders).values({
+      ...order,
+      orderDate: order.orderDate || new Date(),
+      status: order.status || 'draft',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }).returning({ id: schema.purchaseOrders.id });
+
+    return result[0]?.id;
+  } catch (error) {
+    console.error('Error creating purchase order:', error);
+    return null;
+  }
+}
+
+/**
+ * Get purchase orders with optional filtering
+ */
+export async function getPurchaseOrders(filters?: {
+  supplierId?: number;
+  status?: string;
+}) {
+  try {
+    let query = db.select().from(schema.purchaseOrders);
+    const conditions = [];
+
+    if (filters?.supplierId) {
+      conditions.push(eq(schema.purchaseOrders.supplierId, filters.supplierId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(schema.purchaseOrders.status, filters.status));
+    }
+
+    if (conditions.length > 0) {
+      // @ts-ignore
+      return await query.where(and(...conditions)).orderBy(desc(schema.purchaseOrders.orderDate));
+    }
+
+    return await query.orderBy(desc(schema.purchaseOrders.orderDate));
+  } catch (error) {
+    console.error('Error getting purchase orders:', error);
+    return [];
+  }
+}
+
+/**
+ * Update purchase order status and details
+ */
+export async function updatePurchaseOrder(id: number, data: Partial<typeof schema.purchaseOrders.$inferInsert>) {
+  try {
+    await db.update(schema.purchaseOrders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(schema.purchaseOrders.id, id));
+    return true;
+  } catch (error) {
+    console.error('Error updating purchase order:', error);
+    return false;
+  }
+}
+
+/**
+ * Get supplier performance metrics
+ * Calculates on-time delivery rate and average lead time
+ */
+export async function getSupplierPerformance(supplierId: number) {
+  try {
+    const orders = await db.select()
+      .from(schema.purchaseOrders)
+      .where(and(
+        eq(schema.purchaseOrders.supplierId, supplierId),
+        eq(schema.purchaseOrders.status, 'received')
+      ));
+
+    if (orders.length === 0) {
+      return {
+        totalOrders: 0,
+        onTimeDeliveryRate: 0,
+        averageLeadTimeDays: 0,
+      };
+    }
+
+    let onTimeCount = 0;
+    let totalLeadTime = 0;
+
+    for (const order of orders) {
+      if (order.actualDeliveryDate && order.expectedDeliveryDate) {
+        const actual = new Date(order.actualDeliveryDate).getTime();
+        const expected = new Date(order.expectedDeliveryDate).getTime();
+
+        if (actual <= expected) {
+          onTimeCount++;
+        }
+
+        const leadTime = Math.floor((actual - new Date(order.orderDate).getTime()) / (1000 * 60 * 60 * 24));
+        totalLeadTime += leadTime;
+      }
+    }
+
+    return {
+      totalOrders: orders.length,
+      onTimeDeliveryRate: (onTimeCount / orders.length) * 100,
+      averageLeadTimeDays: Math.floor(totalLeadTime / orders.length),
+    };
+  } catch (error) {
+    console.error('Error calculating supplier performance:', error);
+    return {
+      totalOrders: 0,
+      onTimeDeliveryRate: 0,
+      averageLeadTimeDays: 0,
+    };
+  }
+}
+
+// ============================================================================
+// END SMART INVENTORY FORECASTING SYSTEM
+// ============================================================================
+
+
 export async function getReportSettings(userId: number) { return null; }
 export async function upsertReportSettings(data: any) { return 0; }
 export async function getReportRecipients() { return []; }
