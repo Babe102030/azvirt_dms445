@@ -57,12 +57,67 @@ export const materials = pgTable("materials", {
     lowStockEmailSent: boolean("lowStockEmailSent").default(false),
     lastEmailSentAt: timestamp("lastEmailSentAt"),
     supplierEmail: varchar("supplierEmail", { length: 255 }),
+    leadTimeDays: integer("leadTimeDays").default(7),
+    reorderPoint: doublePrecision("reorderPoint"),
+    optimalOrderQuantity: doublePrecision("optimalOrderQuantity"),
+    supplierId: integer("supplierId"),
+    lastOrderDate: timestamp("lastOrderDate"),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
 
 export type Material = typeof materials.$inferSelect;
 export type InsertMaterial = typeof materials.$inferInsert;
+
+/**
+ * Suppliers for materials
+ */
+export const suppliers = pgTable("suppliers", {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    contactPerson: varchar("contactPerson", { length: 255 }),
+    email: varchar("email", { length: 255 }),
+    phone: varchar("phone", { length: 50 }),
+    averageLeadTimeDays: integer("averageLeadTimeDays"),
+    onTimeDeliveryRate: doublePrecision("onTimeDeliveryRate"), // Percentage
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+/**
+ * Material consumption history for forecasting
+ */
+export const materialConsumptionHistory = pgTable("material_consumption_history", {
+    id: serial("id").primaryKey(),
+    materialId: integer("materialId").references(() => materials.id).notNull(),
+    date: timestamp("date").notNull().defaultNow(),
+    quantityUsed: doublePrecision("quantityUsed").notNull(),
+    deliveryId: integer("deliveryId").references(() => deliveries.id),
+});
+
+/**
+ * Purchase orders for materials
+ */
+export const purchaseOrders = pgTable("purchase_orders", {
+    id: serial("id").primaryKey(),
+    supplierId: integer("supplierId").references(() => suppliers.id).notNull(),
+    orderDate: timestamp("orderDate").notNull().defaultNow(),
+    expectedDeliveryDate: timestamp("expectedDeliveryDate"),
+    actualDeliveryDate: timestamp("actualDeliveryDate"),
+    status: varchar("status", { length: 50 }).default("draft").notNull(), // draft, sent, confirmed, received, cancelled
+    totalCost: doublePrecision("totalCost"),
+    notes: text("notes"),
+    createdAt: timestamp("createdAt").notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+    id: serial("id").primaryKey(),
+    purchaseOrderId: integer("purchaseOrderId").references(() => purchaseOrders.id).notNull(),
+    materialId: integer("materialId").references(() => materials.id).notNull(),
+    quantity: doublePrecision("quantity").notNull(),
+    unitPrice: doublePrecision("unitPrice").notNull(),
+});
 
 /**
  * Concrete Recipes
@@ -156,6 +211,19 @@ export const deliveries = pgTable("deliveries", {
     createdBy: integer("createdBy").references(() => users.id),
     createdAt: timestamp("createdAt").notNull().defaultNow(),
     updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+/**
+ * Delivery Status History for tracking status changes with GPS
+ */
+export const deliveryStatusHistory = pgTable("delivery_status_history", {
+    id: serial("id").primaryKey(),
+    deliveryId: integer("deliveryId").references(() => deliveries.id).notNull(),
+    status: varchar("status", { length: 50 }).notNull(),
+    timestamp: timestamp("timestamp").notNull().defaultNow(),
+    gpsLocation: varchar("gpsLocation", { length: 100 }), // lat,lng
+    notes: text("notes"),
+    createdBy: integer("createdBy").references(() => users.id),
 });
 
 /**

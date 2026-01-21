@@ -210,6 +210,163 @@ export async function updateDelivery(id: number, data: Partial<typeof schema.del
   return true;
 }
 
+// ============================================================================
+// DELIVERY TRACKING PROCEDURES (Phase 2 Implementation)
+// ============================================================================
+
+/**
+ * Update delivery status with GPS capture and history logging
+ * Implements real-time delivery tracking with status transitions
+ */
+export async function updateDeliveryStatusWithGPS(
+  deliveryId: number,
+  status: string,
+  gpsLocation?: string,
+  driverNotes?: string,
+  userId?: number
+) {
+  const validStatuses = ['scheduled', 'loaded', 'en_route', 'arrived', 'delivered', 'returning', 'completed', 'cancelled'];
+
+  if (!validStatuses.includes(status)) {
+    throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+  }
+
+  const now = Date.now();
+  const updateData: any = {
+    status,
+    updatedAt: new Date(),
+  };
+
+  // Update GPS location if provided
+  if (gpsLocation) {
+    updateData.gpsLocation = gpsLocation;
+  }
+
+  // Update driver notes if provided
+  if (driverNotes) {
+    updateData.driverNotes = driverNotes;
+  }
+
+  // Set timestamps based on status
+  if (status === 'loaded') {
+    updateData.startTime = new Date();
+  }
+  if (status === 'arrived') {
+    updateData.arrivalTime = new Date();
+    updateData.actualArrivalTime = now;
+  }
+  if (status === 'delivered') {
+    updateData.deliveryTime = new Date();
+    updateData.actualDeliveryTime = now;
+  }
+  if (status === 'completed') {
+    updateData.completionTime = new Date();
+  }
+
+  // Update the delivery
+  await db.update(schema.deliveries)
+    .set(updateData)
+    .where(eq(schema.deliveries.id, deliveryId));
+
+  // Log status change to history
+  await db.insert(schema.deliveryStatusHistory).values({
+    deliveryId,
+    status,
+    timestamp: new Date(),
+    gpsLocation: gpsLocation || null,
+    notes: driverNotes || null,
+    createdBy: userId || null,
+  });
+
+  return { success: true, status, timestamp: now };
+}
+
+/**
+ * Get all active deliveries (in progress)
+ * Returns deliveries that are loaded, en_route, arrived, or delivered
+ */
+export async function getActiveDeliveries() {
+  const activeStatuses = ['loaded', 'en_route', 'arrived', 'delivered'];
+
+  return await db.select()
+    .from(schema.deliveries)
+    .where(inArray(schema.deliveries.status, activeStatuses))
+    .orderBy(schema.deliveries.scheduledTime);
+}
+
+/**
+ * Get delivery status history (timeline view)
+ * Returns chronological list of status changes with GPS locations
+ */
+export async function getDeliveryHistory(deliveryId: number) {
+  return await db.select()
+    .from(schema.deliveryStatusHistory)
+    .where(eq(schema.deliveryStatusHistory.deliveryId, deliveryId))
+    .orderBy(schema.deliveryStatusHistory.timestamp);
+}
+
+/**
+ * Calculate ETA (Estimated Time of Arrival)
+ * Basic implementation using distance estimation
+ * Returns estimated arrival time in milliseconds (Unix timestamp)
+ */
+export async function calculateDeliveryETA(
+  deliveryId: number,
+  currentGPS?: string
+): Promise<number | null> {
+  const delivery = await db.select()
+    .from(schema.deliveries)
+    .where(eq(schema.deliveries.id, deliveryId))
+    .limit(1);
+
+  if (!delivery || delivery.length === 0) {
+    return null;
+  }
+
+  const deliveryData = delivery[0];
+
+  // If delivery already arrived or completed, return null
+  if (['arrived', 'delivered', 'completed'].includes(deliveryData.status)) {
+    return null;
+  }
+
+  // Basic ETA calculation
+  // In a real implementation, this would use Google Maps Distance Matrix API
+  // For now, we'll estimate based on average speed and distance
+
+  const averageSpeedKmh = 40; // Average speed in km/h for concrete trucks
+  const estimatedDistanceKm = 20; // Default estimated distance
+  const estimatedTimeHours = estimatedDistanceKm / averageSpeedKmh;
+  const estimatedTimeMs = estimatedTimeHours * 60 * 60 * 1000;
+
+  const eta = Date.now() + estimatedTimeMs;
+
+  // Update the delivery with the calculated ETA
+  await db.update(schema.deliveries)
+    .set({ estimatedArrival: eta, updatedAt: new Date() })
+    .where(eq(schema.deliveries.id, deliveryId));
+
+  return eta;
+}
+
+/**
+ * Create delivery status history record
+ * Used for manual status logging
+ */
+export async function createDeliveryStatusHistory(data: typeof schema.deliveryStatusHistory.$inferInsert) {
+  const result = await db.insert(schema.deliveryStatusHistory).values({
+    ...data,
+    timestamp: data.timestamp || new Date(),
+  }).returning({ id: schema.deliveryStatusHistory.id });
+
+  return result[0]?.id;
+}
+
+// ============================================================================
+// END DELIVERY TRACKING PROCEDURES
+// ============================================================================
+
+
 export async function createQualityTest(test: typeof schema.qualityTests.$inferInsert) {
   const result = await db.insert(schema.qualityTests).values({
     ...test,

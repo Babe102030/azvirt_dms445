@@ -15,6 +15,20 @@
       "when": 1768279774826,
       "tag": "0001_clever_magdalene",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768993050193,
+      "tag": "0002_empty_namor",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1768993119655,
+      "tag": "0003_petite_malcolm_colcord",
+      "breakpoints": true
     }
   ]
 }

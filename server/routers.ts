@@ -35,7 +35,7 @@ export const appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
-  
+
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -96,9 +96,9 @@ export const appRouter = router({
         const fileBuffer = Buffer.from(input.fileData, 'base64');
         const fileExtension = input.mimeType.split('/')[1] || 'bin';
         const fileKey = `documents/${ctx.user.id}/${nanoid()}.${fileExtension}`;
-        
+
         const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
-        
+
         await db.createDocument({
           name: input.name,
           description: input.description,
@@ -110,7 +110,7 @@ export const appRouter = router({
           projectId: input.projectId,
           uploadedBy: ctx.user.id,
         });
-        
+
         return { success: true, url };
       }),
 
@@ -249,7 +249,7 @@ export const appRouter = router({
     sendLowStockAlert: protectedProcedure
       .mutation(async () => {
         const lowStockMaterials = await db.getLowStockMaterials();
-        
+
         if (lowStockMaterials.length === 0) {
           return { success: true, message: "All materials are adequately stocked" };
         }
@@ -266,11 +266,11 @@ export const appRouter = router({
           content,
         });
 
-        return { 
-          success: notified, 
+        return {
+          success: notified,
           materialsCount: lowStockMaterials.length,
-          message: notified 
-            ? `Alert sent for ${lowStockMaterials.length} low-stock material(s)` 
+          message: notified
+            ? `Alert sent for ${lowStockMaterials.length} low-stock material(s)`
             : "Failed to send notification"
         };
       }),
@@ -283,13 +283,13 @@ export const appRouter = router({
     sendCriticalStockSMS: protectedProcedure
       .mutation(async () => {
         const criticalMaterials = await db.getCriticalStockMaterials();
-        
+
         if (criticalMaterials.length === 0) {
           return { success: true, message: "No critical stock alerts needed", smsCount: 0 };
         }
 
         const adminUsers = await db.getAdminUsersWithSMS();
-        
+
         if (adminUsers.length === 0) {
           return { success: false, message: "No managers with SMS notifications enabled", smsCount: 0 };
         }
@@ -302,7 +302,7 @@ export const appRouter = router({
 
         const { sendSMS } = await import("./_core/sms");
         const smsResults = await Promise.all(
-          adminUsers.map((user: any) => 
+          adminUsers.map((user: any) =>
             sendSMS({
               phoneNumber: user.phoneNumber!,
               message: smsMessage,
@@ -315,8 +315,8 @@ export const appRouter = router({
 
         const successCount = smsResults.filter((r: any) => r.success).length;
 
-        return { 
-          success: successCount > 0, 
+        return {
+          success: successCount > 0,
           materialsCount: criticalMaterials.length,
           smsCount: successCount,
           message: `SMS alerts sent to ${successCount} manager(s) for ${criticalMaterials.length} critical material(s)`
@@ -400,15 +400,15 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { id, status, gpsLocation, driverNotes } = input;
         const updateData: any = { status };
-        
+
         if (gpsLocation) updateData.gpsLocation = gpsLocation;
         if (driverNotes) updateData.driverNotes = driverNotes;
-        
+
         // Track timestamps
         const now = Math.floor(Date.now() / 1000);
         if (status === 'arrived') updateData.actualArrivalTime = now;
         if (status === 'delivered') updateData.actualDeliveryTime = now;
-        
+
         await db.updateDelivery(id, updateData);
         return { success: true };
       }),
@@ -423,9 +423,9 @@ export const appRouter = router({
         const photoBuffer = Buffer.from(input.photoData, 'base64');
         const fileExtension = input.mimeType.split('/')[1] || 'jpg';
         const fileKey = `delivery-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
-        
+
         const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
-        
+
         // Get existing delivery and append photo
         const allDeliveries = await db.getDeliveries();
         const delivery = allDeliveries.find(d => d.id === input.deliveryId);
@@ -434,13 +434,13 @@ export const appRouter = router({
           existingPhotos.push(url);
           await db.updateDelivery(input.deliveryId, { deliveryPhotos: JSON.stringify(existingPhotos) });
         }
-        
+
         return { success: true, url };
       }),
 
     getActiveDeliveries: protectedProcedure.query(async () => {
       const deliveries = await db.getDeliveries();
-      return deliveries.filter(d => 
+      return deliveries.filter(d =>
         ['loaded', 'en_route', 'arrived', 'delivered'].includes(d.status)
       );
     }),
@@ -453,7 +453,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const allDeliveries = await db.getDeliveries();
         const delivery = allDeliveries.find(d => d.id === input.deliveryId);
-        
+
         if (!delivery || !delivery.customerPhone) {
           return { success: false, message: 'No customer phone number' };
         }
@@ -461,10 +461,79 @@ export const appRouter = router({
         // In production, integrate with SMS service (Twilio, AWS SNS, etc.)
         // For now, just mark as sent
         await db.updateDelivery(input.deliveryId, { smsNotificationSent: true });
-        
+
         console.log(`[SMS] To: ${delivery.customerPhone}, Message: ${input.message}`);
         return { success: true, message: 'SMS notification sent' };
       }),
+
+    // ============================================================================
+    // PHASE 2: Real-Time Delivery Tracking Procedures
+    // ============================================================================
+
+    /**
+     * Update delivery status with GPS capture and history logging
+     * Automatically logs status transitions to delivery_status_history table
+     */
+    updateStatusWithGPS: protectedProcedure
+      .input(z.object({
+        deliveryId: z.number(),
+        status: z.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
+        gpsLocation: z.string().optional(), // "lat,lng" format
+        driverNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        try {
+          const result = await db.updateDeliveryStatusWithGPS(
+            input.deliveryId,
+            input.status,
+            input.gpsLocation,
+            input.driverNotes,
+            ctx.user.id
+          );
+          return result;
+        } catch (error: any) {
+          return { success: false, error: error.message };
+        }
+      }),
+
+    /**
+     * Get delivery status history (timeline view)
+     * Returns chronological list of all status changes with GPS locations
+     */
+    getHistory: protectedProcedure
+      .input(z.object({
+        deliveryId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getDeliveryHistory(input.deliveryId);
+      }),
+
+    /**
+     * Calculate ETA for delivery
+     * Returns estimated arrival time in milliseconds (Unix timestamp)
+     */
+    calculateETA: protectedProcedure
+      .input(z.object({
+        deliveryId: z.number(),
+        currentGPS: z.string().optional(), // "lat,lng" format
+      }))
+      .mutation(async ({ input }) => {
+        const eta = await db.calculateDeliveryETA(input.deliveryId, input.currentGPS);
+        return { success: true, eta };
+      }),
+
+    /**
+     * Enhanced getActiveDeliveries using database function
+     * Returns deliveries currently in progress (loaded, en_route, arrived, delivered)
+     */
+    getActiveDeliveriesEnhanced: protectedProcedure.query(async () => {
+      return await db.getActiveDeliveries();
+    }),
+
+    // ============================================================================
+    // END PHASE 2 DELIVERY TRACKING PROCEDURES
+    // ============================================================================
+
   }),
 
   qualityTests: router({
@@ -509,7 +578,7 @@ export const appRouter = router({
         const photoBuffer = Buffer.from(input.photoData, 'base64');
         const fileExtension = input.mimeType.split('/')[1] || 'jpg';
         const fileKey = `qc-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
-        
+
         const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
         return { success: true, url };
       }),
@@ -618,31 +687,31 @@ export const appRouter = router({
       const deliveries = await db.getDeliveries();
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-      
+
       // Group deliveries by month
       const monthlyData: Record<string, { month: string; deliveries: number; volume: number }> = {};
-      
+
       deliveries.forEach(delivery => {
         const deliveryDate = new Date(delivery.scheduledTime);
         if (deliveryDate >= sixMonthsAgo) {
           const monthKey = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth() + 1).padStart(2, '0')}`;
           const monthName = deliveryDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-          
+
           if (!monthlyData[monthKey]) {
             monthlyData[monthKey] = { month: monthName, deliveries: 0, volume: 0 };
           }
-          
+
           monthlyData[monthKey].deliveries++;
           monthlyData[monthKey].volume += delivery.volume;
         }
       });
-      
+
       return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
     }),
 
     materialConsumption: protectedProcedure.query(async () => {
       const materials = await db.getMaterials();
-      
+
       // Get top 6 materials by quantity for the chart
       const sortedMaterials = materials
         .sort((a, b) => b.quantity - a.quantity)
@@ -653,7 +722,7 @@ export const appRouter = router({
           unit: m.unit,
           minStock: m.minStock,
         }));
-      
+
       return sortedMaterials;
     }),
   }),
@@ -985,7 +1054,7 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const orders = await db.getPurchaseOrders();
         const order = orders.find(o => o.id === input.orderId);
-        
+
         if (!order || !order.supplierEmail) {
           return { success: false, message: 'No supplier email found' };
         }
@@ -1130,7 +1199,7 @@ export const appRouter = router({
 
         // Get user's report settings
         const settings = await db.getReportSettings(1); // Default to user ID 1 for now
-        
+
         const { sendEmail, generateDailyProductionReportHTML } = await import('./_core/email');
         const emailHTML = generateDailyProductionReportHTML({
           date: input.date,
@@ -1188,7 +1257,7 @@ export const appRouter = router({
 
         // Decode base64 and upload to S3
         const buffer = Buffer.from(input.fileData, 'base64');
-        
+
         // Check file size (max 2MB)
         if (buffer.length > 2 * 1024 * 1024) {
           throw new Error('File size must be less than 2MB');
