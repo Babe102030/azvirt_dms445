@@ -1232,7 +1232,7 @@ export const appRouter = router({
         // Get material consumption for the day
         const consumptions = await db.getConsumptionHistory(undefined, 1);
         const dayConsumptions = consumptions.filter(c => {
-          const cDate = new Date(c.consumptionDate);
+          const cDate = new Date(c.date);
           return cDate >= targetDate && cDate < nextDay;
         });
 
@@ -1289,7 +1289,7 @@ export const appRouter = router({
 
         const consumptions = await db.getConsumptionHistory(undefined, 1);
         const dayConsumptions = consumptions.filter(c => {
-          const cDate = new Date(c.consumptionDate);
+          const cDate = new Date(c.date);
           return cDate >= targetDate && cDate < nextDay;
         });
 
