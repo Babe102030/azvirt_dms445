@@ -306,6 +306,12 @@ export const appRouter = router({
         return await db.getForecastPredictions();
       }),
 
+    get30DayForecast: protectedProcedure
+      .input(z.object({ materialId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.get30DayForecast(input.materialId);
+      }),
+
     sendLowStockAlert: protectedProcedure
       .mutation(async () => {
         const lowStockMaterials = await db.getLowStockMaterials();

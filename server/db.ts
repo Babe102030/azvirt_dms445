@@ -987,8 +987,8 @@ export async function generateForecastPredictions() {
 
   // Sort by urgency
   return predictions.sort((a, b) => {
-    const urgencyOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    return urgencyOrder[a.urgency] - urgencyOrder[b.urgency];
+    const urgencyOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+    return (urgencyOrder[a.urgency] || 0) - (urgencyOrder[b.urgency] || 0);
   });
 }
 
@@ -999,6 +999,46 @@ export async function getForecastPredictions() {
   // In a real implementation, this would check for cached predictions
   // For now, always generate fresh predictions
   return await generateForecastPredictions();
+}
+
+/**
+ * Get a detailed 30-day forecast projection for a specific material
+ * Returns daily expected stock levels and warning thresholds
+ */
+export async function get30DayForecast(materialId: number) {
+  const material = await db.select().from(schema.materials)
+    .where(eq(schema.materials.id, materialId))
+    .limit(1);
+
+  if (!material || material.length === 0) return [];
+
+  const consumptionData = await calculateConsumptionRate(materialId, 60);
+  const adjustedRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+  const reorderPoint = await calculateReorderPoint(materialId);
+  const criticalThreshold = material[0].criticalThreshold || (reorderPoint * 0.5);
+
+  const projection = [];
+  const startDate = new Date();
+  let currentStock = material[0].quantity;
+
+  for (let i = 0; i < 30; i++) {
+    const projectedDate = new Date(startDate);
+    projectedDate.setDate(startDate.getDate() + i);
+
+    projection.push({
+      date: projectedDate.toISOString(),
+      expectedStock: Math.max(0, currentStock),
+      reorderPoint,
+      criticalThreshold,
+      isBelowReorder: currentStock <= reorderPoint,
+      isBelowCritical: currentStock <= criticalThreshold,
+    });
+
+    // Reduce stock for the next day
+    currentStock -= adjustedRate;
+  }
+
+  return projection;
 }
 
 /**
