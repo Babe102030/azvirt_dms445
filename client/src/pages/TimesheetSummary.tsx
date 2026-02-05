@@ -229,8 +229,8 @@ export default function TimesheetSummary() {
                     reportType === "monthly"
                       ? `
                     <td></td>
-                    <td><strong>$${summaryData
-                      .reduce((sum, row) => {
+                    <td><strong>$${(summaryData as unknown as any[])
+                      .reduce((sum: any, row: any) => {
                         const pay =
                           "hourlyRate" in row && row.hourlyRate
                             ? (row.regularHours || 0) *
@@ -413,7 +413,8 @@ export default function TimesheetSummary() {
                   Loading summary...
                 </TableCell>
               </TableRow>
-            ) : !summaryData || (summaryData as any[]).length === 0 ? (
+            ) : !summaryData ||
+              (summaryData as unknown as any[]).length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={reportType === "monthly" ? 11 : 9}
@@ -424,7 +425,7 @@ export default function TimesheetSummary() {
               </TableRow>
             ) : (
               <>
-                {(summaryData as any[]).map((row: any) => {
+                {(summaryData as unknown as any[]).map((row: any) => {
                   const totalPay =
                     reportType === "monthly" &&
                     "hourlyRate" in row &&
@@ -480,19 +481,19 @@ export default function TimesheetSummary() {
                     </TableRow>
                   );
                 })}
-                {(summaryData as any[]).length > 1 && (
+                {(summaryData as unknown as any[]).length > 1 && (
                   <TableRow className="bg-primary/10 font-bold">
                     <TableCell colSpan={reportType === "monthly" ? 3 : 2}>
                       TOTALS
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[]).reduce(
+                      {(summaryData as unknown as any[]).reduce(
                         (sum: any, row: any) => sum + (row.daysWorked || 0),
                         0,
                       )}
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[])
+                      {(summaryData as unknown as any[])
                         .reduce(
                           (sum: any, row: any) => sum + (row.regularHours || 0),
                           0,
@@ -500,7 +501,7 @@ export default function TimesheetSummary() {
                         .toFixed(1)}
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[])
+                      {(summaryData as unknown as any[])
                         .reduce(
                           (sum: any, row: any) =>
                             sum + (row.overtimeHours || 0),
@@ -509,7 +510,7 @@ export default function TimesheetSummary() {
                         .toFixed(1)}
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[])
+                      {(summaryData as unknown as any[])
                         .reduce(
                           (sum: any, row: any) => sum + (row.weekendHours || 0),
                           0,
@@ -517,7 +518,7 @@ export default function TimesheetSummary() {
                         .toFixed(1)}
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[])
+                      {(summaryData as unknown as any[])
                         .reduce(
                           (sum: any, row: any) => sum + (row.holidayHours || 0),
                           0,
@@ -525,7 +526,7 @@ export default function TimesheetSummary() {
                         .toFixed(1)}
                     </TableCell>
                     <TableCell>
-                      {(summaryData as any[])
+                      {(summaryData as unknown as any[])
                         .reduce(
                           (sum: any, row: any) => sum + (row.totalHours || 0),
                           0,
@@ -537,7 +538,7 @@ export default function TimesheetSummary() {
                         <TableCell></TableCell>
                         <TableCell>
                           $
-                          {(summaryData as any[])
+                          {(summaryData as unknown as any[])
                             .reduce((sum: any, row: any) => {
                               const pay =
                                 "hourlyRate" in row && row.hourlyRate
@@ -562,7 +563,7 @@ export default function TimesheetSummary() {
       </Card>
 
       {/* Summary Cards */}
-      {summaryData && (summaryData as any[]).length > 0 && (
+      {summaryData && (summaryData as unknown as any[]).length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-4 border-l-4 border-l-primary">
             <div className="flex items-center gap-3">
@@ -570,7 +571,7 @@ export default function TimesheetSummary() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Employees</p>
                 <p className="text-2xl font-bold">
-                  {(summaryData as any[]).length}
+                  {(summaryData as unknown as any[]).length}
                 </p>
               </div>
             </div>
@@ -581,7 +582,7 @@ export default function TimesheetSummary() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Hours</p>
                 <p className="text-2xl font-bold">
-                  {(summaryData as any[])
+                  {(summaryData as unknown as any[])
                     .reduce(
                       (sum: any, row: any) => sum + (row.totalHours || 0),
                       0,
@@ -597,7 +598,7 @@ export default function TimesheetSummary() {
               <div>
                 <p className="text-sm text-muted-foreground">Overtime Hours</p>
                 <p className="text-2xl font-bold">
-                  {(summaryData as any[])
+                  {(summaryData as unknown as any[])
                     .reduce(
                       (sum: any, row: any) => sum + (row.overtimeHours || 0),
                       0,
@@ -615,7 +616,7 @@ export default function TimesheetSummary() {
                   <p className="text-sm text-muted-foreground">Total Payroll</p>
                   <p className="text-2xl font-bold">
                     $
-                    {(summaryData as any[])
+                    {(summaryData as unknown as any[])
                       .reduce((sum: any, row: any) => {
                         const pay =
                           "hourlyRate" in row && row.hourlyRate

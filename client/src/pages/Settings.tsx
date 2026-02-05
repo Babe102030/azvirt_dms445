@@ -17,9 +17,11 @@ import { toast } from "sonner";
 
 export default function Settings() {
   const { user } = useAuth();
-  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
+  const [phoneNumber, setPhoneNumber] = useState(
+    (user as any)?.phoneNumber || "",
+  );
   const [smsEnabled, setSmsEnabled] = useState(
-    user?.smsNotificationsEnabled || false,
+    (user as any)?.smsNotificationsEnabled || false,
   );
   const [isSaving, setIsSaving] = useState(false);
 

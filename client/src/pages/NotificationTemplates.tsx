@@ -475,7 +475,7 @@ export default function NotificationTemplates() {
                         <div>
                           <span className="text-muted-foreground">Šablon:</span>{" "}
                           {(
-                            templates?.find(
+                            (templates as any[])?.find(
                               (t: any) => t.id === trigger.templateId,
                             ) as any
                           )?.name || "Nepoznat"}
