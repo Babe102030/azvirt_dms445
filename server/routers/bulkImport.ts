@@ -3,9 +3,9 @@
  * Handles CSV/Excel file uploads and batch data processing
  */
 
-import { z } from 'zod';
-import { protectedProcedure, router } from '../_core/trpc';
-import { TRPCError } from '@trpc/server';
+import { z } from "zod";
+import { protectedProcedure, router } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import {
   parseFile,
   validateRow,
@@ -13,46 +13,46 @@ import {
   batchProcess,
   ColumnSchema,
   ParsedRow,
-} from '../_core/fileParser';
-import * as fs from 'fs';
-import * as path from 'path';
+} from "../_core/fileParser";
+import * as fs from "fs";
+import * as path from "path";
 import {
   createWorkHour,
   createMaterial,
   createDocument,
-  getProjectById
-} from '../db';
+  getProjectById,
+} from "../db";
 
 // Schema for work hours import
 const WORK_HOURS_SCHEMA: ColumnSchema[] = [
-  { name: 'employeeId', type: 'number', required: true },
-  { name: 'date', type: 'date', required: true },
-  { name: 'startTime', type: 'string', required: true },
-  { name: 'endTime', type: 'string', required: false },
-  { name: 'projectId', type: 'number', required: false },
-  { name: 'workType', type: 'string', required: false },
-  { name: 'notes', type: 'string', required: false },
+  { name: "employeeId", type: "number", required: true },
+  { name: "date", type: "date", required: true },
+  { name: "startTime", type: "string", required: true },
+  { name: "endTime", type: "string", required: false },
+  { name: "projectId", type: "number", required: false },
+  { name: "workType", type: "string", required: false },
+  { name: "notes", type: "string", required: false },
 ];
 
 // Schema for materials import
 const MATERIALS_SCHEMA: ColumnSchema[] = [
-  { name: 'name', type: 'string', required: true },
-  { name: 'category', type: 'string', required: false },
-  { name: 'unit', type: 'string', required: true },
-  { name: 'quantity', type: 'number', required: false },
-  { name: 'minStock', type: 'number', required: false },
-  { name: 'supplier', type: 'string', required: false },
-  { name: 'unitPrice', type: 'number', required: false },
+  { name: "name", type: "string", required: true },
+  { name: "category", type: "string", required: false },
+  { name: "unit", type: "string", required: true },
+  { name: "quantity", type: "number", required: false },
+  { name: "minStock", type: "number", required: false },
+  { name: "supplier", type: "string", required: false },
+  { name: "unitPrice", type: "number", required: false },
 ];
 
 // Schema for documents import
 const DOCUMENTS_SCHEMA: ColumnSchema[] = [
-  { name: 'name', type: 'string', required: true },
-  { name: 'fileUrl', type: 'string', required: true },
-  { name: 'fileKey', type: 'string', required: true },
-  { name: 'category', type: 'string', required: false },
-  { name: 'description', type: 'string', required: false },
-  { name: 'projectId', type: 'number', required: false },
+  { name: "name", type: "string", required: true },
+  { name: "fileUrl", type: "string", required: true },
+  { name: "fileKey", type: "string", required: true },
+  { name: "category", type: "string", required: false },
+  { name: "description", type: "string", required: false },
+  { name: "projectId", type: "number", required: false },
 ];
 
 export const bulkImportRouter = router({
@@ -63,9 +63,9 @@ export const bulkImportRouter = router({
     .input(
       z.object({
         filePath: z.string(),
-        importType: z.enum(['work_hours', 'materials', 'documents']),
+        importType: z.enum(["work_hours", "materials", "documents"]),
         sheetName: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       try {
@@ -74,8 +74,8 @@ export const bulkImportRouter = router({
         // Validate file exists
         if (!fs.existsSync(filePath)) {
           throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'File not found',
+            code: "NOT_FOUND",
+            message: "File not found",
           });
         }
 
@@ -83,21 +83,21 @@ export const bulkImportRouter = router({
         const parseResult = parseFile(filePath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: parseResult.error || 'Failed to parse file',
+            code: "BAD_REQUEST",
+            message: parseResult.error || "Failed to parse file",
           });
         }
 
         // Get schema based on import type
         let schema: ColumnSchema[] = [];
         switch (importType) {
-          case 'work_hours':
+          case "work_hours":
             schema = WORK_HOURS_SCHEMA;
             break;
-          case 'materials':
+          case "materials":
             schema = MATERIALS_SCHEMA;
             break;
-          case 'documents':
+          case "documents":
             schema = DOCUMENTS_SCHEMA;
             break;
         }
@@ -122,8 +122,8 @@ export const bulkImportRouter = router({
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Preview failed',
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Preview failed",
         });
       }
     }),
@@ -136,25 +136,18 @@ export const bulkImportRouter = router({
       z.object({
         filePath: z.string(),
         sheetName: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const { filePath, sheetName } = input;
-        const db = await getDb();
-        if (!db) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Database not available',
-          });
-        }
 
         // Parse file
         const parseResult = parseFile(filePath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: parseResult.error || 'Failed to parse file',
+            code: "BAD_REQUEST",
+            message: parseResult.error || "Failed to parse file",
           });
         }
 
@@ -169,41 +162,22 @@ export const bulkImportRouter = router({
             // Validate
             const validation = validateRow(row, WORK_HOURS_SCHEMA);
             if (!validation.valid) {
-              throw new Error(validation.errors.join('; '));
+              throw new Error(validation.errors.join("; "));
             }
 
             // Transform
             const transformed = transformRow(row, WORK_HOURS_SCHEMA);
 
-            // Calculate hours worked
-            let hoursWorked = null;
-            let overtimeHours = 0;
-            if (transformed.endTime) {
-              const start = new Date(transformed.startTime as string);
-              const end = new Date(transformed.endTime as string);
-              const diffMs = end.getTime() - start.getTime();
-              hoursWorked = Math.round(diffMs / (1000 * 60 * 60));
-
-              if (hoursWorked > 8) {
-                overtimeHours = hoursWorked - 8;
-              }
-            }
-
             // Insert
-            const workType = (transformed.workType as string) || 'regular';
-            const validWorkTypes = ['regular', 'overtime', 'weekend', 'holiday'];
-
             await createWorkHour({
               employeeId: transformed.employeeId as number,
-              projectId: (transformed.projectId as number) || null,
-              date: new Date(transformed.date as string).toISOString(),
-              startTime: new Date(transformed.startTime as string).toISOString(),
-              endTime: transformed.endTime ? new Date(transformed.endTime as string).toISOString() : null,
-              hoursWorked: hoursWorked,
-              overtimeHours: overtimeHours,
-              workType: (validWorkTypes.includes(workType) ? workType : 'regular') as any,
+              startTime: new Date(transformed.startTime as string),
+              endTime: transformed.endTime
+                ? new Date(transformed.endTime as string)
+                : null,
               notes: (transformed.notes as string) || null,
-              status: 'pending',
+              status: "pending",
+              createdBy: ctx.user.id,
             });
 
             successCount++;
@@ -214,7 +188,7 @@ export const bulkImportRouter = router({
             onError: (rowIndex, error) => {
               errors.push({ rowIndex: rowIndex + 2, error }); // +2 for header and 0-index
             },
-          }
+          },
         );
 
         return {
@@ -228,8 +202,8 @@ export const bulkImportRouter = router({
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Import failed',
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Import failed",
         });
       }
     }),
@@ -242,25 +216,18 @@ export const bulkImportRouter = router({
       z.object({
         filePath: z.string(),
         sheetName: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const { filePath, sheetName } = input;
-        const db = await getDb();
-        if (!db) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Database not available',
-          });
-        }
 
         // Parse file
         const parseResult = parseFile(filePath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: parseResult.error || 'Failed to parse file',
+            code: "BAD_REQUEST",
+            message: parseResult.error || "Failed to parse file",
           });
         }
 
@@ -275,19 +242,27 @@ export const bulkImportRouter = router({
             // Validate
             const validation = validateRow(row, MATERIALS_SCHEMA);
             if (!validation.valid) {
-              throw new Error(validation.errors.join('; '));
+              throw new Error(validation.errors.join("; "));
             }
 
             // Transform
             const transformed = transformRow(row, MATERIALS_SCHEMA);
 
             // Insert
-            const category = (transformed.category as string) || 'other';
-            const validCategories = ['cement', 'aggregate', 'admixture', 'water', 'other'];
+            const category = (transformed.category as string) || "other";
+            const validCategories = [
+              "cement",
+              "aggregate",
+              "admixture",
+              "water",
+              "other",
+            ];
 
             await createMaterial({
               name: transformed.name as string,
-              category: (validCategories.includes(category) ? category : 'other') as any,
+              category: (validCategories.includes(category)
+                ? category
+                : "other") as any,
               unit: transformed.unit as string,
               quantity: (transformed.quantity as number) || 0,
               minStock: (transformed.minStock as number) || 0,
@@ -306,7 +281,7 @@ export const bulkImportRouter = router({
             onError: (rowIndex, error) => {
               errors.push({ rowIndex: rowIndex + 2, error });
             },
-          }
+          },
         );
 
         return {
@@ -320,8 +295,8 @@ export const bulkImportRouter = router({
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Import failed',
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Import failed",
         });
       }
     }),
@@ -334,25 +309,18 @@ export const bulkImportRouter = router({
       z.object({
         filePath: z.string(),
         sheetName: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const { filePath, sheetName } = input;
-        const db = await getDb();
-        if (!db) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Database not available',
-          });
-        }
 
         // Parse file
         const parseResult = parseFile(filePath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
-            code: 'BAD_REQUEST',
-            message: parseResult.error || 'Failed to parse file',
+            code: "BAD_REQUEST",
+            message: parseResult.error || "Failed to parse file",
           });
         }
 
@@ -367,22 +335,29 @@ export const bulkImportRouter = router({
             // Validate
             const validation = validateRow(row, DOCUMENTS_SCHEMA);
             if (!validation.valid) {
-              throw new Error(validation.errors.join('; '));
+              throw new Error(validation.errors.join("; "));
             }
 
             // Transform
             const transformed = transformRow(row, DOCUMENTS_SCHEMA);
 
             // Insert
-            const docCategory = (transformed.category as string) || 'other';
-            const validDocCategories = ['contract', 'blueprint', 'report', 'certificate', 'invoice', 'other'];
+            const docCategory = (transformed.category as string) || "other";
+            const validDocCategories = [
+              "contract",
+              "blueprint",
+              "report",
+              "certificate",
+              "invoice",
+              "other",
+            ];
 
             await createDocument({
               name: transformed.name as string,
-              description: (transformed.description as string) || null,
-              fileKey: transformed.fileKey as string,
-              fileUrl: transformed.fileUrl as string,
-              category: (validDocCategories.includes(docCategory) ? docCategory : 'other') as any,
+              url: transformed.fileUrl as string,
+              type: (validDocCategories.includes(docCategory)
+                ? docCategory
+                : "other") as any,
               projectId: (transformed.projectId as number) || null,
               uploadedBy: ctx.user.id,
             });
@@ -395,7 +370,7 @@ export const bulkImportRouter = router({
             onError: (rowIndex, error) => {
               errors.push({ rowIndex: rowIndex + 2, error });
             },
-          }
+          },
         );
 
         return {
@@ -409,8 +384,8 @@ export const bulkImportRouter = router({
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: error instanceof Error ? error.message : 'Import failed',
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Import failed",
         });
       }
     }),

@@ -62,10 +62,12 @@ export async function checkAndNotifyOverdueTasks() {
           "overdue_reminder",
           task.title,
           {
-            daysOverdue: Math.floor(
-              (Date.now() - new Date(task.dueDate).getTime()) /
-                (1000 * 60 * 60 * 24),
-            ).toString(),
+            daysOverdue: task.dueDate
+              ? Math.floor(
+                  (Date.now() - new Date(task.dueDate).getTime()) /
+                    (1000 * 60 * 60 * 24),
+                ).toString()
+              : "0",
           },
         );
 
@@ -75,14 +77,12 @@ export async function checkAndNotifyOverdueTasks() {
         if ((prefs as any)?.inAppEnabled) channels.push("in_app");
 
         const notificationResult = await createNotification({
-          taskId: task.id,
           userId: task.createdBy,
           type: "overdue_reminder",
           title: `Task Overdue: ${task.title}`,
           message,
-          channels: JSON.stringify(channels),
           status: "pending",
-        });
+        } as any);
 
         // Neo4j createNotification returns just the ID usually, or we adjusted it.
         // Let's check db.ts return type. It returns insertId (number).
@@ -212,14 +212,12 @@ export async function notifyTaskCompletion(
     if ((prefs as any)?.inAppEnabled) channels.push("in_app");
 
     const notificationResult = await createNotification({
-      taskId,
       userId,
       type: "completion_confirmation",
       title: `Task Completed: ${taskTitle}`,
       message,
-      channels: JSON.stringify(channels),
       status: "pending",
-    });
+    } as any);
 
     const notificationId = notificationResult;
 
