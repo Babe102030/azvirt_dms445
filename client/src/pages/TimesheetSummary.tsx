@@ -34,24 +34,30 @@ export default function TimesheetSummary() {
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(new Date().getMonth() + 1);
 
-  const { data: employees } = trpc.employees.list.useQuery({ status: "active" });
+  const { data: employees } = trpc.employees.list.useQuery({
+    status: "active",
+  });
 
-  const { data: weeklySummary, isLoading: weeklyLoading } = trpc.timesheets.weeklySummary.useQuery(
-    {
-      employeeId: selectedEmployee !== "all" ? Number(selectedEmployee) : undefined,
-      weekStart: new Date(weekStart),
-    },
-    { enabled: reportType === "weekly" }
-  );
+  const { data: weeklySummary, isLoading: weeklyLoading } =
+    trpc.timesheets.weeklySummary.useQuery(
+      {
+        employeeId:
+          selectedEmployee !== "all" ? Number(selectedEmployee) : undefined,
+        weekStart: new Date(weekStart),
+      },
+      { enabled: reportType === "weekly" },
+    );
 
-  const { data: monthlySummary, isLoading: monthlyLoading } = trpc.timesheets.monthlySummary.useQuery(
-    {
-      employeeId: selectedEmployee !== "all" ? Number(selectedEmployee) : undefined,
-      year,
-      month,
-    },
-    { enabled: reportType === "monthly" }
-  );
+  const { data: monthlySummary, isLoading: monthlyLoading } =
+    trpc.timesheets.monthlySummary.useQuery(
+      {
+        employeeId:
+          selectedEmployee !== "all" ? Number(selectedEmployee) : undefined,
+        year,
+        month,
+      },
+      { enabled: reportType === "monthly" },
+    );
 
   const isLoading = reportType === "weekly" ? weeklyLoading : monthlyLoading;
   const summaryData = reportType === "weekly" ? weeklySummary : monthlySummary;
@@ -63,9 +69,10 @@ export default function TimesheetSummary() {
       return;
     }
 
-    const title = reportType === "weekly" 
-      ? `Weekly Timesheet Summary - Week of ${new Date(weekStart).toLocaleDateString()}`
-      : `Monthly Timesheet Summary - ${new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+    const title =
+      reportType === "weekly"
+        ? `Weekly Timesheet Summary - Week of ${new Date(weekStart).toLocaleDateString()}`
+        : `Monthly Timesheet Summary - ${new Date(year, month - 1).toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
 
     const html = `
       <!DOCTYPE html>
@@ -169,47 +176,79 @@ export default function TimesheetSummary() {
               </tr>
             </thead>
             <tbody>
-              ${summaryData?.map(row => {
-                const totalPay = reportType === "monthly" && 'hourlyRate' in row && row.hourlyRate 
-                  ? (row.regularHours || 0) * (row.hourlyRate as number) + (row.overtimeHours || 0) * (row.hourlyRate as number) * 1.5
-                  : 0;
-                
-                return `
+              ${
+                (summaryData as unknown as any[])
+                  ?.map((row: any) => {
+                    const totalPay =
+                      reportType === "monthly" &&
+                      "hourlyRate" in row &&
+                      row.hourlyRate
+                        ? (row.regularHours || 0) * (row.hourlyRate as number) +
+                          (row.overtimeHours || 0) *
+                            (row.hourlyRate as number) *
+                            1.5
+                        : 0;
+
+                    return `
                   <tr>
                     <td>${row.employeeName}</td>
                     <td>${row.employeeNumber}</td>
-                    ${reportType === "monthly" ? `<td>${'department' in row ? (row.department || "-") : "-"}</td>` : ""}
+                    ${reportType === "monthly" ? `<td>${"department" in row ? row.department || "-" : "-"}</td>` : ""}
                     <td>${row.daysWorked || 0}</td>
                     <td>${(row.regularHours || 0).toFixed(1)}</td>
                     <td>${(row.overtimeHours || 0).toFixed(1)}</td>
                     <td>${(row.weekendHours || 0).toFixed(1)}</td>
                     <td>${(row.holidayHours || 0).toFixed(1)}</td>
                     <td><strong>${(row.totalHours || 0).toFixed(1)}</strong></td>
-                    ${reportType === "monthly" ? `
-                      <td>$${'hourlyRate' in row ? (row.hourlyRate || 0) : 0}</td>
+                    ${
+                      reportType === "monthly"
+                        ? `
+                      <td>$${"hourlyRate" in row ? row.hourlyRate || 0 : 0}</td>
                       <td><strong>$${totalPay.toFixed(2)}</strong></td>
-                    ` : ""}
+                    `
+                        : ""
+                    }
                   </tr>
                 `;
-              }).join("") || "<tr><td colspan='10'>No data available</td></tr>"}
-              ${summaryData && summaryData.length > 1 ? `
+                  })
+                  .join("") ||
+                "<tr><td colspan='10'>No data available</td></tr>"
+              }
+              ${
+                summaryData && (summaryData as unknown as any[]).length > 1
+                  ? `
                 <tr class="total-row">
                   <td colspan="${reportType === "monthly" ? "3" : "2"}"><strong>TOTALS</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.daysWorked || 0), 0)}</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.regularHours || 0), 0).toFixed(1)}</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.overtimeHours || 0), 0).toFixed(1)}</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.weekendHours || 0), 0).toFixed(1)}</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.holidayHours || 0), 0).toFixed(1)}</strong></td>
-                  <td><strong>${summaryData.reduce((sum, row) => sum + (row.totalHours || 0), 0).toFixed(1)}</strong></td>
-                  ${reportType === "monthly" ? `
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.daysWorked || 0), 0)}</strong></td>
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.regularHours || 0), 0).toFixed(1)}</strong></td>
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.overtimeHours || 0), 0).toFixed(1)}</strong></td>
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.weekendHours || 0), 0).toFixed(1)}</strong></td>
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.holidayHours || 0), 0).toFixed(1)}</strong></td>
+                  <td><strong>${(summaryData as unknown as any[]).reduce((sum: any, row: any) => sum + (row.totalHours || 0), 0).toFixed(1)}</strong></td>
+                  ${
+                    reportType === "monthly"
+                      ? `
                     <td></td>
-                    <td><strong>$${summaryData.reduce((sum, row) => {
-                      const pay = 'hourlyRate' in row && row.hourlyRate ? (row.regularHours || 0) * (row.hourlyRate as number) + (row.overtimeHours || 0) * (row.hourlyRate as number) * 1.5 : 0;
-                      return sum + pay;
-                    }, 0).toFixed(2)}</strong></td>
-                  ` : ""}
+                    <td><strong>$${summaryData
+                      .reduce((sum, row) => {
+                        const pay =
+                          "hourlyRate" in row && row.hourlyRate
+                            ? (row.regularHours || 0) *
+                                (row.hourlyRate as number) +
+                              (row.overtimeHours || 0) *
+                                (row.hourlyRate as number) *
+                                1.5
+                            : 0;
+                        return sum + pay;
+                      }, 0)
+                      .toFixed(2)}</strong></td>
+                  `
+                      : ""
+                  }
                 </tr>
-              ` : ""}
+              `
+                  : ""
+              }
             </tbody>
           </table>
 
@@ -244,7 +283,12 @@ export default function TimesheetSummary() {
             View aggregated timesheet reports with overtime calculations
           </p>
         </div>
-        <Button onClick={exportToPDF} disabled={!summaryData || summaryData.length === 0}>
+        <Button
+          onClick={exportToPDF}
+          disabled={
+            !summaryData || (summaryData as unknown as any[]).length === 0
+          }
+        >
           <FileDown className="mr-2 h-4 w-4" />
           Export to PDF
         </Button>
@@ -255,7 +299,12 @@ export default function TimesheetSummary() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label>Report Type</Label>
-            <Select value={reportType} onValueChange={(val) => setReportType(val as "weekly" | "monthly")}>
+            <Select
+              value={reportType}
+              onValueChange={(val) =>
+                setReportType(val as "weekly" | "monthly")
+              }
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -268,7 +317,10 @@ export default function TimesheetSummary() {
 
           <div className="space-y-2">
             <Label>Employee</Label>
-            <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+            <Select
+              value={selectedEmployee}
+              onValueChange={setSelectedEmployee}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -306,14 +358,19 @@ export default function TimesheetSummary() {
               </div>
               <div className="space-y-2">
                 <Label>Month</Label>
-                <Select value={month.toString()} onValueChange={(val) => setMonth(Number(val))}>
+                <Select
+                  value={month.toString()}
+                  onValueChange={(val) => setMonth(Number(val))}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                       <SelectItem key={m} value={m.toString()}>
-                        {new Date(2024, m - 1).toLocaleDateString("en-US", { month: "long" })}
+                        {new Date(2024, m - 1).toLocaleDateString("en-US", {
+                          month: "long",
+                        })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -349,62 +406,147 @@ export default function TimesheetSummary() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={reportType === "monthly" ? 11 : 9} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={reportType === "monthly" ? 11 : 9}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   Loading summary...
                 </TableCell>
               </TableRow>
-            ) : !summaryData || summaryData.length === 0 ? (
+            ) : !summaryData || (summaryData as any[]).length === 0 ? (
               <TableRow>
-                <TableCell colSpan={reportType === "monthly" ? 11 : 9} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={reportType === "monthly" ? 11 : 9}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No approved timesheet entries found for the selected period.
                 </TableCell>
               </TableRow>
             ) : (
               <>
-                {summaryData.map((row) => {
-                  const totalPay = reportType === "monthly" && 'hourlyRate' in row && row.hourlyRate
-                    ? (row.regularHours || 0) * (row.hourlyRate as number) + (row.overtimeHours || 0) * (row.hourlyRate as number) * 1.5
-                    : 0;
+                {(summaryData as any[]).map((row: any) => {
+                  const totalPay =
+                    reportType === "monthly" &&
+                    "hourlyRate" in row &&
+                    row.hourlyRate
+                      ? (row.regularHours || 0) * (row.hourlyRate as number) +
+                        (row.overtimeHours || 0) *
+                          (row.hourlyRate as number) *
+                          1.5
+                      : 0;
 
                   return (
                     <TableRow key={row.employeeId}>
-                      <TableCell className="font-medium">{row.employeeName}</TableCell>
+                      <TableCell className="font-medium">
+                        {row.employeeName}
+                      </TableCell>
                       <TableCell>{row.employeeNumber}</TableCell>
-                      {reportType === "monthly" && <TableCell>{'department' in row ? (row.department as string || "-") : "-"}</TableCell>}
+                      {reportType === "monthly" && (
+                        <TableCell>
+                          {"department" in row
+                            ? (row.department as string) || "-"
+                            : "-"}
+                        </TableCell>
+                      )}
                       <TableCell>{row.daysWorked || 0}</TableCell>
-                      <TableCell>{(row.regularHours || 0).toFixed(1)}</TableCell>
-                      <TableCell>{(row.overtimeHours || 0).toFixed(1)}</TableCell>
-                      <TableCell>{(row.weekendHours || 0).toFixed(1)}</TableCell>
-                      <TableCell>{(row.holidayHours || 0).toFixed(1)}</TableCell>
-                      <TableCell className="font-bold">{(row.totalHours || 0).toFixed(1)}</TableCell>
+                      <TableCell>
+                        {(row.regularHours || 0).toFixed(1)}
+                      </TableCell>
+                      <TableCell>
+                        {(row.overtimeHours || 0).toFixed(1)}
+                      </TableCell>
+                      <TableCell>
+                        {(row.weekendHours || 0).toFixed(1)}
+                      </TableCell>
+                      <TableCell>
+                        {(row.holidayHours || 0).toFixed(1)}
+                      </TableCell>
+                      <TableCell className="font-bold">
+                        {(row.totalHours || 0).toFixed(1)}
+                      </TableCell>
                       {reportType === "monthly" && (
                         <>
-                          <TableCell>${'hourlyRate' in row && row.hourlyRate ? (row.hourlyRate as number) : 0}</TableCell>
-                          <TableCell className="font-bold">${totalPay.toFixed(2)}</TableCell>
+                          <TableCell>
+                            $
+                            {"hourlyRate" in row && row.hourlyRate
+                              ? (row.hourlyRate as number)
+                              : 0}
+                          </TableCell>
+                          <TableCell className="font-bold">
+                            ${totalPay.toFixed(2)}
+                          </TableCell>
                         </>
                       )}
                     </TableRow>
                   );
                 })}
-                {summaryData.length > 1 && (
+                {(summaryData as any[]).length > 1 && (
                   <TableRow className="bg-primary/10 font-bold">
-                    <TableCell colSpan={reportType === "monthly" ? 3 : 2}>TOTALS</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.daysWorked || 0), 0)}</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.regularHours || 0), 0).toFixed(1)}</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.overtimeHours || 0), 0).toFixed(1)}</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.weekendHours || 0), 0).toFixed(1)}</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.holidayHours || 0), 0).toFixed(1)}</TableCell>
-                    <TableCell>{summaryData.reduce((sum, row) => sum + (row.totalHours || 0), 0).toFixed(1)}</TableCell>
+                    <TableCell colSpan={reportType === "monthly" ? 3 : 2}>
+                      TOTALS
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[]).reduce(
+                        (sum: any, row: any) => sum + (row.daysWorked || 0),
+                        0,
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[])
+                        .reduce(
+                          (sum: any, row: any) => sum + (row.regularHours || 0),
+                          0,
+                        )
+                        .toFixed(1)}
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[])
+                        .reduce(
+                          (sum: any, row: any) =>
+                            sum + (row.overtimeHours || 0),
+                          0,
+                        )
+                        .toFixed(1)}
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[])
+                        .reduce(
+                          (sum: any, row: any) => sum + (row.weekendHours || 0),
+                          0,
+                        )
+                        .toFixed(1)}
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[])
+                        .reduce(
+                          (sum: any, row: any) => sum + (row.holidayHours || 0),
+                          0,
+                        )
+                        .toFixed(1)}
+                    </TableCell>
+                    <TableCell>
+                      {(summaryData as any[])
+                        .reduce(
+                          (sum: any, row: any) => sum + (row.totalHours || 0),
+                          0,
+                        )
+                        .toFixed(1)}
+                    </TableCell>
                     {reportType === "monthly" && (
                       <>
                         <TableCell></TableCell>
                         <TableCell>
                           $
-                          {summaryData
-                            .reduce((sum, row) => {
-                              const pay = 'hourlyRate' in row && row.hourlyRate
-                                ? (row.regularHours || 0) * (row.hourlyRate as number) + (row.overtimeHours || 0) * (row.hourlyRate as number) * 1.5
-                                : 0;
+                          {(summaryData as any[])
+                            .reduce((sum: any, row: any) => {
+                              const pay =
+                                "hourlyRate" in row && row.hourlyRate
+                                  ? (row.regularHours || 0) *
+                                      (row.hourlyRate as number) +
+                                    (row.overtimeHours || 0) *
+                                      (row.hourlyRate as number) *
+                                      1.5
+                                  : 0;
                               return sum + pay;
                             }, 0)
                             .toFixed(2)}
@@ -420,14 +562,16 @@ export default function TimesheetSummary() {
       </Card>
 
       {/* Summary Cards */}
-      {summaryData && summaryData.length > 0 && (
+      {summaryData && (summaryData as any[]).length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="p-4 border-l-4 border-l-primary">
             <div className="flex items-center gap-3">
               <Calendar className="h-8 w-8 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-bold">{summaryData.length}</p>
+                <p className="text-2xl font-bold">
+                  {(summaryData as any[]).length}
+                </p>
               </div>
             </div>
           </Card>
@@ -437,7 +581,12 @@ export default function TimesheetSummary() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Hours</p>
                 <p className="text-2xl font-bold">
-                  {summaryData.reduce((sum, row) => sum + (row.totalHours || 0), 0).toFixed(1)}
+                  {(summaryData as any[])
+                    .reduce(
+                      (sum: any, row: any) => sum + (row.totalHours || 0),
+                      0,
+                    )
+                    .toFixed(1)}
                 </p>
               </div>
             </div>
@@ -448,7 +597,12 @@ export default function TimesheetSummary() {
               <div>
                 <p className="text-sm text-muted-foreground">Overtime Hours</p>
                 <p className="text-2xl font-bold">
-                  {summaryData.reduce((sum, row) => sum + (row.overtimeHours || 0), 0).toFixed(1)}
+                  {(summaryData as any[])
+                    .reduce(
+                      (sum: any, row: any) => sum + (row.overtimeHours || 0),
+                      0,
+                    )
+                    .toFixed(1)}
                 </p>
               </div>
             </div>
@@ -461,11 +615,16 @@ export default function TimesheetSummary() {
                   <p className="text-sm text-muted-foreground">Total Payroll</p>
                   <p className="text-2xl font-bold">
                     $
-                    {summaryData
-                      .reduce((sum, row) => {
-                        const pay = 'hourlyRate' in row && row.hourlyRate
-                          ? (row.regularHours || 0) * (row.hourlyRate as number) + (row.overtimeHours || 0) * (row.hourlyRate as number) * 1.5
-                          : 0;
+                    {(summaryData as any[])
+                      .reduce((sum: any, row: any) => {
+                        const pay =
+                          "hourlyRate" in row && row.hourlyRate
+                            ? (row.regularHours || 0) *
+                                (row.hourlyRate as number) +
+                              (row.overtimeHours || 0) *
+                                (row.hourlyRate as number) *
+                                1.5
+                            : 0;
                         return sum + pay;
                       }, 0)
                       .toFixed(2)}

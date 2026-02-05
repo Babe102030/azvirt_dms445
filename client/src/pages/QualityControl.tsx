@@ -81,7 +81,11 @@ export default function QualityControl() {
           <div className="flex gap-2">
             <Dialog open={mobileFormOpen} onOpenChange={setMobileFormOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" variant="outline" className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="bg-orange-500 hover:bg-orange-600 text-white border-orange-500"
+                >
                   <Smartphone className="mr-2 h-5 w-5" />
                   Mobile QC
                 </Button>
@@ -89,9 +93,16 @@ export default function QualityControl() {
               <DialogContent className="bg-card/95 backdrop-blur max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Mobile Quality Control Form</DialogTitle>
-                  <DialogDescription>Complete quality test with photos and signatures</DialogDescription>
+                  <DialogDescription>
+                    Complete quality test with photos and signatures
+                  </DialogDescription>
                 </DialogHeader>
-                <MobileQCForm onSuccess={() => { setMobileFormOpen(false); refetch(); }} />
+                <MobileQCForm
+                  onSuccess={() => {
+                    setMobileFormOpen(false);
+                    refetch();
+                  }}
+                />
               </DialogContent>
             </Dialog>
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -101,68 +112,74 @@ export default function QualityControl() {
                   Record Test
                 </Button>
               </DialogTrigger>
-            <DialogContent className="bg-card/95 backdrop-blur">
-              <DialogHeader>
-                <DialogTitle>Record Quality Test</DialogTitle>
-                <DialogDescription>Add a new quality test result</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreate} className="space-y-4">
-                <div>
-                  <Label htmlFor="testName">Test Name</Label>
-                  <Input id="testName" name="testName" required />
-                </div>
-                <div>
-                  <Label htmlFor="testType">Test Type</Label>
-                  <Select name="testType" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select test type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="slump">Slump Test</SelectItem>
-                      <SelectItem value="strength">Strength Test</SelectItem>
-                      <SelectItem value="air_content">Air Content</SelectItem>
-                      <SelectItem value="temperature">Temperature</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <DialogContent className="bg-card/95 backdrop-blur">
+                <DialogHeader>
+                  <DialogTitle>Record Quality Test</DialogTitle>
+                  <DialogDescription>
+                    Add a new quality test result
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreate} className="space-y-4">
                   <div>
-                    <Label htmlFor="result">Result</Label>
-                    <Input id="result" name="result" required />
+                    <Label htmlFor="testName">Test Name</Label>
+                    <Input id="testName" name="testName" required />
                   </div>
                   <div>
-                    <Label htmlFor="unit">Unit</Label>
-                    <Input id="unit" name="unit" placeholder="MPa, mm, °C" />
+                    <Label htmlFor="testType">Test Type</Label>
+                    <Select name="testType" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select test type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="slump">Slump Test</SelectItem>
+                        <SelectItem value="strength">Strength Test</SelectItem>
+                        <SelectItem value="air_content">Air Content</SelectItem>
+                        <SelectItem value="temperature">Temperature</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select name="status" defaultValue="pending">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pass">Pass</SelectItem>
-                      <SelectItem value="fail">Fail</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="testedBy">Tested By</Label>
-                  <Input id="testedBy" name="testedBy" />
-                </div>
-                <div>
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea id="notes" name="notes" rows={3} />
-                </div>
-                <Button type="submit" className="w-full" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Recording..." : "Record Test"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="result">Result</Label>
+                      <Input id="result" name="result" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="unit">Unit</Label>
+                      <Input id="unit" name="unit" placeholder="MPa, mm, °C" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select name="status" defaultValue="pending">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pass">Pass</SelectItem>
+                        <SelectItem value="fail">Fail</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="testedBy">Tested By</Label>
+                    <Input id="testedBy" name="testedBy" />
+                  </div>
+                  <div>
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea id="notes" name="notes" rows={3} />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={createMutation.isPending}
+                  >
+                    {createMutation.isPending ? "Recording..." : "Record Test"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -175,10 +192,12 @@ export default function QualityControl() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <div className="text-center py-8 text-muted-foreground">
+                Loading...
+              </div>
             ) : tests && tests.length > 0 ? (
               <div className="space-y-2">
-                {tests.map((test) => (
+                {tests.map((test: any) => (
                   <div
                     key={test.id}
                     className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
@@ -190,14 +209,15 @@ export default function QualityControl() {
                           <h3 className="font-medium">{test.testName}</h3>
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                              test.status
+                              test.status,
                             )}`}
                           >
                             {test.status}
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Type: {test.testType} | Result: {test.result} {test.unit}
+                          Type: {test.testType} | Result: {test.result}{" "}
+                          {test.unit}
                         </p>
                         <div className="flex gap-4 mt-1">
                           {test.testedBy && (
@@ -210,7 +230,9 @@ export default function QualityControl() {
                           </span>
                         </div>
                         {test.notes && (
-                          <p className="text-xs text-muted-foreground mt-2">{test.notes}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {test.notes}
+                          </p>
                         )}
                       </div>
                     </div>

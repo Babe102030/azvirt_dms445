@@ -218,7 +218,7 @@ export default function NotificationTemplates() {
   );
 
   const filteredTriggers = triggers?.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    (t as any).name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -411,28 +411,24 @@ export default function NotificationTemplates() {
               </Card>
             ) : (
               <div className="grid gap-4">
-                {filteredTriggers?.map((trigger) => (
-                  <Card key={(trigger as any).id}>
+                {filteredTriggers?.map((trigger: any) => (
+                  <Card key={trigger.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
                           <CardTitle className="text-lg flex items-center gap-2">
                             <Zap className="w-5 h-5 text-yellow-500" />
-                            {(trigger as any).name}
+                            {trigger.name}
                           </CardTitle>
-                          {(trigger as any).description && (
+                          {trigger.description && (
                             <CardDescription>
-                              {(trigger as any).description}
+                              {trigger.description}
                             </CardDescription>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge
-                            variant={
-                              (trigger as any).isActive
-                                ? "default"
-                                : "secondary"
-                            }
+                            variant={trigger.isActive ? "default" : "secondary"}
                           >
                             {trigger.isActive ? (
                               <>
@@ -478,8 +474,11 @@ export default function NotificationTemplates() {
                         </div>
                         <div>
                           <span className="text-muted-foreground">Šablon:</span>{" "}
-                          {templates?.find((t) => t.id === trigger.templateId)
-                            ?.name || "Nepoznat"}
+                          {(
+                            templates?.find(
+                              (t: any) => t.id === trigger.templateId,
+                            ) as any
+                          )?.name || "Nepoznat"}
                         </div>
                       </div>
                     </CardContent>
@@ -576,7 +575,7 @@ export default function NotificationTemplates() {
                     <SelectValue placeholder="Odaberi šablon" />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates?.map((template) => (
+                    {templates?.map((template: any) => (
                       <SelectItem
                         key={template.id}
                         value={template.id.toString()}

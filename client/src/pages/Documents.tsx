@@ -204,7 +204,7 @@ export default function Documents() {
               </div>
             ) : documents && documents.length > 0 ? (
               <div className="space-y-2">
-                {documents.map((doc) => (
+                {documents.map((doc: any) => (
                   <div
                     key={doc.id}
                     className="flex items-center justify-between p-4 bg-muted/50 rounded-lg hover:bg-muted transition-colors"

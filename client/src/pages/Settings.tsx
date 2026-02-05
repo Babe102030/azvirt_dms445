@@ -1,7 +1,13 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -12,7 +18,9 @@ import { toast } from "sonner";
 export default function Settings() {
   const { user } = useAuth();
   const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || "");
-  const [smsEnabled, setSmsEnabled] = useState(user?.smsNotificationsEnabled || false);
+  const [smsEnabled, setSmsEnabled] = useState(
+    user?.smsNotificationsEnabled || false,
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSMSMutation = trpc.auth.updateSMSSettings.useMutation({
@@ -28,7 +36,7 @@ export default function Settings() {
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!phoneNumber.trim()) {
       toast.error("Molimo unesite broj telefona");
       return;
@@ -46,7 +54,9 @@ export default function Settings() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-white">Podešavanja</h1>
-          <p className="text-white/70">Upravljajte svojim preferencijama obavještenja</p>
+          <p className="text-white/70">
+            Upravljajte svojim preferencijama obavještenja
+          </p>
         </div>
 
         <div className="grid gap-6 max-w-2xl">
@@ -57,7 +67,8 @@ export default function Settings() {
                 SMS obavještenja
               </CardTitle>
               <CardDescription>
-                Primajte kritična upozorenja o zalihama putem SMS-a kada materijali padnu ispod kritičnih pragova
+                Primajte kritična upozorenja o zalihama putem SMS-a kada
+                materijali padnu ispod kritičnih pragova
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -73,7 +84,8 @@ export default function Settings() {
                     disabled={isSaving}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Unesite svoj broj telefona u međunarodnom formatu (npr. +1234567890)
+                    Unesite svoj broj telefona u međunarodnom formatu (npr.
+                    +1234567890)
                   </p>
                 </div>
 
@@ -86,7 +98,10 @@ export default function Settings() {
                     disabled={isSaving}
                     className="h-4 w-4 rounded border-primary cursor-pointer"
                   />
-                  <Label htmlFor="smsEnabled" className="cursor-pointer flex-1 m-0">
+                  <Label
+                    htmlFor="smsEnabled"
+                    className="cursor-pointer flex-1 m-0"
+                  >
                     <span className="font-medium">Omogući SMS upozorenja</span>
                     <p className="text-xs text-muted-foreground mt-1">
                       Primaćete SMS obavještenja za kritične nivoe zaliha
@@ -94,11 +109,7 @@ export default function Settings() {
                   </Label>
                 </div>
 
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isSaving}
-                >
+                <Button type="submit" className="w-full" disabled={isSaving}>
                   <Save className="mr-2 h-4 w-4" />
                   {isSaving ? "Čuvam..." : "Sačuvaj podešavanja"}
                 </Button>
@@ -118,33 +129,54 @@ export default function Settings() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <h4 className="font-medium text-white mb-2">Nivoi upozorenja</h4>
+                <h4 className="font-medium text-white mb-2">
+                  Nivoi upozorenja
+                </h4>
                 <ul className="space-y-2 text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-yellow-500 font-bold">⚠️</span>
-                    <span><strong>Niske zalihe:</strong> Količina materijala pada ispod minimalnog nivoa zaliha</span>
+                    <span>
+                      <strong>Niske zalihe:</strong> Količina materijala pada
+                      ispod minimalnog nivoa zaliha
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-red-500 font-bold">🚨</span>
-                    <span><strong>Kritične zalihe:</strong> Količina materijala pada ispod kritičnog praga (aktivira SMS)</span>
+                    <span>
+                      <strong>Kritične zalihe:</strong> Količina materijala pada
+                      ispod kritičnog praga (aktivira SMS)
+                    </span>
                   </li>
                 </ul>
               </div>
 
               <div>
-                <h4 className="font-medium text-white mb-2">Podešavanje kritičnih pragova</h4>
+                <h4 className="font-medium text-white mb-2">
+                  Podešavanje kritičnih pragova
+                </h4>
                 <p className="text-muted-foreground">
-                  Idite na stranicu Materijali i postavite "Kritični prag" za svaki materijal. Kada zalihe padnu ispod ovog nivoa, SMS upozorenja će biti poslana svim menedžerima sa omogućenim SMS obavještenjima.
+                  Idite na stranicu Materijali i postavite "Kritični prag" za
+                  svaki materijal. Kada zalihe padnu ispod ovog nivoa, SMS
+                  upozorenja će biti poslana svim menedžerima sa omogućenim SMS
+                  obavještenjima.
                 </p>
               </div>
 
               <div>
                 <h4 className="font-medium text-white mb-2">Zahtjevi</h4>
                 <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                  <li>Morate biti admin korisnik da biste primali SMS upozorenja</li>
-                  <li>Broj telefona mora biti validan i u međunarodnom formatu</li>
-                  <li>SMS obavještenja moraju biti omogućena u ovim podešavanjima</li>
-                  <li>Materijal mora imati postavljenu vrijednost kritičnog praga</li>
+                  <li>
+                    Morate biti admin korisnik da biste primali SMS upozorenja
+                  </li>
+                  <li>
+                    Broj telefona mora biti validan i u međunarodnom formatu
+                  </li>
+                  <li>
+                    SMS obavještenja moraju biti omogućena u ovim podešavanjima
+                  </li>
+                  <li>
+                    Materijal mora imati postavljenu vrijednost kritičnog praga
+                  </li>
                 </ul>
               </div>
             </CardContent>

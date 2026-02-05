@@ -39,12 +39,18 @@ export default function Timesheets() {
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  
-  const { data: timesheets, isLoading, refetch } = trpc.timesheets.list.useQuery(
-    statusFilter !== "all" ? { status: statusFilter as any } : undefined
+
+  const {
+    data: timesheets,
+    isLoading,
+    refetch,
+  } = trpc.timesheets.list.useQuery(
+    statusFilter !== "all" ? { status: statusFilter as any } : undefined,
   );
-  
-  const { data: employees } = trpc.employees.list.useQuery({ status: "active" });
+
+  const { data: employees } = trpc.employees.list.useQuery({
+    status: "active",
+  });
   const { data: projects } = trpc.projects.list.useQuery();
 
   const clockInMutation = trpc.timesheets.clockIn.useMutation({
@@ -138,35 +144,50 @@ export default function Timesheets() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
-    const startTime = new Date(formData.get("date") as string + " " + formData.get("startTime") as string);
+
+    const startTime = new Date(
+      ((formData.get("date") as string) +
+        " " +
+        formData.get("startTime")) as string,
+    );
     const endTimeStr = formData.get("endTime") as string;
-    const endTime = endTimeStr ? new Date(formData.get("date") as string + " " + endTimeStr) : undefined;
-    
+    const endTime = endTimeStr
+      ? new Date((formData.get("date") as string) + " " + endTimeStr)
+      : undefined;
+
     let hoursWorked = 0;
     if (endTime) {
-      hoursWorked = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60) * 10) / 10;
+      hoursWorked =
+        Math.round(
+          ((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)) * 10,
+        ) / 10;
     }
-    
+
     createMutation.mutate({
       employeeId: Number(formData.get("employeeId")),
       date: new Date(formData.get("date") as string),
       startTime,
       endTime,
       hoursWorked,
-      projectId: formData.get("projectId") ? Number(formData.get("projectId")) : undefined,
-      notes: formData.get("notes") as string || undefined,
+      projectId: formData.get("projectId")
+        ? Number(formData.get("projectId"))
+        : undefined,
+      notes: (formData.get("notes") as string) || undefined,
       status: "pending",
     });
   };
 
   const calculateHours = (startTime: Date, endTime: Date | null) => {
     if (!endTime) return "In Progress";
-    const hours = (new Date(endTime).getTime() - new Date(startTime).getTime()) / (1000 * 60 * 60);
+    const hours =
+      (new Date(endTime).getTime() - new Date(startTime).getTime()) /
+      (1000 * 60 * 60);
     return `${hours.toFixed(1)} hrs`;
   };
 
-  const activeEntry = timesheets?.find(t => !t.endTime && t.employeeId === selectedEmployee);
+  const activeEntry = timesheets?.find(
+    (t) => !t.endTime && t.employeeId === selectedEmployee,
+  );
 
   return (
     <div className="p-6 space-y-6">
@@ -181,10 +202,7 @@ export default function Timesheets() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => setExportOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setExportOpen(true)}>
             <FileDown className="mr-2 h-4 w-4" />
             Izvezi u Excel
           </Button>
@@ -229,7 +247,10 @@ export default function Timesheets() {
                       </SelectTrigger>
                       <SelectContent>
                         {projects?.map((project) => (
-                          <SelectItem key={project.id} value={project.id.toString()}>
+                          <SelectItem
+                            key={project.id}
+                            value={project.id.toString()}
+                          >
                             {project.name}
                           </SelectItem>
                         ))}
@@ -241,7 +262,12 @@ export default function Timesheets() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="startTime">Start Time *</Label>
-                    <Input id="startTime" name="startTime" type="time" required />
+                    <Input
+                      id="startTime"
+                      name="startTime"
+                      type="time"
+                      required
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="endTime">End Time</Label>
@@ -255,7 +281,11 @@ export default function Timesheets() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending}>
@@ -274,7 +304,10 @@ export default function Timesheets() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Select Employee</Label>
-            <Select value={selectedEmployee?.toString() || ""} onValueChange={(val) => setSelectedEmployee(Number(val))}>
+            <Select
+              value={selectedEmployee?.toString() || ""}
+              onValueChange={(val) => setSelectedEmployee(Number(val))}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select employee" />
               </SelectTrigger>
@@ -300,7 +333,9 @@ export default function Timesheets() {
               </Button>
             ) : (
               <Button
-                onClick={() => selectedEmployee && handleClockIn(selectedEmployee)}
+                onClick={() =>
+                  selectedEmployee && handleClockIn(selectedEmployee)
+                }
                 className="flex-1 bg-primary hover:bg-primary/90"
                 disabled={!selectedEmployee || clockInMutation.isPending}
               >
@@ -313,7 +348,8 @@ export default function Timesheets() {
         {activeEntry && (
           <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
             <p className="text-sm">
-              Currently clocked in since {format(new Date(activeEntry.startTime), "HH:mm")}
+              Currently clocked in since{" "}
+              {format(new Date(activeEntry.startTime), "HH:mm")}
             </p>
           </div>
         )}
@@ -355,63 +391,95 @@ export default function Timesheets() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   Loading timesheets...
                 </TableCell>
               </TableRow>
             ) : !timesheets || timesheets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No timesheet entries found.
                 </TableCell>
               </TableRow>
             ) : (
               timesheets.map((entry) => {
-                const employee = employees?.find(e => e.id === entry.employeeId);
-                const project = projects?.find(p => p.id === entry.projectId);
-                
+                const employee = employees?.find(
+                  (e) => e.id === entry.employeeId,
+                );
+                const project = projects?.find(
+                  (p) => p.id === (entry as any).projectId,
+                );
+
                 return (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">
-                      {employee ? `${employee.firstName} ${employee.lastName}` : `Employee #${entry.employeeId}`}
+                      {employee
+                        ? `${employee.firstName} ${employee.lastName}`
+                        : `Employee #${entry.employeeId}`}
                     </TableCell>
-                    <TableCell>{format(new Date(entry.date), "MMM dd, yyyy")}</TableCell>
-                    <TableCell>{format(new Date(entry.startTime), "HH:mm")}</TableCell>
                     <TableCell>
-                      {entry.endTime ? format(new Date(entry.endTime), "HH:mm") : "-"}
+                      {format(new Date((entry as any).date), "MMM dd, yyyy")}
                     </TableCell>
-                    <TableCell>{calculateHours(entry.startTime, entry.endTime)}</TableCell>
+                    <TableCell>
+                      {format(new Date(entry.startTime), "HH:mm")}
+                    </TableCell>
+                    <TableCell>
+                      {entry.endTime
+                        ? format(new Date(entry.endTime), "HH:mm")
+                        : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {calculateHours(entry.startTime, entry.endTime)}
+                    </TableCell>
                     <TableCell>{project?.name || "-"}</TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        entry.status === "approved" ? "bg-green-500/20 text-green-700" :
-                        entry.status === "rejected" ? "bg-red-500/20 text-red-700" :
-                        "bg-yellow-500/20 text-yellow-700"
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          entry.status === "approved"
+                            ? "bg-green-500/20 text-green-700"
+                            : entry.status === "rejected"
+                              ? "bg-red-500/20 text-red-700"
+                              : "bg-yellow-500/20 text-yellow-700"
+                        }`}
+                      >
                         {entry.status}
                       </span>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      {user?.role === "admin" && entry.status === "pending" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => approveMutation.mutate({ id: entry.id })}
-                            disabled={approveMutation.isPending}
-                          >
-                            <Check className="h-4 w-4 text-green-600" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => rejectMutation.mutate({ id: entry.id })}
-                            disabled={rejectMutation.isPending}
-                          >
-                            <X className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </>
-                      )}
+                      {(user as any)?.role === "admin" &&
+                        entry.status === "pending" && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                approveMutation.mutate({
+                                  id: entry.id,
+                                  approvedBy: (user as any)?.id || 0,
+                                })
+                              }
+                              disabled={approveMutation.isPending}
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() =>
+                                rejectMutation.mutate({ id: entry.id })
+                              }
+                              disabled={rejectMutation.isPending}
+                            >
+                              <X className="h-4 w-4 text-red-600" />
+                            </Button>
+                          </>
+                        )}
                     </TableCell>
                   </TableRow>
                 );

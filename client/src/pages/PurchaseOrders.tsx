@@ -1,20 +1,42 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Send, CheckCircle, XCircle, Clock, Package } from "lucide-react";
 import { toast } from "sonner";
 
 export default function PurchaseOrders() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(null);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(
+    null,
+  );
   const [formData, setFormData] = useState({
     quantity: "",
     supplier: "",
@@ -73,7 +95,7 @@ export default function PurchaseOrders() {
       return;
     }
 
-    const material = materials?.find(m => m.id === selectedMaterialId);
+    const material = materials?.find((m) => m.id === selectedMaterialId);
     if (!material) return;
 
     createPO.mutate({
@@ -82,7 +104,9 @@ export default function PurchaseOrders() {
       quantity: parseInt(formData.quantity),
       supplier: formData.supplier || undefined,
       supplierEmail: formData.supplierEmail || undefined,
-      expectedDelivery: formData.expectedDelivery ? new Date(formData.expectedDelivery) : undefined,
+      expectedDelivery: formData.expectedDelivery
+        ? new Date(formData.expectedDelivery)
+        : undefined,
       totalCost: formData.totalCost ? parseInt(formData.totalCost) : undefined,
       notes: formData.notes || undefined,
     });
@@ -90,20 +114,31 @@ export default function PurchaseOrders() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'approved': return <CheckCircle className="h-4 w-4 text-blue-500" />;
-      case 'ordered': return <Send className="h-4 w-4 text-purple-500" />;
-      case 'received': return <Package className="h-4 w-4 text-green-500" />;
-      case 'cancelled': return <XCircle className="h-4 w-4 text-destructive" />;
-      default: return null;
+      case "pending":
+        return <Clock className="h-4 w-4" />;
+      case "approved":
+        return <CheckCircle className="h-4 w-4 text-blue-500" />;
+      case "ordered":
+        return <Send className="h-4 w-4 text-purple-500" />;
+      case "received":
+        return <Package className="h-4 w-4 text-green-500" />;
+      case "cancelled":
+        return <XCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return null;
     }
   };
 
-  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+  const getStatusVariant = (
+    status: string,
+  ): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'received': return 'default';
-      case 'cancelled': return 'destructive';
-      default: return 'secondary';
+      case "received":
+        return "default";
+      case "cancelled":
+        return "destructive";
+      default:
+        return "secondary";
     }
   };
 
@@ -114,7 +149,9 @@ export default function PurchaseOrders() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Purchase Orders</h1>
-            <p className="text-muted-foreground">Manage material orders and supplier communications</p>
+            <p className="text-muted-foreground">
+              Manage material orders and supplier communications
+            </p>
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
@@ -126,32 +163,45 @@ export default function PurchaseOrders() {
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Create Purchase Order</DialogTitle>
-                <DialogDescription>Generate a new purchase order for material restocking</DialogDescription>
+                <DialogDescription>
+                  Generate a new purchase order for material restocking
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="material">Material *</Label>
-                  <Select onValueChange={(value) => {
-                    const materialId = parseInt(value);
-                    setSelectedMaterialId(materialId);
-                    const material = materials?.find(m => m.id === materialId);
-                    const forecast = forecasts?.find(f => f.materialId === materialId);
-                    if (material) {
-                      setFormData(prev => ({
-                        ...prev,
-                        supplier: material.supplier || "",
-                        supplierEmail: material.supplierEmail || "",
-                        quantity: forecast?.recommendedOrderQty?.toString() || "",
-                      }));
-                    }
-                  }}>
+                  <Select
+                    onValueChange={(value) => {
+                      const materialId = parseInt(value);
+                      setSelectedMaterialId(materialId);
+                      const material = materials?.find(
+                        (m) => m.id === materialId,
+                      );
+                      const forecast = forecasts?.find(
+                        (f) => f.materialId === materialId,
+                      ) as any;
+                      if (material) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          supplier: material.supplier || "",
+                          supplierEmail: material.supplierEmail || "",
+                          quantity:
+                            forecast?.recommendedOrderQty?.toString() || "",
+                        }));
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select material" />
                     </SelectTrigger>
                     <SelectContent>
-                      {materials?.map(material => (
-                        <SelectItem key={material.id} value={material.id.toString()}>
-                          {material.name} ({material.quantity} {material.unit} in stock)
+                      {materials?.map((material) => (
+                        <SelectItem
+                          key={material.id}
+                          value={material.id.toString()}
+                        >
+                          {material.name} ({material.quantity} {material.unit}{" "}
+                          in stock)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -165,7 +215,12 @@ export default function PurchaseOrders() {
                       id="quantity"
                       type="number"
                       value={formData.quantity}
-                      onChange={(e) => setFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          quantity: e.target.value,
+                        }))
+                      }
                       placeholder="Enter quantity"
                     />
                   </div>
@@ -175,7 +230,12 @@ export default function PurchaseOrders() {
                       id="totalCost"
                       type="number"
                       value={formData.totalCost}
-                      onChange={(e) => setFormData(prev => ({ ...prev, totalCost: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          totalCost: e.target.value,
+                        }))
+                      }
                       placeholder="Enter cost"
                     />
                   </div>
@@ -187,7 +247,12 @@ export default function PurchaseOrders() {
                     <Input
                       id="supplier"
                       value={formData.supplier}
-                      onChange={(e) => setFormData(prev => ({ ...prev, supplier: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          supplier: e.target.value,
+                        }))
+                      }
                       placeholder="Supplier name"
                     />
                   </div>
@@ -197,7 +262,12 @@ export default function PurchaseOrders() {
                       id="supplierEmail"
                       type="email"
                       value={formData.supplierEmail}
-                      onChange={(e) => setFormData(prev => ({ ...prev, supplierEmail: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          supplierEmail: e.target.value,
+                        }))
+                      }
                       placeholder="supplier@example.com"
                     />
                   </div>
@@ -209,7 +279,12 @@ export default function PurchaseOrders() {
                     id="expectedDelivery"
                     type="date"
                     value={formData.expectedDelivery}
-                    onChange={(e) => setFormData(prev => ({ ...prev, expectedDelivery: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        expectedDelivery: e.target.value,
+                      }))
+                    }
                   />
                 </div>
 
@@ -218,14 +293,24 @@ export default function PurchaseOrders() {
                   <Textarea
                     id="notes"
                     value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        notes: e.target.value,
+                      }))
+                    }
                     placeholder="Additional notes or requirements"
                     rows={3}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsCreateOpen(false)}
+                >
+                  Cancel
+                </Button>
                 <Button onClick={handleCreate} disabled={createPO.isPending}>
                   Create Purchase Order
                 </Button>
@@ -262,43 +347,63 @@ export default function PurchaseOrders() {
                         <td className="p-3 font-mono text-sm">#{po.id}</td>
                         <td className="p-3 font-medium">{po.materialName}</td>
                         <td className="text-right p-3">{po.quantity}</td>
-                        <td className="p-3">{po.supplier || 'N/A'}</td>
-                        <td className="p-3">{new Date(po.orderDate).toLocaleDateString()}</td>
+                        <td className="p-3">{(po as any).supplier || "N/A"}</td>
                         <td className="p-3">
-                          {po.expectedDelivery ? new Date(po.expectedDelivery).toLocaleDateString() : 'TBD'}
+                          {new Date(po.orderDate).toLocaleDateString()}
+                        </td>
+                        <td className="p-3">
+                          {po.expectedDelivery
+                            ? new Date(po.expectedDelivery).toLocaleDateString()
+                            : "TBD"}
                         </td>
                         <td className="text-center p-3">
-                          <Badge variant={getStatusVariant(po.status)} className="flex items-center gap-1 w-fit mx-auto">
+                          <Badge
+                            variant={getStatusVariant(po.status)}
+                            className="flex items-center gap-1 w-fit mx-auto"
+                          >
                             {getStatusIcon(po.status)}
                             {po.status}
                           </Badge>
                         </td>
                         <td className="text-center p-3">
                           <div className="flex gap-2 justify-center">
-                            {po.status === 'pending' && (
+                            {po.status === "pending" && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => updatePO.mutate({ id: po.id, status: 'approved' })}
+                                onClick={() =>
+                                  updatePO.mutate({
+                                    id: po.id,
+                                    status: "approved",
+                                  })
+                                }
                               >
                                 Approve
                               </Button>
                             )}
-                            {po.status === 'approved' && po.supplierEmail && (
+                            {po.status === "approved" && po.supplierEmail && (
                               <Button
                                 size="sm"
-                                onClick={() => sendToSupplier.mutate({ orderId: po.id })}
+                                onClick={() =>
+                                  sendToSupplier.mutate({ orderId: po.id })
+                                }
                                 disabled={sendToSupplier.isPending}
                               >
                                 <Send className="mr-1 h-3 w-3" />
                                 Send to Supplier
                               </Button>
                             )}
-                            {po.status === 'ordered' && (
+                            {po.status === "ordered" && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => updatePO.mutate({ id: po.id, status: 'received', actualDelivery: new Date() })}
+                                onClick={() =>
+                                  updatePO.mutate({
+                                    id: po.id,
+                                    status: "received",
+                                    actualDelivery: new Date(),
+                                  })
+                                }
                               >
                                 Mark Received
                               </Button>
