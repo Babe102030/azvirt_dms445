@@ -952,7 +952,9 @@ export const appRouter = router({
           }
 
           monthlyData[monthKey].deliveries++;
-          monthlyData[monthKey].volume += delivery.volume;
+          if (delivery.volume) {
+            monthlyData[monthKey].volume += delivery.volume;
+          }
         }
       });
 
@@ -1351,128 +1353,6 @@ export const appRouter = router({
       }),
   }),
 
-  purchaseOrders: router({
-    list: protectedProcedure
-      .input(
-        z
-          .object({
-            status: z.string().optional(),
-            materialId: z.number().optional(),
-          })
-          .optional(),
-      )
-      .query(async ({ input }) => {
-        return await db.getPurchaseOrders(input);
-      }),
-
-    create: protectedProcedure
-      .input(
-        z.object({
-          materialId: z.number(),
-          materialName: z.string(),
-          quantity: z.number(),
-          supplier: z.string().optional(),
-          supplierEmail: z.string().optional(),
-          expectedDelivery: z.date().optional(),
-          totalCost: z.number().optional(),
-          notes: z.string().optional(),
-        }),
-      )
-      .mutation(async ({ input, ctx }) => {
-        return await db.createPurchaseOrder({
-          ...input,
-          status: "pending",
-        } as any);
-        return { success: true };
-      }),
-
-    update: protectedProcedure
-      .input(
-        z.object({
-          id: z.number(),
-          status: z
-            .enum(["pending", "approved", "ordered", "received", "cancelled"])
-            .optional(),
-          expectedDelivery: z.date().optional(),
-          actualDelivery: z.date().optional(),
-          totalCost: z.number().optional(),
-          notes: z.string().optional(),
-        }),
-      )
-      .mutation(async ({ input }) => {
-        const { id, ...data } = input;
-
-        // If status is being set to 'received', use the specialized receive function
-        if (data.status === "received") {
-          await db.receivePurchaseOrder(id);
-        } else {
-          await db.updatePurchaseOrder(id, data);
-        }
-
-        return { success: true };
-      }),
-
-    receive: protectedProcedure
-      .input(
-        z.object({
-          id: z.number(),
-        }),
-      )
-      .mutation(async ({ input }) => {
-        const success = await db.receivePurchaseOrder(input.id);
-        return { success };
-      }),
-
-    sendToSupplier: protectedProcedure
-      .input(
-        z.object({
-          orderId: z.number(),
-        }),
-      )
-      .mutation(async ({ input }) => {
-        const orders = await db.getPurchaseOrders();
-        const order = orders.find((o) => o.id === input.orderId);
-
-        if (!order || !order.supplierEmail) {
-          return { success: false, message: "No supplier email found" };
-        }
-
-        // Get material to find unit
-        const materials = await db.getMaterials();
-        const material = materials.find((m) => m.id === order.materialId);
-        const unit = material?.unit || "kg";
-
-        const { sendEmail, generatePurchaseOrderEmailHTML } =
-          await import("./_core/email");
-        const emailHTML = generatePurchaseOrderEmailHTML({
-          id: order.id,
-          materialName: order.materialName,
-          quantity: order.quantity,
-          unit,
-          supplier: order.supplier || "Supplier",
-          orderDate: order.orderDate
-            ? new Date(order.orderDate).toISOString().split("T")[0]
-            : new Date().toISOString().split("T")[0],
-          expectedDelivery: order.expectedDelivery
-            ? new Date(order.expectedDelivery).toISOString().split("T")[0]
-            : null,
-          notes: order.notes || null,
-        });
-
-        const sent = await sendEmail({
-          to: order.supplierEmail,
-          subject: `Purchase Order #${order.id} - ${order.materialName}`,
-          html: emailHTML,
-        });
-
-        if (sent) {
-          await db.updatePurchaseOrder(input.orderId, { status: "ordered" });
-        }
-
-        return { success: sent };
-      }),
-  }),
-
   reports: router({
     dailyProduction: protectedProcedure
       .input(
@@ -1605,10 +1485,10 @@ export const appRouter = router({
           },
           settings
             ? {
-                includeProduction: settings.includeProduction,
-                includeDeliveries: settings.includeDeliveries,
-                includeMaterials: settings.includeMaterials,
-                includeQualityControl: settings.includeQualityControl,
+                includeProduction: (settings as any).includeProduction,
+                includeDeliveries: (settings as any).includeDeliveries,
+                includeMaterials: (settings as any).includeMaterials,
+                includeQualityControl: (settings as any).includeQualityControl,
               }
             : undefined,
         );
