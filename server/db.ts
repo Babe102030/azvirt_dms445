@@ -2173,40 +2173,130 @@ export async function deleteShift(id: number) {
   await db.delete(schema.shifts).where(eq(schema.shifts.id, id));
   return true;
 }
-export async function createShiftTemplate(template: any) {
-  return Date.now();
+export async function createShiftTemplate(
+  template: typeof schema.shiftTemplates.$inferInsert,
+) {
+  const result = await db
+    .insert(schema.shiftTemplates)
+    .values({
+      ...template,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.shiftTemplates.id });
+  return result[0]?.id;
 }
+
 export async function getShiftTemplates() {
-  return [];
+  return await db
+    .select()
+    .from(schema.shiftTemplates)
+    .where(eq(schema.shiftTemplates.isActive, true))
+    .orderBy(schema.shiftTemplates.name);
 }
-export async function setEmployeeAvailability(availability: any) {
-  return true;
+
+export async function setEmployeeAvailability(
+  availability: typeof schema.employeeAvailability.$inferInsert,
+) {
+  const existing = await db
+    .select()
+    .from(schema.employeeAvailability)
+    .where(
+      and(
+        eq(schema.employeeAvailability.employeeId, availability.employeeId),
+        eq(schema.employeeAvailability.dayOfWeek, availability.dayOfWeek),
+      ),
+    );
+
+  if (existing.length > 0) {
+    await db
+      .update(schema.employeeAvailability)
+      .set({
+        ...availability,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.employeeAvailability.id, existing[0].id));
+    return existing[0].id;
+  }
+
+  const result = await db
+    .insert(schema.employeeAvailability)
+    .values({
+      ...availability,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.employeeAvailability.id });
+  return result[0]?.id;
 }
+
 export async function getEmployeeAvailability(employeeId: number) {
-  return [];
+  return await db
+    .select()
+    .from(schema.employeeAvailability)
+    .where(eq(schema.employeeAvailability.employeeId, employeeId))
+    .orderBy(schema.employeeAvailability.dayOfWeek);
 }
-export async function logComplianceAudit(audit: any) {
-  return true;
+
+export async function logComplianceAudit(
+  audit: typeof schema.complianceAuditTrail.$inferInsert,
+) {
+  const result = await db
+    .insert(schema.complianceAuditTrail)
+    .values({
+      ...audit,
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.complianceAuditTrail.id });
+  return result[0]?.id;
 }
+
 export async function getComplianceAudits(
   employeeId: number,
   startDate: Date,
   endDate: Date,
 ) {
-  return [];
+  return await db
+    .select()
+    .from(schema.complianceAuditTrail)
+    .where(
+      and(
+        eq(schema.complianceAuditTrail.employeeId, employeeId),
+        gte(schema.complianceAuditTrail.createdAt, startDate),
+        lte(schema.complianceAuditTrail.createdAt, endDate),
+      ),
+    )
+    .orderBy(desc(schema.complianceAuditTrail.createdAt));
 }
-export async function recordBreak(breakRecord: any) {
-  return true;
+
+export async function recordBreak(
+  breakRecord: typeof schema.shiftBreaks.$inferInsert,
+) {
+  const result = await db
+    .insert(schema.shiftBreaks)
+    .values({
+      ...breakRecord,
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.shiftBreaks.id });
+  return result[0]?.id;
 }
+
 export async function getBreakRules(jurisdiction: string) {
-  return [];
+  return [
+    { type: "meal", durationMinutes: 30, afterHours: 5, paid: false },
+    { type: "rest", durationMinutes: 15, afterHours: 4, paid: true },
+  ];
 }
+
 export async function cacheOfflineEntry(cache: any) {
   return true;
 }
+
 export async function getPendingOfflineEntries(employeeId: number) {
   return [];
 }
+
 export async function updateOfflineSyncStatus(
   id: number,
   status: string,
@@ -2214,27 +2304,34 @@ export async function updateOfflineSyncStatus(
 ) {
   return true;
 }
+
 export async function createJobSite(input: any) {
   return Date.now();
 }
+
 export async function getJobSites(projectId?: number) {
-  return [];
+  return await db.select().from(schema.projects);
 }
+
 export async function createLocationLog(input: any) {
   return Date.now();
 }
+
 export async function recordGeofenceViolation(input: any) {
   return Date.now();
 }
+
 export async function getLocationHistory(employeeId: number, limit?: number) {
   return [];
 }
+
 export async function getGeofenceViolations(
   employeeId?: number,
   resolved?: boolean,
 ) {
   return [];
 }
+
 export async function resolveGeofenceViolation(
   violationId: number,
   resolvedBy: number,
@@ -2242,26 +2339,81 @@ export async function resolveGeofenceViolation(
 ) {
   return true;
 }
-export async function requestTimesheetApproval(approval: any) {
-  return Date.now();
+
+export async function requestTimesheetApproval(
+  approval: typeof schema.timesheetApprovals.$inferInsert,
+) {
+  const result = await db
+    .insert(schema.timesheetApprovals)
+    .values({
+      ...approval,
+      status: "pending",
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.timesheetApprovals.id });
+  return result[0]?.id;
 }
+
 export async function approveTimesheet(
   approvalId: number,
   approvedBy: number,
   comments?: string,
 ) {
+  await db
+    .update(schema.timesheetApprovals)
+    .set({
+      status: "approved",
+      approverId: approvedBy,
+      approvedAt: new Date(),
+      comments: comments,
+    })
+    .where(eq(schema.timesheetApprovals.id, approvalId));
   return true;
 }
+
 export async function rejectTimesheet(
   approvalId: number,
   rejectedBy: number,
   comments: string,
 ) {
+  await db
+    .update(schema.timesheetApprovals)
+    .set({
+      status: "rejected",
+      approverId: rejectedBy,
+      rejectionReason: comments,
+    })
+    .where(eq(schema.timesheetApprovals.id, approvalId));
   return true;
 }
+
 export async function getPendingTimesheetApprovals(managerId?: number) {
-  return [];
+  return await db
+    .select({
+      approval: schema.timesheetApprovals,
+      shift: schema.shifts,
+      employee: schema.users,
+    })
+    .from(schema.timesheetApprovals)
+    .innerJoin(
+      schema.shifts,
+      eq(schema.timesheetApprovals.shiftId, schema.shifts.id),
+    )
+    .innerJoin(schema.users, eq(schema.shifts.employeeId, schema.users.id))
+    .where(eq(schema.timesheetApprovals.status, "pending"));
 }
+
 export async function getTimesheetApprovalHistory(employeeId: number) {
-  return [];
+  return await db
+    .select({
+      approval: schema.timesheetApprovals,
+      shift: schema.shifts,
+    })
+    .from(schema.timesheetApprovals)
+    .innerJoin(
+      schema.shifts,
+      eq(schema.timesheetApprovals.shiftId, schema.shifts.id),
+    )
+    .where(eq(schema.shifts.employeeId, employeeId))
+    .orderBy(desc(schema.timesheetApprovals.createdAt));
 }
