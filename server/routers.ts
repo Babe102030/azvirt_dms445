@@ -23,6 +23,7 @@ import {
   generateComplianceCertificateHTML,
   getDefaultCompanyInfo,
 } from "./_core/complianceCertificate";
+import { purchaseOrdersRouter } from "./routers/purchaseOrders";
 
 export const appRouter = router({
   system: systemRouter,
@@ -39,6 +40,7 @@ export const appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
+  purchaseOrders: purchaseOrdersRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -98,10 +100,10 @@ export const appRouter = router({
       .input(
         z.object({
           name: z.string(),
-          description: z.string().optional(),
+          // description: z.string().optional(), // Removed: not in DB schema directly
           fileData: z.string(),
           mimeType: z.string(),
-          fileSize: z.number(),
+          // fileSize: z.number(), // Removed: not in DB schema directly
           category: z.enum([
             "contract",
             "blueprint",
@@ -122,17 +124,13 @@ export const appRouter = router({
 
         await db.createDocument({
           name: input.name,
-          description: input.description,
-          fileKey,
-          fileUrl: url,
-          mimeType: input.mimeType,
-          fileSize: input.fileSize,
-          category: input.category,
+          // description: input.description, // Removed: not in DB schema directly
+          url,
+          type: input.category,
           projectId: input.projectId,
           uploadedBy: ctx.user.id,
         });
-
-        return { success: true, url };
+        return { success: true };
       }),
 
     delete: protectedProcedure
