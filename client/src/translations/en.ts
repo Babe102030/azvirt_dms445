@@ -5,6 +5,9 @@ export const en = {
     documents: "Documents",
     projects: "Projects",
     materials: "Materials",
+    recipes: "Concrete Recipes",
+    mixingLog: "Mixing Log",
+    productionAnalytics: "Production Analytics",
     forecasting: "Stock Forecasting",
     purchaseOrders: "Purchase Orders",
     deliveries: "Deliveries",
@@ -14,6 +17,7 @@ export const en = {
     employees: "Employees",
     machines: "Machines",
     timesheets: "Timesheets",
+    timesheetApproval: "Timesheet Approvals",
     reports: "Reports",
     reportSettings: "Report Settings",
     emailBranding: "Email Branding",
@@ -26,7 +30,8 @@ export const en = {
   // Auth
   auth: {
     loginToContinue: "Login to Continue",
-    loginDescription: "Access to the dashboard requires authentication. Continue to initiate login.",
+    loginDescription:
+      "Access to the dashboard requires authentication. Continue to initiate login.",
     login: "Login",
   },
 
@@ -87,9 +92,11 @@ export const en = {
     title: "Settings",
     manage: "Manage your notification preferences",
     smsNotifications: "SMS Notifications",
-    receiveAlerts: "Receive critical stock alerts via SMS when materials fall below critical thresholds",
+    receiveAlerts:
+      "Receive critical stock alerts via SMS when materials fall below critical thresholds",
     phoneNumber: "Phone Number",
-    enterPhoneFormat: "Enter your phone number in international format (e.g., +1234567890)",
+    enterPhoneFormat:
+      "Enter your phone number in international format (e.g., +1234567890)",
     enableSMS: "Enable SMS Alerts",
     willReceive: "You will receive SMS notifications for critical stock levels",
     saveSettings: "Save Settings",
@@ -97,10 +104,13 @@ export const en = {
     criticalThreshold: "Critical Stock Threshold",
     howWorks: "How SMS alerts work",
     alertLevels: "Alert Levels",
-    lowStockLabel: "Low Stock: Material quantity falls below minimum stock level",
-    criticalStockLabel: "Critical Stock: Material quantity falls below critical threshold (triggers SMS)",
+    lowStockLabel:
+      "Low Stock: Material quantity falls below minimum stock level",
+    criticalStockLabel:
+      "Critical Stock: Material quantity falls below critical threshold (triggers SMS)",
     settingThresholds: "Setting Critical Thresholds",
-    goToMaterials: "Go to Materials page and set the \"Critical Threshold\" for each material. When stock falls below this level, SMS alerts will be sent to all managers with SMS notifications enabled.",
+    goToMaterials:
+      'Go to Materials page and set the "Critical Threshold" for each material. When stock falls below this level, SMS alerts will be sent to all managers with SMS notifications enabled.',
     requirements: "Requirements",
     mustBeAdmin: "You must be an admin user to receive SMS alerts",
     phoneValid: "Phone number must be valid and in international format",
@@ -199,6 +209,30 @@ export const en = {
     pending: "Pending",
     approved: "Approved",
     rejected: "Rejected",
+  },
+
+  // Timesheet Approval
+  timesheetApproval: {
+    title: "Timesheet Approvals",
+    description: "Review and approve employee timesheets",
+    pendingApproval: "Pending Approval",
+    yourRole: "Your Role",
+    actionRequired: "Action Required",
+    allCaughtUp: "All Caught Up!",
+    noTimesheetsPending: "No timesheets pending approval",
+    approve: "Approve",
+    reject: "Reject",
+    approveTimesheet: "Approve Timesheet",
+    rejectTimesheet: "Reject Timesheet",
+    optionalComments: "Optional Comments",
+    rejectionReason: "Rejection Reason",
+    confirmApproval: "Confirm Approval",
+    confirmRejection: "Confirm Rejection",
+    approving: "Approving...",
+    rejecting: "Rejecting...",
+    manager: "Manager",
+    approver: "Approver",
+    itemsNeedingAttention: "Items needing attention",
   },
 
   // Common

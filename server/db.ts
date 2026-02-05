@@ -2127,8 +2127,18 @@ export async function createShift(shift: typeof schema.shifts.$inferInsert) {
 
 export async function getAllShifts() {
   return await db
-    .select()
+    .select({
+      id: schema.shifts.id,
+      employeeId: schema.shifts.employeeId,
+      templateId: schema.shifts.templateId,
+      startTime: schema.shifts.startTime,
+      endTime: schema.shifts.endTime,
+      status: schema.shifts.status,
+      notes: schema.shifts.notes,
+      employeeName: schema.users.name,
+    })
     .from(schema.shifts)
+    .leftJoin(schema.users, eq(schema.shifts.employeeId, schema.users.id))
     .orderBy(desc(schema.shifts.startTime));
 }
 
@@ -2310,11 +2320,143 @@ export async function createJobSite(input: any) {
 }
 
 export async function getJobSites(projectId?: number) {
+  if (projectId) {
+    return await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, projectId));
+  }
   return await db.select().from(schema.projects);
+}
+
+export async function checkShiftConflicts(employeeId: number, shiftDate: Date) {
+  const startOfDay = new Date(shiftDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(shiftDate);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  return await db
+    .select()
+    .from(schema.shifts)
+    .where(
+      and(
+        eq(schema.shifts.employeeId, employeeId),
+        gte(schema.shifts.startTime, startOfDay),
+        lte(schema.shifts.startTime, endOfDay),
+        not(eq(schema.shifts.status, "cancelled")),
+      ),
+    );
+}
+
+export async function assignEmployeeToShift(
+  employeeId: number,
+  startTime: Date,
+  endTime: Date,
+  shiftDate: Date,
+  createdBy: number,
+) {
+  const conflicts = await checkShiftConflicts(employeeId, shiftDate);
+  if (conflicts.length > 0) {
+    throw new Error("Employee already has a shift on this date");
+  }
+
+  const result = await db
+    .insert(schema.shifts)
+    .values({
+      employeeId,
+      startTime,
+      endTime,
+      status: "scheduled",
+      createdBy,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.shifts.id });
+
+  return result[0]?.id;
+}
+
+export async function getAllEmployeesForShifts() {
+  return await db
+    .select({
+      id: schema.users.id,
+      name: schema.users.name,
+      role: schema.users.role,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.role, "employee"));
 }
 
 export async function createLocationLog(input: any) {
   return Date.now();
+}
+
+export async function createShiftSwap(
+  swap: typeof schema.shiftSwaps.$inferInsert,
+) {
+  const result = await db
+    .insert(schema.shiftSwaps)
+    .values({
+      ...swap,
+      status: "pending",
+      requestedAt: new Date(),
+    })
+    .returning({ id: schema.shiftSwaps.id });
+  return result[0]?.id;
+}
+
+export async function getPendingShiftSwaps() {
+  return await db
+    .select({
+      swap: schema.shiftSwaps,
+      shift: schema.shifts,
+      fromEmployee: schema.users,
+      toEmployee: schema.users,
+    })
+    .from(schema.shiftSwaps)
+    .innerJoin(schema.shifts, eq(schema.shiftSwaps.shiftId, schema.shifts.id))
+    .innerJoin(
+      schema.users,
+      eq(schema.shiftSwaps.fromEmployeeId, schema.users.id),
+    )
+    .leftJoin(schema.users, eq(schema.shiftSwaps.toEmployeeId, schema.users.id))
+    .where(eq(schema.shiftSwaps.status, "pending"));
+}
+
+export async function updateShiftSwapStatus(
+  id: number,
+  status: "approved" | "rejected" | "cancelled",
+  notes?: string,
+) {
+  const [swap] = await db
+    .select()
+    .from(schema.shiftSwaps)
+    .where(eq(schema.shiftSwaps.id, id));
+
+  if (!swap) throw new Error("Shift swap request not found");
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(schema.shiftSwaps)
+      .set({
+        status,
+        notes,
+        respondedAt: new Date(),
+      })
+      .where(eq(schema.shiftSwaps.id, id));
+
+    if (status === "approved" && swap.toEmployeeId) {
+      await tx
+        .update(schema.shifts)
+        .set({
+          employeeId: swap.toEmployeeId,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.shifts.id, swap.shiftId));
+    }
+  });
+
+  return true;
 }
 
 export async function recordGeofenceViolation(input: any) {

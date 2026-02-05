@@ -1,33 +1,20 @@
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import { z } from "zod";
-import {
-  getAllEmployees,
-  getShiftsForDateRange,
-  getEmployeeShifts,
-  assignEmployeeToShift,
-  updateShiftAssignment,
-  deleteShiftAssignment,
-  checkShiftConflicts,
-} from "../db/shiftAssignments";
-import { getShiftTemplates } from "../db";
-
-async function getAllShiftTemplates() {
-  return await getShiftTemplates();
-}
+import * as db from "../db";
 
 export const shiftAssignmentsRouter = router({
   /**
    * Get all shift templates
    */
   getTemplates: publicProcedure.query(async () => {
-    return await getAllShiftTemplates();
+    return await db.getShiftTemplates();
   }),
 
   /**
-   * Get all employees
+   * Get all employees for shift assignment
    */
   getEmployees: publicProcedure.query(async () => {
-    return await getAllEmployees();
+    return await db.getAllEmployeesForShifts();
   }),
 
   /**
@@ -38,10 +25,14 @@ export const shiftAssignmentsRouter = router({
       z.object({
         startDate: z.date(),
         endDate: z.date(),
-      })
+      }),
     )
     .query(async ({ input }) => {
-      return await getShiftsForDateRange(input.startDate, input.endDate);
+      const shifts = await db.getAllShifts();
+      // Filter by date range on the server side
+      return shifts.filter(
+        (s) => s.startTime >= input.startDate && s.startTime <= input.endDate,
+      );
     }),
 
   /**
@@ -53,10 +44,14 @@ export const shiftAssignmentsRouter = router({
         employeeId: z.number(),
         startDate: z.date(),
         endDate: z.date(),
-      })
+      }),
     )
     .query(async ({ input }) => {
-      return await getEmployeeShifts(input.employeeId, input.startDate, input.endDate);
+      return await db.getShiftsByEmployee(
+        input.employeeId,
+        input.startDate,
+        input.endDate,
+      );
     }),
 
   /**
@@ -69,21 +64,15 @@ export const shiftAssignmentsRouter = router({
         startTime: z.date(),
         endTime: z.date(),
         shiftDate: z.date(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      // Check for conflicts
-      const conflicts = await checkShiftConflicts(input.employeeId, input.shiftDate);
-      if (conflicts.length > 0) {
-        throw new Error("Employee already has a shift on this date");
-      }
-
-      return await assignEmployeeToShift(
+      return await db.assignEmployeeToShift(
         input.employeeId,
         input.startTime,
         input.endTime,
         input.shiftDate,
-        ctx.user.id
+        ctx.user.id,
       );
     }),
 
@@ -96,12 +85,22 @@ export const shiftAssignmentsRouter = router({
         shiftId: z.number(),
         startTime: z.date().optional(),
         endTime: z.date().optional(),
-        status: z.enum(["scheduled", "in_progress", "completed", "cancelled", "no_show"]).optional(),
-      })
+        status: z
+          .enum([
+            "scheduled",
+            "in_progress",
+            "completed",
+            "cancelled",
+            "no_show",
+          ])
+          .optional(),
+        notes: z.string().optional(),
+      }),
     )
     .mutation(async ({ input }) => {
       const { shiftId, ...updates } = input;
-      return await updateShiftAssignment(shiftId, updates);
+      const success = await db.updateShift(shiftId, updates);
+      return { success };
     }),
 
   /**
@@ -110,7 +109,8 @@ export const shiftAssignmentsRouter = router({
   deleteShift: protectedProcedure
     .input(z.object({ shiftId: z.number() }))
     .mutation(async ({ input }) => {
-      return await deleteShiftAssignment(input.shiftId);
+      const success = await db.deleteShift(input.shiftId);
+      return { success };
     }),
 
   /**
@@ -121,10 +121,13 @@ export const shiftAssignmentsRouter = router({
       z.object({
         employeeId: z.number(),
         shiftDate: z.date(),
-      })
+      }),
     )
     .query(async ({ input }) => {
-      const conflicts = await checkShiftConflicts(input.employeeId, input.shiftDate);
+      const conflicts = await db.checkShiftConflicts(
+        input.employeeId,
+        input.shiftDate,
+      );
       return { hasConflicts: conflicts.length > 0, count: conflicts.length };
     }),
 });

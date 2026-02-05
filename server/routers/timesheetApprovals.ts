@@ -1,72 +1,78 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
-import {
-  getPendingTimesheets,
-  getEmployeeTimesheets,
-  approveTimesheet,
-  rejectTimesheet,
-  getTimesheetApprovalDetails,
-} from "../db/timesheetApprovals";
+import * as db from "../db";
 
 export const timesheetApprovalsRouter = router({
   /**
-   * Get all pending timesheets for the current manager
+   * Get all pending timesheets for approval
    */
-  getPendingForApproval: protectedProcedure.query(async ({ ctx }: any) => {
-    return await getPendingTimesheets(ctx.user.id);
+  getPendingForApproval: protectedProcedure.query(async ({ ctx }) => {
+    return await db.getPendingTimesheetApprovals(ctx.user.id);
   }),
 
   /**
-   * Get all timesheets for an employee
+   * Get approval history for a specific employee
    */
-  getEmployeeTimesheets: protectedProcedure
+  getEmployeeHistory: protectedProcedure
     .input(z.object({ employeeId: z.number() }))
-    .query(async ({ input }: any) => {
-      return await getEmployeeTimesheets(input.employeeId);
+    .query(async ({ input }) => {
+      return await db.getTimesheetApprovalHistory(input.employeeId);
     }),
 
   /**
-   * Approve a timesheet
+   * Approve a timesheet approval request
    */
   approve: protectedProcedure
     .input(
       z.object({
-        timesheetId: z.number(),
+        approvalId: z.number(),
         comments: z.string().optional(),
-      })
+      }),
     )
-    .mutation(async ({ input, ctx }: any) => {
-      return await approveTimesheet(
-        input.timesheetId,
+    .mutation(async ({ input, ctx }) => {
+      const success = await db.approveTimesheet(
+        input.approvalId,
         ctx.user.id,
-        input.comments
+        input.comments,
       );
+      return { success };
     }),
 
   /**
-   * Reject a timesheet
+   * Reject a timesheet approval request
    */
   reject: protectedProcedure
     .input(
       z.object({
-        timesheetId: z.number(),
+        approvalId: z.number(),
         rejectionReason: z.string(),
-      })
+      }),
     )
-    .mutation(async ({ input, ctx }: any) => {
-      return await rejectTimesheet(
-        input.timesheetId,
+    .mutation(async ({ input, ctx }) => {
+      const success = await db.rejectTimesheet(
+        input.approvalId,
         ctx.user.id,
-        input.rejectionReason
+        input.rejectionReason,
       );
+      return { success };
     }),
 
   /**
-   * Get approval details for a timesheet
+   * Request approval for a shift
    */
-  getApprovalDetails: protectedProcedure
-    .input(z.object({ timesheetId: z.number() }))
-    .query(async ({ input }: any) => {
-      return await getTimesheetApprovalDetails(input.timesheetId);
+  requestApproval: protectedProcedure
+    .input(
+      z.object({
+        shiftId: z.number(),
+        comments: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const approvalId = await db.requestTimesheetApproval({
+        shiftId: input.shiftId,
+        comments: input.comments,
+        status: "pending",
+      });
+      return { success: !!approvalId, approvalId };
     }),
 });

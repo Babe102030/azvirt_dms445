@@ -5,6 +5,9 @@ export const az = {
     documents: "Sənədlər",
     projects: "Layihələr",
     materials: "Materiallar",
+    recipes: "Beton Reseptləri",
+    mixingLog: "Qarışdırma Jurnalı",
+    productionAnalytics: "İstehsalat Analitikası",
     forecasting: "Ehtiyat Proqnozları",
     purchaseOrders: "Satınalma Sifarişləri",
     deliveries: "Çatdırılmalar",
@@ -14,6 +17,7 @@ export const az = {
     employees: "Çalışanlar",
     machines: "Maşınlar",
     timesheets: "Zaman Cədvəlləri",
+    timesheetApproval: "Zaman Cədvəllərinin Təsdiqi",
     reports: "Hesabatlar",
     reportSettings: "Hesabat Parametrləri",
     emailBranding: "E-poçt Brendinqi",
@@ -26,7 +30,8 @@ export const az = {
   // Auth
   auth: {
     loginToContinue: "Davam etmək üçün daxil olun",
-    loginDescription: "Kontrol panelinə giriş autentifikasiya tələb edir. Daxil olmaq üçün davam edin.",
+    loginDescription:
+      "Kontrol panelinə giriş autentifikasiya tələb edir. Daxil olmaq üçün davam edin.",
     login: "Daxil ol",
   },
 
@@ -75,7 +80,8 @@ export const az = {
     supplier: "Təchizatçı",
     unitPrice: "Vahid Qiyməti",
     loading: "Yüklənir...",
-    noMaterials: "Material tapılmadı. Başlamaq üçün ilk materialınızı əlavə edin.",
+    noMaterials:
+      "Material tapılmadı. Başlamaq üçün ilk materialınızı əlavə edin.",
     lowStock: "Aşağı Stok",
     critical: "Kritik",
     stock: "Stok",
@@ -87,9 +93,11 @@ export const az = {
     title: "Parametrlər",
     manage: "Bildiriş seçimlərinizi idarə edin",
     smsNotifications: "SMS Bildirişləri",
-    receiveAlerts: "Materiallar kritik hədlərin altına düşdüyü zaman SMS vasitəsilə kritik stok xəbərdarlıqları alın",
+    receiveAlerts:
+      "Materiallar kritik hədlərin altına düşdüyü zaman SMS vasitəsilə kritik stok xəbərdarlıqları alın",
     phoneNumber: "Telefon Nömrəsi",
-    enterPhoneFormat: "Telefon nömrənizi beynəlvahid formatda daxil edin (məs. +1234567890)",
+    enterPhoneFormat:
+      "Telefon nömrənizi beynəlvahid formatda daxil edin (məs. +1234567890)",
     enableSMS: "SMS Xəbərdarlıqlarını Aktivləşdirin",
     willReceive: "Kritik stok səviyyələri üçün SMS bildirişləri alacaqsınız",
     saveSettings: "Parametrləri Yadda Saxlayın",
@@ -97,13 +105,17 @@ export const az = {
     criticalThreshold: "Kritik Stok Həddi",
     howWorks: "SMS xəbərdarlıqları necə işləyir",
     alertLevels: "Xəbərdarlıq Səviyyələri",
-    lowStockLabel: "Aşağı Stok: Material miqdarı minimum stok səviyyəsinin altına düşür",
-    criticalStockLabel: "Kritik Stok: Material miqdarı kritik həddin altına düşür (SMS-i aktivləşdirir)",
+    lowStockLabel:
+      "Aşağı Stok: Material miqdarı minimum stok səviyyəsinin altına düşür",
+    criticalStockLabel:
+      "Kritik Stok: Material miqdarı kritik həddin altına düşür (SMS-i aktivləşdirir)",
     settingThresholds: "Kritik Hədlərin Təyin Edilməsi",
-    goToMaterials: "Materiallar səhifəsinə gedin və hər bir material üçün \"Kritik Həddi\" təyin edin. Stok bu səviyyənin altına düşdüyü zaman, SMS bildirişləri SMS bildirişləri aktivləşdirilmiş bütün menecerlərə göndəriləcəkdir.",
+    goToMaterials:
+      'Materiallar səhifəsinə gedin və hər bir material üçün "Kritik Həddi" təyin edin. Stok bu səviyyənin altına düşdüyü zaman, SMS bildirişləri SMS bildirişləri aktivləşdirilmiş bütün menecerlərə göndəriləcəkdir.',
     requirements: "Tələblər",
     mustBeAdmin: "SMS xəbərdarlıqları almaq üçün admin istifadəçi olmalısınız",
-    phoneValid: "Telefon nömrəsi etibarlı olmalı və beynəlvahid formatda olmalıdır",
+    phoneValid:
+      "Telefon nömrəsi etibarlı olmalı və beynəlvahid formatda olmalıdır",
     smsEnabled: "SMS bildirişləri bu parametrlərdə aktivləşdirilməlidir",
     materialThreshold: "Material kritik həddi dəyəri təyin edilməlidir",
     successMessage: "SMS parametrləri uğurla yeniləndi",
@@ -199,6 +211,30 @@ export const az = {
     pending: "Gözləmədə",
     approved: "Təsdiq Edildi",
     rejected: "Rədd Edildi",
+  },
+
+  // Timesheet Approval
+  timesheetApproval: {
+    title: "Zaman Cədvəllərinin Təsdiqi",
+    description: "İşçilərin zaman cədvəllərini nəzərdən keçirin və təsdiqləyin",
+    pendingApproval: "Təsdiq Gözləyən",
+    yourRole: "Sizin Rolunuz",
+    actionRequired: "Tələb Olunan Əməliyyat",
+    allCaughtUp: "Hər şey qaydasındadır!",
+    noTimesheetsPending: "Təsdiq gözləyən zaman cədvəli yoxdur",
+    approve: "Təsdiqlə",
+    reject: "Rədd et",
+    approveTimesheet: "Zaman Cədvəlini Təsdiqlə",
+    rejectTimesheet: "Zaman Cədvəlini Rədd et",
+    optionalComments: "Əlavə şərhlər",
+    rejectionReason: "Rədd etmə səbəbi",
+    confirmApproval: "Təsdiqi təsdiqləyin",
+    confirmRejection: "Rədd etməni təsdiqləyin",
+    approving: "Təsdiqlənir...",
+    rejecting: "Rədd edilir...",
+    manager: "Menecer",
+    approver: "Təsdiqləyən",
+    itemsNeedingAttention: "Diqqət tələb edən bəndlər",
   },
 
   // Common
