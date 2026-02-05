@@ -1,30 +1,46 @@
-import { useState, useRef, useEffect } from 'react';
-import { trpc } from '@/lib/trpc';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { VoiceRecorder } from '@/components/VoiceRecorder';
-import { PromptTemplates } from '@/components/PromptTemplates';
-import { Send, Bot, User, Loader2, Trash2, Plus, Sparkles } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { Streamdown } from 'streamdown';
+import { useState, useRef, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { PromptTemplates } from "@/components/PromptTemplates";
+import { Send, Bot, User, Loader2, Trash2, Plus, Sparkles } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { Streamdown } from "streamdown";
 
 export default function AIAssistant() {
   const { t } = useLanguage();
-  const [message, setMessage] = useState('');
-  const [currentConversationId, setCurrentConversationId] = useState<number | undefined>();
-  const [selectedModel, setSelectedModel] = useState('llama3.2');
+  const [message, setMessage] = useState("");
+  const [currentConversationId, setCurrentConversationId] = useState<
+    number | undefined
+  >();
+  const [selectedModel, setSelectedModel] = useState("llama3.2");
   const [showTemplates, setShowTemplates] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Queries
-  const { data: conversations = [], refetch: refetchConversations } = trpc.ai.getConversations.useQuery();
-  const { data: messages = [], refetch: refetchMessages } = trpc.ai.getMessages.useQuery(
-    { conversationId: currentConversationId! },
-    { enabled: !!currentConversationId }
-  );
+  const { data: conversations = [], refetch: refetchConversations } =
+    trpc.ai.getConversations.useQuery();
+  const { data: messages = [], refetch: refetchMessages } =
+    trpc.ai.getMessages.useQuery(
+      { conversationId: currentConversationId! },
+      { enabled: !!currentConversationId },
+    );
   const { data: models = [] } = trpc.ai.listModels.useQuery();
 
   // Mutations
@@ -33,7 +49,7 @@ export default function AIAssistant() {
       setCurrentConversationId(data.conversationId);
       refetchMessages();
       refetchConversations();
-      setMessage('');
+      setMessage("");
     },
   });
 
@@ -53,7 +69,7 @@ export default function AIAssistant() {
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = () => {
@@ -79,19 +95,21 @@ export default function AIAssistant() {
 
   const handleNewConversation = () => {
     createConversationMutation.mutate({
-      title: 'New Conversation',
+      title: "New Conversation",
       modelName: selectedModel,
     });
   };
 
   const handleDeleteConversation = (id: number) => {
-    if (confirm(t('aiAssistant.confirmDelete') || 'Delete this conversation?')) {
+    if (
+      confirm(t("aiAssistant.confirmDelete") || "Delete this conversation?")
+    ) {
       deleteConversationMutation.mutate({ conversationId: id });
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -107,7 +125,9 @@ export default function AIAssistant() {
       {/* Sidebar - Conversation History */}
       <div className="w-64 flex flex-col gap-2 border-r border-border pr-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">{t('aiAssistant.conversations') || 'Conversations'}</h2>
+          <h2 className="text-lg font-semibold">
+            {t("aiAssistant.conversations") || "Conversations"}
+          </h2>
           <Button size="icon" variant="outline" onClick={handleNewConversation}>
             <Plus className="h-4 w-4" />
           </Button>
@@ -118,13 +138,17 @@ export default function AIAssistant() {
             <Card
               key={conv.id}
               className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
-                currentConversationId === conv.id ? 'bg-accent border-orange-500' : ''
+                currentConversationId === conv.id
+                  ? "bg-accent border-orange-500"
+                  : ""
               }`}
               onClick={() => setCurrentConversationId(conv.id)}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{conv.title || 'New Conversation'}</p>
+                  <p className="text-sm font-medium truncate">
+                    {conv.title || "New Conversation"}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(conv.updatedAt).toLocaleDateString()}
                   </p>
@@ -152,12 +176,16 @@ export default function AIAssistant() {
         <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Bot className="h-6 w-6 text-orange-500" />
-            <h1 className="text-2xl font-bold">{t('aiAssistant.title') || 'AI Assistant'}</h1>
+            <h1 className="text-2xl font-bold">
+              {t("aiAssistant.title") || "AI Assistant"}
+            </h1>
           </div>
 
           {/* Model Selector */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{t('aiAssistant.model') || 'Model'}:</span>
+            <span className="text-sm text-muted-foreground">
+              {t("aiAssistant.model") || "Model"}:
+            </span>
             <Select value={selectedModel} onValueChange={setSelectedModel}>
               <SelectTrigger className="w-48">
                 <SelectValue />
@@ -183,11 +211,11 @@ export default function AIAssistant() {
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <Bot className="h-16 w-16 text-orange-500 mb-4" />
               <h3 className="text-xl font-semibold mb-2">
-                {t('aiAssistant.welcome') || 'Welcome to AI Assistant'}
+                {t("aiAssistant.welcome") || "Welcome to AI Assistant"}
               </h3>
               <p className="text-muted-foreground max-w-md">
-                {t('aiAssistant.description') ||
-                  'Ask me anything about your materials, deliveries, quality tests, or forecasts. I can help you manage your concrete production business.'}
+                {t("aiAssistant.description") ||
+                  "Ask me anything about your materials, deliveries, quality tests, or forecasts. I can help you manage your concrete production business."}
               </p>
             </div>
           )}
@@ -195,9 +223,9 @@ export default function AIAssistant() {
           {messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              {msg.role === 'assistant' && (
+              {msg.role === "assistant" && (
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
                   <Bot className="h-5 w-5 text-white" />
                 </div>
@@ -205,12 +233,10 @@ export default function AIAssistant() {
 
               <Card
                 className={`max-w-[70%] p-4 ${
-                  msg.role === 'user'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-card'
+                  msg.role === "user" ? "bg-orange-500 text-white" : "bg-card"
                 }`}
               >
-                {msg.role === 'assistant' ? (
+                {msg.role === "assistant" ? (
                   <div className="prose prose-sm dark:prose-invert max-w-none">
                     <Streamdown>{msg.content}</Streamdown>
                   </div>
@@ -218,9 +244,9 @@ export default function AIAssistant() {
                   <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 )}
 
-                {msg.audioUrl && (
+                {(msg as any).audioUrl && (
                   <audio controls className="mt-2 w-full">
-                    <source src={msg.audioUrl} type="audio/webm" />
+                    <source src={(msg as any).audioUrl} type="audio/webm" />
                   </audio>
                 )}
 
@@ -229,7 +255,7 @@ export default function AIAssistant() {
                 </p>
               </Card>
 
-              {msg.role === 'user' && (
+              {msg.role === "user" && (
                 <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
                   <User className="h-5 w-5 text-white" />
                 </div>
@@ -272,13 +298,19 @@ export default function AIAssistant() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={t('aiAssistant.placeholder') || 'Ask me anything about your business...'}
+              placeholder={
+                t("aiAssistant.placeholder") ||
+                "Ask me anything about your business..."
+              }
               disabled={chatMutation.isPending}
               className="resize-none"
             />
           </div>
 
-          <VoiceRecorder onTranscription={handleVoiceTranscription} language="bs" />
+          <VoiceRecorder
+            onTranscription={handleVoiceTranscription}
+            language="bs"
+          />
 
           <Button
             onClick={handleSendMessage}

@@ -35,8 +35,9 @@ export default function Machines() {
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
-  const [selectedMachineForReport, setSelectedMachineForReport] = useState<any>(null);
-  
+  const [selectedMachineForReport, setSelectedMachineForReport] =
+    useState<any>(null);
+
   const { data: machines, isLoading, refetch } = trpc.machines.list.useQuery();
   const { data: concreteBases } = trpc.concreteBases.list.useQuery();
 
@@ -74,15 +75,17 @@ export default function Machines() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     createMutation.mutate({
       name: formData.get("name") as string,
       machineNumber: formData.get("machineNumber") as string,
       type: formData.get("type") as any,
-      manufacturer: formData.get("manufacturer") as string || undefined,
-      model: formData.get("model") as string || undefined,
+      manufacturer: (formData.get("manufacturer") as string) || undefined,
+      model: (formData.get("model") as string) || undefined,
       year: formData.get("year") ? Number(formData.get("year")) : undefined,
-      concreteBaseId: formData.get("concreteBaseId") ? Number(formData.get("concreteBaseId")) : undefined,
+      concreteBaseId: formData.get("concreteBaseId")
+        ? Number(formData.get("concreteBaseId"))
+        : undefined,
       status: "operational",
     });
   };
@@ -90,24 +93,34 @@ export default function Machines() {
   const handleMaintenanceSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedMachine) return;
-    
+
     const formData = new FormData(e.currentTarget);
     const maintenanceType = formData.get("maintenanceType") as string;
-    
+
     createMaintenanceMutation.mutate({
       machineId: selectedMachine,
       date: new Date(),
       maintenanceType: maintenanceType as any,
-      description: formData.get("description") as string || undefined,
-      lubricationType: maintenanceType === "lubrication" ? formData.get("lubricationType") as string : undefined,
-      lubricationAmount: maintenanceType === "lubrication" && formData.get("lubricationAmount") 
-        ? Number(formData.get("lubricationAmount")) : undefined,
-      fuelType: maintenanceType === "fuel" ? formData.get("fuelType") as string : undefined,
-      fuelAmount: maintenanceType === "fuel" && formData.get("fuelAmount")
-        ? Number(formData.get("fuelAmount")) : undefined,
+      description: (formData.get("description") as string) || undefined,
+      lubricationType:
+        maintenanceType === "lubrication"
+          ? (formData.get("lubricationType") as string)
+          : undefined,
+      lubricationAmount:
+        maintenanceType === "lubrication" && formData.get("lubricationAmount")
+          ? Number(formData.get("lubricationAmount"))
+          : undefined,
+      fuelType:
+        maintenanceType === "fuel"
+          ? (formData.get("fuelType") as string)
+          : undefined,
+      fuelAmount:
+        maintenanceType === "fuel" && formData.get("fuelAmount")
+          ? Number(formData.get("fuelAmount"))
+          : undefined,
       cost: formData.get("cost") ? Number(formData.get("cost")) : undefined,
-      performedBy: formData.get("performedBy") as string || undefined,
-      notes: formData.get("notes") as string || undefined,
+      performedBy: (formData.get("performedBy") as string) || undefined,
+      notes: (formData.get("notes") as string) || undefined,
     });
   };
 
@@ -145,7 +158,7 @@ export default function Machines() {
                   <Input id="machineNumber" name="machineNumber" required />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="type">Type *</Label>
                 <Select name="type" required>
@@ -177,7 +190,13 @@ export default function Machines() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="year">Year</Label>
-                  <Input id="year" name="year" type="number" min="1900" max="2100" />
+                  <Input
+                    id="year"
+                    name="year"
+                    type="number"
+                    min="1900"
+                    max="2100"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="concreteBaseId">Concrete Base</Label>
@@ -186,7 +205,7 @@ export default function Machines() {
                       <SelectValue placeholder="Select base" />
                     </SelectTrigger>
                     <SelectContent>
-                      {concreteBases?.map((base) => (
+                      {concreteBases?.map((base: any) => (
                         <SelectItem key={base.id} value={base.id.toString()}>
                           {base.name}
                         </SelectItem>
@@ -197,7 +216,11 @@ export default function Machines() {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={createMutation.isPending}>
@@ -210,7 +233,10 @@ export default function Machines() {
       </div>
 
       {/* Maintenance Dialog */}
-      <Dialog open={isMaintenanceDialogOpen} onOpenChange={setIsMaintenanceDialogOpen}>
+      <Dialog
+        open={isMaintenanceDialogOpen}
+        onOpenChange={setIsMaintenanceDialogOpen}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Log Maintenance</DialogTitle>
@@ -241,22 +267,40 @@ export default function Machines() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="lubricationType">Lubrication Type</Label>
-                <Input id="lubricationType" name="lubricationType" placeholder="e.g., Engine Oil, Grease" />
+                <Input
+                  id="lubricationType"
+                  name="lubricationType"
+                  placeholder="e.g., Engine Oil, Grease"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lubricationAmount">Amount (L)</Label>
-                <Input id="lubricationAmount" name="lubricationAmount" type="number" step="0.1" />
+                <Input
+                  id="lubricationAmount"
+                  name="lubricationAmount"
+                  type="number"
+                  step="0.1"
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="fuelType">Fuel Type</Label>
-                <Input id="fuelType" name="fuelType" placeholder="e.g., Diesel, Gasoline" />
+                <Input
+                  id="fuelType"
+                  name="fuelType"
+                  placeholder="e.g., Diesel, Gasoline"
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fuelAmount">Fuel Amount (L)</Label>
-                <Input id="fuelAmount" name="fuelAmount" type="number" step="0.1" />
+                <Input
+                  id="fuelAmount"
+                  name="fuelAmount"
+                  type="number"
+                  step="0.1"
+                />
               </div>
             </div>
 
@@ -277,11 +321,20 @@ export default function Machines() {
             </div>
 
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsMaintenanceDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsMaintenanceDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMaintenanceMutation.isPending}>
-                {createMaintenanceMutation.isPending ? "Saving..." : "Save Maintenance"}
+              <Button
+                type="submit"
+                disabled={createMaintenanceMutation.isPending}
+              >
+                {createMaintenanceMutation.isPending
+                  ? "Saving..."
+                  : "Save Maintenance"}
               </Button>
             </div>
           </form>
@@ -304,31 +357,44 @@ export default function Machines() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   Loading machines...
                 </TableCell>
               </TableRow>
             ) : !machines || machines.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No machines found. Add your first machine to get started.
                 </TableCell>
               </TableRow>
             ) : (
-              machines.map((machine) => (
+              machines.map((machine: any) => (
                 <TableRow key={machine.id}>
-                  <TableCell className="font-medium">{machine.machineNumber}</TableCell>
+                  <TableCell className="font-medium">
+                    {machine.machineNumber}
+                  </TableCell>
                   <TableCell>{machine.name}</TableCell>
                   <TableCell className="capitalize">{machine.type}</TableCell>
                   <TableCell>{machine.manufacturer || "-"}</TableCell>
                   <TableCell>{machine.totalWorkingHours || 0} hrs</TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      machine.status === "operational" ? "bg-green-500/20 text-green-700" :
-                      machine.status === "maintenance" ? "bg-yellow-500/20 text-yellow-700" :
-                      machine.status === "repair" ? "bg-red-500/20 text-red-700" :
-                      "bg-gray-500/20 text-gray-700"
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        machine.status === "operational"
+                          ? "bg-green-500/20 text-green-700"
+                          : machine.status === "maintenance"
+                            ? "bg-yellow-500/20 text-yellow-700"
+                            : machine.status === "repair"
+                              ? "bg-red-500/20 text-red-700"
+                              : "bg-gray-500/20 text-gray-700"
+                      }`}
+                    >
                       {machine.status}
                     </span>
                   </TableCell>
@@ -358,7 +424,11 @@ export default function Machines() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (confirm("Are you sure you want to remove this machine?")) {
+                        if (
+                          confirm(
+                            "Are you sure you want to remove this machine?",
+                          )
+                        ) {
                           deleteMutation.mutate({ id: machine.id });
                         }
                       }}

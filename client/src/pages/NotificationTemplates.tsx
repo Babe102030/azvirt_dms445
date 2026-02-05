@@ -1,30 +1,52 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Mail, 
-  MessageSquare, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Mail,
+  MessageSquare,
   Bell,
   Zap,
   FileText,
   ToggleLeft,
   ToggleRight,
-  Search
+  Search,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { TemplateEditor } from "@/components/TemplateEditor";
-import { ConditionBuilder, createEmptyConditionGroup, serializeConditions, deserializeConditions } from "@/components/ConditionBuilder";
+import {
+  ConditionBuilder,
+  createEmptyConditionGroup,
+  serializeConditions,
+  deserializeConditions,
+} from "@/components/ConditionBuilder";
 
 export default function NotificationTemplates() {
   const [activeTab, setActiveTab] = useState("templates");
@@ -38,68 +60,80 @@ export default function NotificationTemplates() {
   const [triggerName, setTriggerName] = useState("");
   const [triggerDescription, setTriggerDescription] = useState("");
   const [triggerEventType, setTriggerEventType] = useState("");
-  const [triggerTemplateId, setTriggerTemplateId] = useState<number | null>(null);
-  const [triggerConditions, setTriggerConditions] = useState(createEmptyConditionGroup());
+  const [triggerTemplateId, setTriggerTemplateId] = useState<number | null>(
+    null,
+  );
+  const [triggerConditions, setTriggerConditions] = useState(
+    createEmptyConditionGroup(),
+  );
 
   const utils = trpc.useUtils();
-  const { data: templates, isLoading: templatesLoading } = trpc.notificationTemplates.listTemplates.useQuery();
-  const { data: triggers, isLoading: triggersLoading } = trpc.notificationTemplates.listTriggers.useQuery();
+  const { data: templates, isLoading: templatesLoading } =
+    trpc.notificationTemplates.listTemplates.useQuery();
+  const { data: triggers, isLoading: triggersLoading } =
+    trpc.notificationTemplates.listTriggers.useQuery();
 
-  const createTemplateMutation = trpc.notificationTemplates.createTemplate.useMutation({
-    onSuccess: () => {
-      toast.success("Šablon uspješno kreiran");
-      utils.notificationTemplates.listTemplates.invalidate();
-      setShowTemplateEditor(false);
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const createTemplateMutation =
+    trpc.notificationTemplates.createTemplate.useMutation({
+      onSuccess: () => {
+        toast.success("Šablon uspješno kreiran");
+        utils.notificationTemplates.listTemplates.invalidate();
+        setShowTemplateEditor(false);
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-  const updateTemplateMutation = trpc.notificationTemplates.updateTemplate.useMutation({
-    onSuccess: () => {
-      toast.success("Šablon uspješno ažuriran");
-      utils.notificationTemplates.listTemplates.invalidate();
-      setShowTemplateEditor(false);
-      setEditingTemplate(null);
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const updateTemplateMutation =
+    trpc.notificationTemplates.updateTemplate.useMutation({
+      onSuccess: () => {
+        toast.success("Šablon uspješno ažuriran");
+        utils.notificationTemplates.listTemplates.invalidate();
+        setShowTemplateEditor(false);
+        setEditingTemplate(null);
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-  const deleteTemplateMutation = trpc.notificationTemplates.deleteTemplate.useMutation({
-    onSuccess: () => {
-      toast.success("Šablon uspješno obrisan");
-      utils.notificationTemplates.listTemplates.invalidate();
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const deleteTemplateMutation =
+    trpc.notificationTemplates.deleteTemplate.useMutation({
+      onSuccess: () => {
+        toast.success("Šablon uspješno obrisan");
+        utils.notificationTemplates.listTemplates.invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-  const createTriggerMutation = trpc.notificationTemplates.createTrigger.useMutation({
-    onSuccess: () => {
-      toast.success("Okidač uspješno kreiran");
-      utils.notificationTemplates.listTriggers.invalidate();
-      resetTriggerForm();
-      setShowTriggerEditor(false);
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const createTriggerMutation =
+    trpc.notificationTemplates.createTrigger.useMutation({
+      onSuccess: () => {
+        toast.success("Okidač uspješno kreiran");
+        utils.notificationTemplates.listTriggers.invalidate();
+        resetTriggerForm();
+        setShowTriggerEditor(false);
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-  const updateTriggerMutation = trpc.notificationTemplates.updateTrigger.useMutation({
-    onSuccess: () => {
-      toast.success("Okidač uspješno ažuriran");
-      utils.notificationTemplates.listTriggers.invalidate();
-      resetTriggerForm();
-      setShowTriggerEditor(false);
-      setEditingTrigger(null);
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const updateTriggerMutation =
+    trpc.notificationTemplates.updateTrigger.useMutation({
+      onSuccess: () => {
+        toast.success("Okidač uspješno ažuriran");
+        utils.notificationTemplates.listTriggers.invalidate();
+        resetTriggerForm();
+        setShowTriggerEditor(false);
+        setEditingTrigger(null);
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
-  const deleteTriggerMutation = trpc.notificationTemplates.deleteTrigger.useMutation({
-    onSuccess: () => {
-      toast.success("Okidač uspješno obrisan");
-      utils.notificationTemplates.listTriggers.invalidate();
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const deleteTriggerMutation =
+    trpc.notificationTemplates.deleteTrigger.useMutation({
+      onSuccess: () => {
+        toast.success("Okidač uspješno obrisan");
+        utils.notificationTemplates.listTriggers.invalidate();
+      },
+      onError: (error) => toast.error(error.message),
+    });
 
   const resetTriggerForm = () => {
     setTriggerName("");
@@ -114,7 +148,6 @@ export default function NotificationTemplates() {
       updateTemplateMutation.mutate({
         id: editingTemplate.id,
         ...data,
-
       });
     } else {
       createTemplateMutation.mutate({
@@ -134,7 +167,9 @@ export default function NotificationTemplates() {
     setTriggerDescription(trigger.description || "");
     setTriggerEventType(trigger.eventType);
     setTriggerTemplateId(trigger.templateId);
-    setTriggerConditions(deserializeConditions(trigger.triggerCondition || "{}"));
+    setTriggerConditions(
+      deserializeConditions(trigger.triggerCondition || "{}"),
+    );
     setShowTriggerEditor(true);
   };
 
@@ -157,10 +192,14 @@ export default function NotificationTemplates() {
 
   const getChannelIcon = (channel: string) => {
     switch (channel) {
-      case "email": return <Mail className="w-4 h-4" />;
-      case "sms": return <MessageSquare className="w-4 h-4" />;
-      case "in_app": return <Bell className="w-4 h-4" />;
-      default: return null;
+      case "email":
+        return <Mail className="w-4 h-4" />;
+      case "sms":
+        return <MessageSquare className="w-4 h-4" />;
+      case "in_app":
+        return <Bell className="w-4 h-4" />;
+      default:
+        return null;
     }
   };
 
@@ -175,11 +214,11 @@ export default function NotificationTemplates() {
   ];
 
   const filteredTemplates = templates?.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    (t as any).name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredTriggers = triggers?.filter((t) =>
-    t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    t.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
@@ -222,14 +261,21 @@ export default function NotificationTemplates() {
           {/* Templates Tab */}
           <TabsContent value="templates" className="space-y-4">
             <div className="flex justify-end">
-              <Button onClick={() => { setEditingTemplate(null); setShowTemplateEditor(true); }}>
+              <Button
+                onClick={() => {
+                  setEditingTemplate(null);
+                  setShowTemplateEditor(true);
+                }}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Novi šablon
               </Button>
             </div>
 
             {templatesLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Učitavanje...</div>
+              <div className="text-center py-8 text-muted-foreground">
+                Učitavanje...
+              </div>
             ) : filteredTemplates?.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -247,18 +293,30 @@ export default function NotificationTemplates() {
             ) : (
               <div className="grid gap-4">
                 {filteredTemplates?.map((template) => (
-                  <Card key={template.id}>
+                  <Card key={(template as any).id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
-                          <CardTitle className="text-lg">{template.name}</CardTitle>
-                          {template.description && (
-                            <CardDescription>{template.description}</CardDescription>
+                          <CardTitle className="text-lg">
+                            {(template as any).name}
+                          </CardTitle>
+                          {(template as any).description && (
+                            <CardDescription>
+                              {(template as any).description}
+                            </CardDescription>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={template.isActive ? "default" : "secondary"}>
-                            {template.isActive ? "Aktivan" : "Neaktivan"}
+                          <Badge
+                            variant={
+                              (template as any).isActive
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {(template as any).isActive
+                              ? "Aktivan"
+                              : "Neaktivan"}
                           </Badge>
                           <Button
                             variant="ghost"
@@ -271,7 +329,11 @@ export default function NotificationTemplates() {
                             variant="ghost"
                             size="icon"
                             className="text-destructive"
-                            onClick={() => deleteTemplateMutation.mutate({ id: template.id })}
+                            onClick={() =>
+                              deleteTemplateMutation.mutate({
+                                id: (template as any).id,
+                              })
+                            }
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -281,10 +343,19 @@ export default function NotificationTemplates() {
                     <CardContent>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground">Kanali:</span>
+                          <span className="text-sm text-muted-foreground">
+                            Kanali:
+                          </span>
                           <div className="flex gap-1">
-                            {(Array.isArray(template.channels) ? template.channels : JSON.parse(template.channels || "[]")).map((channel: string) => (
-                              <Badge key={channel} variant="outline" className="gap-1">
+                            {(Array.isArray((template as any).channels)
+                              ? (template as any).channels
+                              : JSON.parse((template as any).channels || "[]")
+                            ).map((channel: string) => (
+                              <Badge
+                                key={channel}
+                                variant="outline"
+                                className="gap-1"
+                              >
                                 {getChannelIcon(channel)}
                                 {channel}
                               </Badge>
@@ -292,7 +363,10 @@ export default function NotificationTemplates() {
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Naslov: <span className="text-foreground">{template.subject}</span>
+                          Naslov:{" "}
+                          <span className="text-foreground">
+                            {(template as any).subject}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
@@ -305,14 +379,22 @@ export default function NotificationTemplates() {
           {/* Triggers Tab */}
           <TabsContent value="triggers" className="space-y-4">
             <div className="flex justify-end">
-              <Button onClick={() => { resetTriggerForm(); setEditingTrigger(null); setShowTriggerEditor(true); }}>
+              <Button
+                onClick={() => {
+                  resetTriggerForm();
+                  setEditingTrigger(null);
+                  setShowTriggerEditor(true);
+                }}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Novi okidač
               </Button>
             </div>
 
             {triggersLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Učitavanje...</div>
+              <div className="text-center py-8 text-muted-foreground">
+                Učitavanje...
+              </div>
             ) : filteredTriggers?.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -330,24 +412,37 @@ export default function NotificationTemplates() {
             ) : (
               <div className="grid gap-4">
                 {filteredTriggers?.map((trigger) => (
-                  <Card key={trigger.id}>
+                  <Card key={(trigger as any).id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between">
                         <div>
                           <CardTitle className="text-lg flex items-center gap-2">
                             <Zap className="w-5 h-5 text-yellow-500" />
-                            {trigger.name}
+                            {(trigger as any).name}
                           </CardTitle>
-                          {trigger.description && (
-                            <CardDescription>{trigger.description}</CardDescription>
+                          {(trigger as any).description && (
+                            <CardDescription>
+                              {(trigger as any).description}
+                            </CardDescription>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge variant={trigger.isActive ? "default" : "secondary"}>
+                          <Badge
+                            variant={
+                              (trigger as any).isActive
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
                             {trigger.isActive ? (
-                              <><ToggleRight className="w-3 h-3 mr-1" /> Aktivan</>
+                              <>
+                                <ToggleRight className="w-3 h-3 mr-1" /> Aktivan
+                              </>
                             ) : (
-                              <><ToggleLeft className="w-3 h-3 mr-1" /> Neaktivan</>
+                              <>
+                                <ToggleLeft className="w-3 h-3 mr-1" />{" "}
+                                Neaktivan
+                              </>
                             )}
                           </Badge>
                           <Button
@@ -361,7 +456,9 @@ export default function NotificationTemplates() {
                             variant="ghost"
                             size="icon"
                             className="text-destructive"
-                            onClick={() => deleteTriggerMutation.mutate({ id: trigger.id })}
+                            onClick={() =>
+                              deleteTriggerMutation.mutate({ id: trigger.id })
+                            }
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -371,14 +468,18 @@ export default function NotificationTemplates() {
                     <CardContent>
                       <div className="flex items-center gap-4 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Događaj:</span>{" "}
+                          <span className="text-muted-foreground">
+                            Događaj:
+                          </span>{" "}
                           <Badge variant="outline">
-                            {eventTypes.find((e) => e.id === trigger.eventType)?.label || trigger.eventType}
+                            {eventTypes.find((e) => e.id === trigger.eventType)
+                              ?.label || trigger.eventType}
                           </Badge>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Šablon:</span>{" "}
-                          {templates?.find((t) => t.id === trigger.templateId)?.name || "Nepoznat"}
+                          {templates?.find((t) => t.id === trigger.templateId)
+                            ?.name || "Nepoznat"}
                         </div>
                       </div>
                     </CardContent>
@@ -398,15 +499,22 @@ export default function NotificationTemplates() {
               </DialogTitle>
             </DialogHeader>
             <TemplateEditor
-              initialData={editingTemplate ? {
-                name: editingTemplate.name,
-                description: editingTemplate.description || "",
-                subject: editingTemplate.subject,
-                bodyHtml: editingTemplate.bodyHtml || "",
-                channels: JSON.parse(editingTemplate.channels || "[]"),
-              } : undefined}
+              initialData={
+                editingTemplate
+                  ? {
+                      name: editingTemplate.name,
+                      description: editingTemplate.description || "",
+                      subject: editingTemplate.subject,
+                      bodyHtml: editingTemplate.bodyHtml || "",
+                      channels: JSON.parse(editingTemplate.channels || "[]"),
+                    }
+                  : undefined
+              }
               onSave={handleSaveTemplate}
-              onCancel={() => { setShowTemplateEditor(false); setEditingTemplate(null); }}
+              onCancel={() => {
+                setShowTemplateEditor(false);
+                setEditingTemplate(null);
+              }}
             />
           </DialogContent>
         </Dialog>
@@ -431,7 +539,10 @@ export default function NotificationTemplates() {
                 </div>
                 <div className="space-y-2">
                   <Label>Tip događaja</Label>
-                  <Select value={triggerEventType} onValueChange={setTriggerEventType}>
+                  <Select
+                    value={triggerEventType}
+                    onValueChange={setTriggerEventType}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Odaberi događaj" />
                     </SelectTrigger>
@@ -466,7 +577,10 @@ export default function NotificationTemplates() {
                   </SelectTrigger>
                   <SelectContent>
                     {templates?.map((template) => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
+                      <SelectItem
+                        key={template.id}
+                        value={template.id.toString()}
+                      >
                         {template.name}
                       </SelectItem>
                     ))}
@@ -480,12 +594,20 @@ export default function NotificationTemplates() {
               />
 
               <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={() => { setShowTriggerEditor(false); setEditingTrigger(null); }}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowTriggerEditor(false);
+                    setEditingTrigger(null);
+                  }}
+                >
                   Otkaži
                 </Button>
                 <Button
                   onClick={handleSaveTrigger}
-                  disabled={!triggerName || !triggerEventType || !triggerTemplateId}
+                  disabled={
+                    !triggerName || !triggerEventType || !triggerTemplateId
+                  }
                 >
                   {editingTrigger ? "Sačuvaj izmjene" : "Kreiraj okidač"}
                 </Button>

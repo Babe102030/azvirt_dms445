@@ -1,13 +1,29 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { trpc } from '@/lib/trpc';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { AlertCircle, CheckCircle, Clock, TrendingUp } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { AlertCircle, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function QCTrendsDashboard() {
   const { t } = useLanguage();
-  const { data: trends, isLoading } = trpc.qualityTests.getTrends.useQuery({ days: 30 });
-  const { data: failedTests } = trpc.qualityTests.getFailedTests.useQuery({ days: 7 });
+  const { data: trends, isLoading } = trpc.qualityTests.getTrends.useQuery({
+    days: 30,
+  });
+  const { data: failedTests } = trpc.qualityTests.getFailedTests.useQuery({
+    days: 7,
+  });
 
   if (isLoading) {
     return <div className="text-white">Loading trends...</div>;
@@ -18,13 +34,17 @@ export function QCTrendsDashboard() {
   }
 
   const statusData = [
-    { name: 'Pass / Prošao', value: trends.passRate, color: '#22c55e' },
-    { name: 'Fail / Pao', value: trends.failRate, color: '#ef4444' },
-    { name: 'Pending / Na čekanju', value: trends.pendingRate, color: '#eab308' },
+    { name: "Pass / Prošao", value: trends.passRate, color: "#22c55e" },
+    { name: "Fail / Pao", value: trends.failRate, color: "#ef4444" },
+    {
+      name: "Pending / Na čekanju",
+      value: trends.pendingRate,
+      color: "#eab308",
+    },
   ];
 
-  const testTypeData = trends.byType.map(item => ({
-    name: item.type.replace('_', ' ').toUpperCase(),
+  const testTypeData = (trends.byType as any[]).map((item) => ({
+    name: item.type.replace("_", " ").toUpperCase(),
     count: item.total,
   }));
 
@@ -38,7 +58,9 @@ export function QCTrendsDashboard() {
             <CheckCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-400">{trends.passRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-green-400">
+              {trends.passRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>
@@ -49,7 +71,9 @@ export function QCTrendsDashboard() {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">{trends.failRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-red-400">
+              {trends.failRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>
@@ -60,7 +84,9 @@ export function QCTrendsDashboard() {
             <Clock className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-400">{trends.pendingRate.toFixed(1)}%</div>
+            <div className="text-2xl font-bold text-yellow-400">
+              {trends.pendingRate.toFixed(1)}%
+            </div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>
@@ -71,7 +97,9 @@ export function QCTrendsDashboard() {
             <TrendingUp className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-400">{trends.totalTests}</div>
+            <div className="text-2xl font-bold text-orange-400">
+              {trends.totalTests}
+            </div>
             <p className="text-xs text-muted-foreground">Last 30 days</p>
           </CardContent>
         </Card>
@@ -82,7 +110,9 @@ export function QCTrendsDashboard() {
         {/* Test Status Distribution */}
         <Card className="bg-card/90 backdrop-blur border-orange-500/20">
           <CardHeader>
-            <CardTitle>Test Status Distribution / Distribucija statusa testova</CardTitle>
+            <CardTitle>
+              Test Status Distribution / Distribucija statusa testova
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -118,9 +148,12 @@ export function QCTrendsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                 <XAxis dataKey="name" stroke="#888" />
                 <YAxis stroke="#888" />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #FF6C0E' }}
-                  labelStyle={{ color: '#fff' }}
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a1a",
+                    border: "1px solid #FF6C0E",
+                  }}
+                  labelStyle={{ color: "#fff" }}
                 />
                 <Bar dataKey="count" fill="#FF6C0E" />
               </BarChart>
@@ -135,15 +168,21 @@ export function QCTrendsDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-400">
               <AlertCircle className="w-5 h-5" />
-              Recent Failed Tests (Last 7 Days) / Nedavno pali testovi (poslednjih 7 dana)
+              Recent Failed Tests (Last 7 Days) / Nedavno pali testovi
+              (poslednjih 7 dana)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {failedTests.slice(0, 5).map((test) => (
-                <div key={test.id} className="flex items-center justify-between p-3 bg-card/50 rounded border border-red-500/20">
+                <div
+                  key={test.id}
+                  className="flex items-center justify-between p-3 bg-card/50 rounded border border-red-500/20"
+                >
                   <div>
-                    <div className="font-medium text-white">{test.testName}</div>
+                    <div className="font-medium text-white">
+                      {test.testName}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {test.testType} • {test.result} {test.unit}
                     </div>

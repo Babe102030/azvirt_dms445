@@ -15,18 +15,23 @@ import {
 
 interface Notification {
   id: number;
-  taskId: number;
-  type: string;
+  taskId?: number;
+  type: string | null;
   title: string;
   message: string;
-  status: string;
+  status: string | null;
   readAt?: Date | null;
-  createdAt: Date;
+  sentAt: Date;
 }
 
 export function NotificationCenter() {
-  const { data: notifications = [], isLoading, refetch } = trpc.notifications.getNotifications.useQuery({ limit: 50 });
-  const { data: unreadCount = { count: 0 } } = trpc.notifications.getUnreadCount.useQuery();
+  const {
+    data: notifications = [],
+    isLoading,
+    refetch,
+  } = trpc.notifications.getNotifications.useQuery({ limit: 50 });
+  const { data: unreadCount = { count: 0 } } =
+    trpc.notifications.getUnreadCount.useQuery();
   const markAsReadMutation = trpc.notifications.markAsRead.useMutation();
   const clearAllMutation = trpc.notifications.clearAll.useMutation();
 
@@ -50,7 +55,7 @@ export function NotificationCenter() {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string | null) => {
     switch (type) {
       case "overdue_reminder":
         return <AlertCircle className="w-5 h-5 text-red-500" />;
@@ -67,7 +72,7 @@ export function NotificationCenter() {
     }
   };
 
-  const getNotificationColor = (type: string) => {
+  const getNotificationColor = (type: string | null) => {
     switch (type) {
       case "overdue_reminder":
         return "bg-red-50 border-red-200";
@@ -135,12 +140,12 @@ export function NotificationCenter() {
             {notifications.map((notification: Notification) => (
               <div
                 key={notification.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                  getNotificationColor(notification.type)
-                } ${notification.status === "read" ? "opacity-60" : ""}`}
+                className={`p-4 border rounded-lg cursor-pointer transition-colors ${getNotificationColor(
+                  notification.type,
+                )} ${notification.status === "read" ? "opacity-60" : ""}`}
                 onClick={() =>
                   setExpandedId(
-                    expandedId === notification.id ? null : notification.id
+                    expandedId === notification.id ? null : notification.id,
                   )
                 }
               >
@@ -152,7 +157,7 @@ export function NotificationCenter() {
                         {notification.title}
                       </h3>
                       <span className="text-xs text-gray-500 whitespace-nowrap">
-                        {formatTime(notification.createdAt)}
+                        {formatTime(notification.sentAt)}
                       </span>
                     </div>
                     {expandedId === notification.id && (

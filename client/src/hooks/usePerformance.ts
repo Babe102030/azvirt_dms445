@@ -11,7 +11,10 @@ export function useWebVitals() {
         const lcpObserver = new PerformanceObserver((entryList) => {
           const entries = entryList.getEntries();
           const lastEntry = entries[entries.length - 1];
-          console.log("LCP:", lastEntry.renderTime || lastEntry.loadTime);
+          console.log(
+            "LCP:",
+            (lastEntry as any).renderTime || (lastEntry as any).loadTime,
+          );
         });
         lcpObserver.observe({ entryTypes: ["largest-contentful-paint"] });
 
@@ -85,7 +88,7 @@ export function useDebounce<T>(value: T, delay: number): T {
  */
 export function useThrottle<T extends (...args: any[]) => any>(
   callback: T,
-  delay: number
+  delay: number,
 ): T {
   const lastRunRef = useRef(Date.now());
 
@@ -97,7 +100,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
         lastRunRef.current = now;
       }
     },
-    [callback, delay]
+    [callback, delay],
   ) as T;
 }
 
@@ -112,8 +115,8 @@ export function useRequestPerformance(requestName: string) {
     console.log(`${requestName} took ${duration.toFixed(2)}ms`);
 
     // Report to analytics if needed
-    if (window.gtag) {
-      window.gtag("event", "api_request", {
+    if ((window as any).gtag) {
+      (window as any).gtag("event", "api_request", {
         request_name: requestName,
         duration_ms: Math.round(duration),
       });
@@ -128,7 +131,7 @@ export function useRequestPerformance(requestName: string) {
  */
 export function useInfiniteScroll(
   callback: () => void,
-  options: { threshold?: number; rootMargin?: string } = {}
+  options: { threshold?: number; rootMargin?: string } = {},
 ) {
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -142,7 +145,7 @@ export function useInfiniteScroll(
       {
         threshold: options.threshold || 0.1,
         rootMargin: options.rootMargin || "100px",
-      }
+      },
     );
 
     if (observerTarget.current) {
@@ -177,7 +180,7 @@ export function useLazyImage(src: string) {
             observer.unobserve(imageRef);
           }
         },
-        { threshold: 0.1 }
+        { threshold: 0.1 },
       );
 
       observer.observe(imageRef);

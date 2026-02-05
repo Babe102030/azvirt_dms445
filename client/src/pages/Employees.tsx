@@ -272,7 +272,7 @@ export default function Employees() {
                 </TableCell>
               </TableRow>
             ) : (
-              employees.map((employee) => (
+              employees.map((employee: any) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium">
                     {employee.employeeNumber}

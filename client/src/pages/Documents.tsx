@@ -30,9 +30,14 @@ export default function Documents() {
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: documents, isLoading, refetch } = trpc.documents.list.useQuery({
+  const {
+    data: documents,
+    isLoading,
+    refetch,
+  } = trpc.documents.list.useQuery({
     search: searchTerm || undefined,
-    category: categoryFilter && categoryFilter !== "all" ? categoryFilter : undefined,
+    category:
+      categoryFilter && categoryFilter !== "all" ? categoryFilter : undefined,
   });
 
   const uploadMutation = trpc.documents.upload.useMutation({
@@ -141,14 +146,13 @@ export default function Documents() {
                 </div>
                 <div>
                   <Label htmlFor="file">File</Label>
-                  <Input
-                    id="file"
-                    type="file"
-                    ref={fileInputRef}
-                    required
-                  />
+                  <Input id="file" type="file" ref={fileInputRef} required />
                 </div>
-                <Button type="submit" className="w-full" disabled={uploadMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={uploadMutation.isPending}
+                >
                   {uploadMutation.isPending ? "Uploading..." : "Upload"}
                 </Button>
               </form>
@@ -195,7 +199,9 @@ export default function Documents() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Loading...</div>
+              <div className="text-center py-8 text-muted-foreground">
+                Loading...
+              </div>
             ) : documents && documents.length > 0 ? (
               <div className="space-y-2">
                 {documents.map((doc) => (
@@ -224,12 +230,12 @@ export default function Documents() {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={doc.fileUrl || doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <Download className="h-4 w-4" />
                         </a>
                       </Button>

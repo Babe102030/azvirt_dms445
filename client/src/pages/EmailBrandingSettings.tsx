@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export default function EmailBrandingSettings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const { data: branding, refetch } = trpc.branding.get.useQuery();
   const updateBranding = trpc.branding.update.useMutation();
   const uploadLogo = trpc.branding.uploadLogo.useMutation();
@@ -25,11 +25,12 @@ export default function EmailBrandingSettings() {
   // Initialize state when branding data loads
   useState(() => {
     if (branding) {
-      setLogoUrl(branding.logoUrl || null);
-      setPrimaryColor(branding.primaryColor || "#f97316");
-      setSecondaryColor(branding.secondaryColor || "#ea580c");
-      setCompanyName(branding.companyName || "AzVirt");
-      setFooterText(branding.footerText || "");
+      const b = branding as any;
+      setLogoUrl(b.logoUrl || null);
+      setPrimaryColor(b.primaryColor || "#f97316");
+      setSecondaryColor(b.secondaryColor || "#ea580c");
+      setCompanyName(b.companyName || "AzVirt");
+      setFooterText(b.footerText || "");
     }
   });
 
@@ -38,7 +39,12 @@ export default function EmailBrandingSettings() {
     if (!file) return;
 
     // Validate file type
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/svg+xml",
+    ];
     if (!allowedTypes.includes(file.type)) {
       toast.error("Only PNG, JPG, and SVG files are allowed");
       return;
@@ -57,7 +63,7 @@ export default function EmailBrandingSettings() {
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
-        
+
         const result = await uploadLogo.mutateAsync({
           fileData: base64,
           fileName: file.name,
@@ -70,7 +76,9 @@ export default function EmailBrandingSettings() {
       };
       reader.readAsDataURL(file);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to upload logo");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload logo",
+      );
     } finally {
       setUploading(false);
     }
@@ -95,11 +103,12 @@ export default function EmailBrandingSettings() {
 
   const handleReset = () => {
     if (branding) {
-      setLogoUrl(branding.logoUrl || null);
-      setPrimaryColor(branding.primaryColor || "#f97316");
-      setSecondaryColor(branding.secondaryColor || "#ea580c");
-      setCompanyName(branding.companyName || "AzVirt");
-      setFooterText(branding.footerText || "");
+      const b = branding as any;
+      setLogoUrl(b.logoUrl || null);
+      setPrimaryColor(b.primaryColor || "#f97316");
+      setSecondaryColor(b.secondaryColor || "#ea580c");
+      setCompanyName(b.companyName || "AzVirt");
+      setFooterText(b.footerText || "");
     }
   };
 
@@ -236,7 +245,10 @@ export default function EmailBrandingSettings() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4">
-                <Button onClick={handleSave} disabled={updateBranding.isPending}>
+                <Button
+                  onClick={handleSave}
+                  disabled={updateBranding.isPending}
+                >
                   <Save className="mr-2 h-4 w-4" />
                   Save Changes
                 </Button>
@@ -269,9 +281,12 @@ export default function EmailBrandingSettings() {
                 </div>
               </div>
               <div className="p-6 bg-background">
-                <h4 className="text-lg font-semibold mb-2">Daily Production Report</h4>
+                <h4 className="text-lg font-semibold mb-2">
+                  Daily Production Report
+                </h4>
                 <p className="text-sm text-muted-foreground mb-4">
-                  This is a preview of how your emails will look with your custom branding.
+                  This is a preview of how your emails will look with your
+                  custom branding.
                 </p>
                 <div className="space-y-2">
                   <div className="flex justify-between py-2 border-b">
