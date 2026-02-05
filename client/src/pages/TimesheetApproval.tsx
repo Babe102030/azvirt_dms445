@@ -1,23 +1,42 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CheckCircle2, XCircle, Clock, MessageSquare } from "lucide-react";
 
 export default function TimesheetApproval() {
   const { t } = useLanguage();
-  const [selectedTimesheet, setSelectedTimesheet] = useState<number | null>(null);
+  const [selectedTimesheet, setSelectedTimesheet] = useState<number | null>(
+    null,
+  );
   const [approvalComments, setApprovalComments] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
 
   // Fetch pending timesheets for approval
-  const { data: pendingTimesheets, isLoading, refetch } = trpc.timesheetApprovals.getPendingForApproval.useQuery();
+  const {
+    data: pendingTimesheets,
+    isLoading,
+    refetch,
+  } = trpc.timesheetApprovals.getPendingForApproval.useQuery();
 
   // Mutations
   const approveMutation = trpc.timesheetApprovals.approve.useMutation({
@@ -36,11 +55,11 @@ export default function TimesheetApproval() {
     },
   });
 
-  const handleApprove = async (timesheetId: number) => {
+  const handleApprove = async (approvalId: number) => {
     setIsApproving(true);
     try {
       await approveMutation.mutateAsync({
-        timesheetId,
+        approvalId,
         comments: approvalComments || undefined,
       });
     } finally {
@@ -48,12 +67,12 @@ export default function TimesheetApproval() {
     }
   };
 
-  const handleReject = async (timesheetId: number) => {
+  const handleReject = async (approvalId: number) => {
     if (!rejectionReason.trim()) return;
     setIsRejecting(true);
     try {
       await rejectMutation.mutateAsync({
-        timesheetId,
+        approvalId,
         rejectionReason,
       });
     } finally {
@@ -77,25 +96,38 @@ export default function TimesheetApproval() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{t("nav.timesheetApproval") || "Timesheet Approvals"}</h1>
-        <p className="text-gray-600">{t("pages.timesheetApproval.description") || "Review and approve employee timesheets"}</p>
+        <h1 className="text-3xl font-bold mb-2">
+          {t("nav.timesheetApproval") || "Timesheet Approvals"}
+        </h1>
+        <p className="text-gray-600">
+          {t("pages.timesheetApproval.description") ||
+            "Review and approve employee timesheets"}
+        </p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Pending Approval</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Pending Approval
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange-500">{pendingCount}</div>
-            <p className="text-xs text-gray-500 mt-1">Timesheets awaiting review</p>
+            <div className="text-3xl font-bold text-orange-500">
+              {pendingCount}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Timesheets awaiting review
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Your Role</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Your Role
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-lg font-semibold">Manager</div>
@@ -105,11 +137,17 @@ export default function TimesheetApproval() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Action Required</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Action Required
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-red-500">{pendingCount}</div>
-            <p className="text-xs text-gray-500 mt-1">Items needing attention</p>
+            <div className="text-3xl font-bold text-red-500">
+              {pendingCount}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Items needing attention
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -125,17 +163,33 @@ export default function TimesheetApproval() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {pendingTimesheets?.map((timesheet: any) => (
-            <Card key={timesheet.id} className="hover:shadow-lg transition-shadow">
+          {pendingTimesheets?.map((item: any) => (
+            <Card
+              key={item.approval.id}
+              className="hover:shadow-lg transition-shadow"
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="text-lg">{timesheet.employeeName}</CardTitle>
+                    <CardTitle className="text-lg">
+                      {item.employee.name}
+                    </CardTitle>
                     <CardDescription>
-                      {new Date(timesheet.date).toLocaleDateString()} • {timesheet.hoursWorked} hours
+                      {new Date(item.shift.startTime).toLocaleDateString()} •{" "}
+                      {item.shift.endTime
+                        ? (
+                            (new Date(item.shift.endTime).getTime() -
+                              new Date(item.shift.startTime).getTime()) /
+                            (1000 * 3600)
+                          ).toFixed(1)
+                        : "0"}{" "}
+                      hours
                     </CardDescription>
                   </div>
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                  <Badge
+                    variant="outline"
+                    className="bg-yellow-50 text-yellow-800 border-yellow-200"
+                  >
                     <Clock className="h-3 w-3 mr-1" />
                     Pending
                   </Badge>
@@ -143,26 +197,33 @@ export default function TimesheetApproval() {
               </CardHeader>
 
               <CardContent>
-                {timesheet.notes && (
+                {item.shift.notes && (
                   <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-start gap-2">
                       <MessageSquare className="h-4 w-4 text-gray-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-gray-700">{timesheet.notes}</p>
+                      <p className="text-sm text-gray-700">
+                        {item.shift.notes}
+                      </p>
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-2">
                   {/* Approve Dialog */}
-                  <Dialog open={selectedTimesheet === timesheet.id && !isRejecting} onOpenChange={(open) => {
-                    if (!open) {
-                      setSelectedTimesheet(null);
-                      setApprovalComments("");
+                  <Dialog
+                    open={
+                      selectedTimesheet === item.approval.id && !isRejecting
                     }
-                  }}>
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setSelectedTimesheet(null);
+                        setApprovalComments("");
+                      }
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button
-                        onClick={() => setSelectedTimesheet(timesheet.id)}
+                        onClick={() => setSelectedTimesheet(item.approval.id)}
                         className="flex-1 bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -173,22 +234,27 @@ export default function TimesheetApproval() {
                       <DialogHeader>
                         <DialogTitle>Approve Timesheet</DialogTitle>
                         <DialogDescription>
-                          Approve timesheet for {timesheet.employeeName} on {new Date(timesheet.date).toLocaleDateString()}
+                          Approve timesheet for {item.employee.name} on{" "}
+                          {new Date(item.shift.startTime).toLocaleDateString()}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium mb-2">Optional Comments</label>
+                          <label className="block text-sm font-medium mb-2">
+                            Optional Comments
+                          </label>
                           <Textarea
                             placeholder="Add any comments or notes..."
                             value={approvalComments}
-                            onChange={(e) => setApprovalComments(e.target.value)}
+                            onChange={(e) =>
+                              setApprovalComments(e.target.value)
+                            }
                             className="min-h-24"
                           />
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => handleApprove(timesheet.id)}
+                            onClick={() => handleApprove(item.approval.id)}
                             disabled={isApproving}
                             className="flex-1 bg-green-600 hover:bg-green-700"
                           >
@@ -207,16 +273,19 @@ export default function TimesheetApproval() {
                   </Dialog>
 
                   {/* Reject Dialog */}
-                  <Dialog open={selectedTimesheet === timesheet.id && isRejecting} onOpenChange={(open) => {
-                    if (!open) {
-                      setSelectedTimesheet(null);
-                      setRejectionReason("");
-                    }
-                  }}>
+                  <Dialog
+                    open={selectedTimesheet === item.approval.id && isRejecting}
+                    onOpenChange={(open) => {
+                      if (!open) {
+                        setSelectedTimesheet(null);
+                        setRejectionReason("");
+                      }
+                    }}
+                  >
                     <DialogTrigger asChild>
                       <Button
                         onClick={() => {
-                          setSelectedTimesheet(timesheet.id);
+                          setSelectedTimesheet(item.approval.id);
                           setIsRejecting(true);
                         }}
                         variant="outline"
@@ -235,7 +304,9 @@ export default function TimesheetApproval() {
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium mb-2">Rejection Reason *</label>
+                          <label className="block text-sm font-medium mb-2">
+                            Rejection Reason *
+                          </label>
                           <Textarea
                             placeholder="Explain why this timesheet is being rejected..."
                             value={rejectionReason}
@@ -245,7 +316,7 @@ export default function TimesheetApproval() {
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => handleReject(timesheet.id)}
+                            onClick={() => handleReject(item.approval.id)}
                             disabled={isRejecting || !rejectionReason.trim()}
                             className="flex-1 bg-red-600 hover:bg-red-700"
                           >
