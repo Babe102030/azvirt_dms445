@@ -35,7 +35,7 @@ export const geolocationRouter = router({
         longitude: z.number().min(-180).max(180),
         geofenceRadius: z.number().min(10).max(5000).optional(),
         address: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -72,7 +72,7 @@ export const geolocationRouter = router({
         longitude: z.number().min(-180).max(180),
         accuracy: z.number().optional(),
         deviceId: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // Validate GPS coordinates
@@ -83,7 +83,7 @@ export const geolocationRouter = router({
       // Check GPS accuracy
       if (input.accuracy && !isGPSAccuracyAcceptable(input.accuracy)) {
         throw new Error(
-          `GPS accuracy is ${Math.round(input.accuracy)}m. Please try again in an open area.`
+          `GPS accuracy is ${Math.round(input.accuracy)}m. Please try again in an open area.`,
         );
       }
 
@@ -99,7 +99,7 @@ export const geolocationRouter = router({
 
       // Get job site details
       const jobSites = await getJobSites();
-      const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
+      const jobSite = jobSites.find((js: any) => js.id === input.jobSiteId);
       if (!jobSite) {
         throw new Error("Job site not found");
       }
@@ -112,7 +112,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius
+        jobSite.geofenceRadius,
       );
 
       const distanceFromGeofence = distanceToGeofence(
@@ -120,7 +120,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius
+        jobSite.geofenceRadius,
       );
 
       // Log location
@@ -157,7 +157,7 @@ export const geolocationRouter = router({
           employeeName,
           jobSite.name,
           Math.round(distanceFromGeofence),
-          "check_in"
+          "check_in",
         );
 
         // Notify owner of violation
@@ -198,7 +198,7 @@ export const geolocationRouter = router({
         longitude: z.number().min(-180).max(180),
         accuracy: z.number().optional(),
         deviceId: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // Validate GPS coordinates
@@ -209,7 +209,7 @@ export const geolocationRouter = router({
       // Check GPS accuracy
       if (input.accuracy && !isGPSAccuracyAcceptable(input.accuracy)) {
         throw new Error(
-          `GPS accuracy is ${Math.round(input.accuracy)}m. Please try again in an open area.`
+          `GPS accuracy is ${Math.round(input.accuracy)}m. Please try again in an open area.`,
         );
       }
 
@@ -225,7 +225,7 @@ export const geolocationRouter = router({
 
       // Get job site details
       const jobSites = await getJobSites();
-      const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
+      const jobSite = jobSites.find((js: any) => js.id === input.jobSiteId);
       if (!jobSite) {
         throw new Error("Job site not found");
       }
@@ -238,7 +238,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius
+        jobSite.geofenceRadius,
       );
 
       const distanceFromGeofence = distanceToGeofence(
@@ -246,7 +246,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius
+        jobSite.geofenceRadius,
       );
 
       // Log location
@@ -283,7 +283,7 @@ export const geolocationRouter = router({
           employeeName,
           jobSite.name,
           Math.round(distanceFromGeofence),
-          "check_out"
+          "check_out",
         );
 
         // Notify owner of violation
@@ -337,7 +337,7 @@ export const geolocationRouter = router({
       z.object({
         employeeId: z.number().optional(),
         resolved: z.boolean().optional(),
-      })
+      }),
     )
     .query(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -355,7 +355,7 @@ export const geolocationRouter = router({
       z.object({
         violationId: z.number(),
         notes: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
@@ -365,7 +365,7 @@ export const geolocationRouter = router({
       const success = await resolveGeofenceViolation(
         input.violationId,
         ctx.user.id,
-        input.notes
+        input.notes,
       );
 
       if (!success) {

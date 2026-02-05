@@ -82,7 +82,7 @@ export const aiAssistantRouter = router({
         const messages = history.map((msg) => ({
           role: msg.role as "user" | "assistant" | "system",
           content: msg.content,
-          images: msg.imageUrl ? [msg.imageUrl] : undefined,
+          images: (msg as any).imageUrl ? [(msg as any).imageUrl] : undefined,
         }));
 
         // Add system message with DMS context

@@ -4,17 +4,19 @@ import * as db from "../db";
 
 export const timesheetsRouter = router({
   // ============ SHIFT MANAGEMENT ============
-  
+
   createShift: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      shiftDate: z.date(),
-      startTime: z.date(),
-      endTime: z.date(),
-      breakDuration: z.number().default(0),
-      projectId: z.number().optional(),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        shiftDate: z.date(),
+        startTime: z.date(),
+        endTime: z.date(),
+        breakDuration: z.number().default(0),
+        projectId: z.number().optional(),
+        notes: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const shiftId = await db.createShift({
         employeeId: input.employeeId,
@@ -31,25 +33,37 @@ export const timesheetsRouter = router({
     }),
 
   getShifts: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      startDate: z.date(),
-      endDate: z.date(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        startDate: z.date(),
+        endDate: z.date(),
+      }),
+    )
     .query(async ({ input }) => {
       return await db.getShiftsByEmployee(
         input.employeeId,
         input.startDate,
-        input.endDate
+        input.endDate,
       );
     }),
 
   updateShift: protectedProcedure
-    .input(z.object({
-      shiftId: z.number(),
-      status: z.enum(["scheduled", "in_progress", "completed", "cancelled", "no_show"]).optional(),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        shiftId: z.number(),
+        status: z
+          .enum([
+            "scheduled",
+            "in_progress",
+            "completed",
+            "cancelled",
+            "no_show",
+          ])
+          .optional(),
+        notes: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.updateShift(input.shiftId, {
         status: input.status,
@@ -61,14 +75,16 @@ export const timesheetsRouter = router({
   // ============ SHIFT TEMPLATES ============
 
   createShiftTemplate: protectedProcedure
-    .input(z.object({
-      name: z.string(),
-      description: z.string().optional(),
-      startTime: z.string(), // HH:MM format
-      endTime: z.string(), // HH:MM format
-      breakDuration: z.number().default(0),
-      daysOfWeek: z.array(z.number()), // 0-6
-    }))
+    .input(
+      z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        startTime: z.string(), // HH:MM format
+        endTime: z.string(), // HH:MM format
+        breakDuration: z.number().default(0),
+        daysOfWeek: z.array(z.number()), // 0-6
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const templateId = await db.createShiftTemplate({
         name: input.name,
@@ -83,22 +99,23 @@ export const timesheetsRouter = router({
       return { success: !!templateId, templateId };
     }),
 
-  getShiftTemplates: protectedProcedure
-    .query(async () => {
-      return await db.getShiftTemplates();
-    }),
+  getShiftTemplates: protectedProcedure.query(async () => {
+    return await db.getShiftTemplates();
+  }),
 
   // ============ EMPLOYEE AVAILABILITY ============
 
   setAvailability: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      dayOfWeek: z.number(), // 0-6
-      isAvailable: z.boolean(),
-      startTime: z.string().optional(), // HH:MM format
-      endTime: z.string().optional(), // HH:MM format
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        dayOfWeek: z.number(), // 0-6
+        isAvailable: z.boolean(),
+        startTime: z.string().optional(), // HH:MM format
+        endTime: z.string().optional(), // HH:MM format
+        notes: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.setEmployeeAvailability({
         employeeId: input.employeeId,
@@ -112,9 +129,11 @@ export const timesheetsRouter = router({
     }),
 
   getAvailability: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+      }),
+    )
     .query(async ({ input }) => {
       return await db.getEmployeeAvailability(input.employeeId);
     }),
@@ -122,15 +141,23 @@ export const timesheetsRouter = router({
   // ============ COMPLIANCE & AUDIT ============
 
   logComplianceAudit: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      auditDate: z.date(),
-      auditType: z.enum(["daily_hours", "weekly_hours", "break_compliance", "overtime", "wage_calculation"]),
-      status: z.enum(["compliant", "warning", "violation"]),
-      details: z.record(z.string(), z.any()),
-      severity: z.enum(["low", "medium", "high"]).default("low"),
-      actionTaken: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        auditDate: z.date(),
+        auditType: z.enum([
+          "daily_hours",
+          "weekly_hours",
+          "break_compliance",
+          "overtime",
+          "wage_calculation",
+        ]),
+        status: z.enum(["compliant", "warning", "violation"]),
+        details: z.record(z.string(), z.any()),
+        severity: z.enum(["low", "medium", "high"]).default("low"),
+        actionTaken: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const success = await db.logComplianceAudit({
         employeeId: input.employeeId,
@@ -146,33 +173,40 @@ export const timesheetsRouter = router({
     }),
 
   getComplianceAudits: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      startDate: z.date(),
-      endDate: z.date(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        startDate: z.date(),
+        endDate: z.date(),
+      }),
+    )
     .query(async ({ input }) => {
       return await db.getComplianceAudits(
         input.employeeId,
         input.startDate,
-        input.endDate
+        input.endDate,
       );
     }),
 
   // ============ BREAK TRACKING ============
 
   recordBreak: protectedProcedure
-    .input(z.object({
-      workHourId: z.number(),
-      employeeId: z.number(),
-      breakStart: z.date(),
-      breakEnd: z.date().optional(),
-      breakType: z.enum(["meal", "rest", "combined"]),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        workHourId: z.number(),
+        employeeId: z.number(),
+        breakStart: z.date(),
+        breakEnd: z.date().optional(),
+        breakType: z.enum(["meal", "rest", "combined"]),
+        notes: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const breakDuration = input.breakEnd
-        ? Math.round((input.breakEnd.getTime() - input.breakStart.getTime()) / (1000 * 60))
+        ? Math.round(
+            (input.breakEnd.getTime() - input.breakStart.getTime()) /
+              (1000 * 60),
+          )
         : undefined;
 
       const success = await db.recordBreak({
@@ -188,9 +222,11 @@ export const timesheetsRouter = router({
     }),
 
   getBreakRules: protectedProcedure
-    .input(z.object({
-      jurisdiction: z.string(),
-    }))
+    .input(
+      z.object({
+        jurisdiction: z.string(),
+      }),
+    )
     .query(async ({ input }) => {
       return await db.getBreakRules(input.jurisdiction);
     }),
@@ -198,17 +234,19 @@ export const timesheetsRouter = router({
   // ============ OFFLINE SYNC ============
 
   cacheOfflineEntry: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      deviceId: z.string(),
-      entryData: z.object({
-        date: z.string(),
-        startTime: z.string(),
-        endTime: z.string(),
-        projectId: z.number().optional(),
-        notes: z.string().optional(),
+    .input(
+      z.object({
+        employeeId: z.number(),
+        deviceId: z.string(),
+        entryData: z.object({
+          date: z.string(),
+          startTime: z.string(),
+          endTime: z.string(),
+          projectId: z.number().optional(),
+          notes: z.string().optional(),
+        }),
       }),
-    }))
+    )
     .mutation(async ({ input }) => {
       const success = await db.cacheOfflineEntry({
         employeeId: input.employeeId,
@@ -220,22 +258,26 @@ export const timesheetsRouter = router({
     }),
 
   getPendingOfflineEntries: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+      }),
+    )
     .query(async ({ input }) => {
       return await db.getPendingOfflineEntries(input.employeeId);
     }),
 
   syncOfflineEntry: protectedProcedure
-    .input(z.object({
-      cacheId: z.number(),
-    }))
+    .input(
+      z.object({
+        cacheId: z.number(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.updateOfflineSyncStatus(
         input.cacheId,
         "synced",
-        new Date()
+        new Date(),
       );
       return { success };
     }),
@@ -243,18 +285,26 @@ export const timesheetsRouter = router({
   // ============ SUMMARY REPORTS ============
 
   weeklySummary: protectedProcedure
-    .input(z.object({
-      employeeId: z.number().optional(),
-      weekStart: z.date(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number().optional(),
+        weekStart: z.date(),
+      }),
+    )
     .query(async ({ input }) => {
       const weekEnd = new Date(input.weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
 
       if (input.employeeId) {
-        const shifts = await db.getShiftsByEmployee(input.employeeId, input.weekStart, weekEnd);
+        const shifts = await db.getShiftsByEmployee(
+          input.employeeId,
+          input.weekStart,
+          weekEnd,
+        );
         const totalHours = shifts.reduce((sum, shift) => {
-          const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / (1000 * 60 * 60);
+          const hours =
+            (shift.endTime.getTime() - shift.startTime.getTime()) /
+            (1000 * 60 * 60);
           return sum + hours;
         }, 0);
         return {
@@ -277,23 +327,37 @@ export const timesheetsRouter = router({
     }),
 
   monthlySummary: protectedProcedure
-    .input(z.object({
-      employeeId: z.number().optional(),
-      year: z.number(),
-      month: z.number(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number().optional(),
+        year: z.number(),
+        month: z.number(),
+      }),
+    )
     .query(async ({ input }) => {
       const monthStart = new Date(input.year, input.month - 1, 1);
       const monthEnd = new Date(input.year, input.month, 0);
 
       if (input.employeeId) {
-        const shifts = await db.getShiftsByEmployee(input.employeeId, monthStart, monthEnd);
+        const shifts = await db.getShiftsByEmployee(
+          input.employeeId,
+          monthStart,
+          monthEnd,
+        );
         const totalHours = shifts.reduce((sum, shift) => {
-          const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / (1000 * 60 * 60);
+          const hours =
+            (shift.endTime.getTime() - shift.startTime.getTime()) /
+            (1000 * 60 * 60);
           return sum + hours;
         }, 0);
-        const audits = await db.getComplianceAudits(input.employeeId, monthStart, monthEnd);
-        const violations = audits.filter(a => a.status === "violation").length;
+        const audits = await db.getComplianceAudits(
+          input.employeeId,
+          monthStart,
+          monthEnd,
+        );
+        const violations = audits.filter(
+          (a) => a.status === "violation",
+        ).length;
 
         return {
           year: input.year,
@@ -322,25 +386,35 @@ export const timesheetsRouter = router({
   // These procedures maintain compatibility with existing UI components
 
   list: protectedProcedure
-    .input(z.object({
-      employeeId: z.number().optional(),
-      status: z.enum(["pending", "approved", "rejected"]).optional(),
-      startDate: z.date().optional(),
-      endDate: z.date().optional(),
-    }).optional())
+    .input(
+      z
+        .object({
+          employeeId: z.number().optional(),
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+          startDate: z.date().optional(),
+          endDate: z.date().optional(),
+        })
+        .optional(),
+    )
     .query(async ({ input }) => {
       if (input?.employeeId && input?.startDate && input?.endDate) {
-        return await db.getShiftsByEmployee(input.employeeId, input.startDate, input.endDate);
+        return await db.getShiftsByEmployee(
+          input.employeeId,
+          input.startDate,
+          input.endDate,
+        );
       }
       return [];
     }),
 
   clockIn: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      projectId: z.number().optional(),
-      notes: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        projectId: z.number().optional(),
+        notes: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const shiftId = await db.createShift({
         employeeId: input.employeeId,
@@ -356,9 +430,11 @@ export const timesheetsRouter = router({
     }),
 
   clockOut: protectedProcedure
-    .input(z.object({
-      id: z.number(),
-    }))
+    .input(
+      z.object({
+        id: z.number(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.updateShift(input.id, {
         endTime: new Date(),
@@ -368,18 +444,22 @@ export const timesheetsRouter = router({
     }),
 
   create: protectedProcedure
-    .input(z.object({
-      employeeId: z.number(),
-      date: z.date(),
-      startTime: z.date(),
-      endTime: z.date().optional(),
-      hoursWorked: z.number().optional(),
-      overtimeHours: z.number().optional(),
-      workType: z.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
-      projectId: z.number().optional(),
-      notes: z.string().optional(),
-      status: z.enum(["pending", "approved", "rejected"]).default("pending"),
-    }))
+    .input(
+      z.object({
+        employeeId: z.number(),
+        date: z.date(),
+        startTime: z.date(),
+        endTime: z.date().optional(),
+        hoursWorked: z.number().optional(),
+        overtimeHours: z.number().optional(),
+        workType: z
+          .enum(["regular", "overtime", "weekend", "holiday"])
+          .optional(),
+        projectId: z.number().optional(),
+        notes: z.string().optional(),
+        status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
       const shiftId = await db.createShift({
         employeeId: input.employeeId,
@@ -395,10 +475,12 @@ export const timesheetsRouter = router({
     }),
 
   approve: protectedProcedure
-    .input(z.object({
-      id: z.number(),
-      approvedBy: z.number(),
-    }))
+    .input(
+      z.object({
+        id: z.number(),
+        approvedBy: z.number(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.updateShift(input.id, {
         status: "completed",
@@ -407,10 +489,12 @@ export const timesheetsRouter = router({
     }),
 
   reject: protectedProcedure
-    .input(z.object({
-      id: z.number(),
-      reason: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        id: z.number(),
+        reason: z.string().optional(),
+      }),
+    )
     .mutation(async ({ input }) => {
       const success = await db.updateShift(input.id, {
         status: "cancelled",
