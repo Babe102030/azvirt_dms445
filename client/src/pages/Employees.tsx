@@ -35,9 +35,13 @@ export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
-  
-  const { data: employees, isLoading, refetch } = trpc.employees.list.useQuery(
-    departmentFilter !== "all" ? { department: departmentFilter } : undefined
+
+  const {
+    data: employees,
+    isLoading,
+    refetch,
+  } = trpc.employees.list.useQuery(
+    departmentFilter !== "all" ? { department: departmentFilter } : undefined,
   );
 
   const createMutation = trpc.employees.create.useMutation({
@@ -65,7 +69,7 @@ export default function Employees() {
   const exportColumns: ExportColumn[] = [
     { key: "id", label: "ID", enabled: true },
     { key: "name", label: "Ime", enabled: true },
-    { key: "position", label: "Pozicija", enabled: true },
+    { key: "jobTitle", label: "Pozicija", enabled: true },
     { key: "department", label: "Odjel", enabled: true },
     { key: "email", label: "Email", enabled: true },
     { key: "phone", label: "Telefon", enabled: true },
@@ -91,16 +95,18 @@ export default function Employees() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    
+
     createMutation.mutate({
       firstName: formData.get("firstName") as string,
       lastName: formData.get("lastName") as string,
       employeeNumber: formData.get("employeeNumber") as string,
       position: formData.get("position") as string,
       department: formData.get("department") as any,
-      phoneNumber: formData.get("phoneNumber") as string || undefined,
-      email: formData.get("email") as string || undefined,
-      hourlyRate: formData.get("hourlyRate") ? Number(formData.get("hourlyRate")) : undefined,
+      phoneNumber: (formData.get("phoneNumber") as string) || undefined,
+      email: (formData.get("email") as string) || undefined,
+      hourlyRate: formData.get("hourlyRate")
+        ? Number(formData.get("hourlyRate"))
+        : undefined,
       status: "active",
     });
   };
@@ -118,10 +124,7 @@ export default function Employees() {
           </p>
         </div>
         <div className="flex gap-3">
-          <Button 
-            variant="outline"
-            onClick={() => setExportOpen(true)}
-          >
+          <Button variant="outline" onClick={() => setExportOpen(true)}>
             <FileDown className="mr-2 h-4 w-4" />
             Izvezi u Excel
           </Button>
@@ -132,76 +135,87 @@ export default function Employees() {
                 Add Employee
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Add New Employee</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input id="firstName" name="firstName" required />
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New Employee</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name *</Label>
+                    <Input id="firstName" name="firstName" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name *</Label>
+                    <Input id="lastName" name="lastName" required />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input id="lastName" name="lastName" required />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="employeeNumber">Employee Number *</Label>
-                  <Input id="employeeNumber" name="employeeNumber" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="position">Position *</Label>
-                  <Input id="position" name="position" required />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="department">Department *</Label>
-                <Select name="department" required>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select department" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="construction">Construction</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="quality">Quality Control</SelectItem>
-                    <SelectItem value="administration">Administration</SelectItem>
-                    <SelectItem value="logistics">Logistics</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input id="phoneNumber" name="phoneNumber" type="tel" />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="employeeNumber">Employee Number *</Label>
+                    <Input id="employeeNumber" name="employeeNumber" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="position">Position *</Label>
+                    <Input id="position" name="position" required />
+                  </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" />
+                  <Label htmlFor="department">Department *</Label>
+                  <Select name="department" required>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="construction">Construction</SelectItem>
+                      <SelectItem value="maintenance">Maintenance</SelectItem>
+                      <SelectItem value="quality">Quality Control</SelectItem>
+                      <SelectItem value="administration">
+                        Administration
+                      </SelectItem>
+                      <SelectItem value="logistics">Logistics</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="hourlyRate">Hourly Rate (€)</Label>
-                <Input id="hourlyRate" name="hourlyRate" type="number" step="0.01" />
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phoneNumber">Phone Number</Label>
+                    <Input id="phoneNumber" name="phoneNumber" type="tel" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" name="email" type="email" />
+                  </div>
+                </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Adding..." : "Add Employee"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="space-y-2">
+                  <Label htmlFor="hourlyRate">Hourly Rate (€)</Label>
+                  <Input
+                    id="hourlyRate"
+                    name="hourlyRate"
+                    type="number"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending}>
+                    {createMutation.isPending ? "Adding..." : "Add Employee"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -241,36 +255,56 @@ export default function Employees() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   Loading employees...
                 </TableCell>
               </TableRow>
             ) : !employees || employees.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell
+                  colSpan={8}
+                  className="text-center py-8 text-muted-foreground"
+                >
                   No employees found. Add your first employee to get started.
                 </TableCell>
               </TableRow>
             ) : (
               employees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium">{employee.employeeNumber}</TableCell>
-                  <TableCell>{employee.firstName} {employee.lastName}</TableCell>
-                  <TableCell>{employee.position}</TableCell>
-                  <TableCell className="capitalize">{employee.department}</TableCell>
+                  <TableCell className="font-medium">
+                    {employee.employeeNumber}
+                  </TableCell>
+                  <TableCell>
+                    {employee.firstName} {employee.lastName}
+                  </TableCell>
+                  <TableCell>{employee.jobTitle}</TableCell>
+                  <TableCell className="capitalize">
+                    {employee.department}
+                  </TableCell>
                   <TableCell>
                     {employee.phoneNumber && <div>{employee.phoneNumber}</div>}
-                    {employee.email && <div className="text-sm text-muted-foreground">{employee.email}</div>}
+                    {employee.email && (
+                      <div className="text-sm text-muted-foreground">
+                        {employee.email}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     {employee.hourlyRate ? `€${employee.hourlyRate}` : "-"}
                   </TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      employee.status === "active" ? "bg-green-500/20 text-green-700" :
-                      employee.status === "on_leave" ? "bg-yellow-500/20 text-yellow-700" :
-                      "bg-gray-500/20 text-gray-700"
-                    }`}>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        employee.status === "active"
+                          ? "bg-green-500/20 text-green-700"
+                          : employee.status === "on_leave"
+                            ? "bg-yellow-500/20 text-yellow-700"
+                            : "bg-gray-500/20 text-gray-700"
+                      }`}
+                    >
                       {employee.status}
                     </span>
                   </TableCell>
@@ -279,7 +313,11 @@ export default function Employees() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (confirm("Are you sure you want to remove this employee?")) {
+                        if (
+                          confirm(
+                            "Are you sure you want to remove this employee?",
+                          )
+                        ) {
                           deleteMutation.mutate({ id: employee.id });
                         }
                       }}

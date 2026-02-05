@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -36,25 +43,25 @@ export function ExportDialog({
   const [columns, setColumns] = useState<ExportColumn[]>(initialColumns);
 
   const toggleColumn = (key: string) => {
-    setColumns(prev =>
-      prev.map(col =>
-        col.key === key ? { ...col, enabled: !col.enabled } : col
-      )
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.key === key ? { ...col, enabled: !col.enabled } : col,
+      ),
     );
   };
 
   const selectAll = () => {
-    setColumns(prev => prev.map(col => ({ ...col, enabled: true })));
+    setColumns((prev) => prev.map((col) => ({ ...col, enabled: true })));
   };
 
   const deselectAll = () => {
-    setColumns(prev => prev.map(col => ({ ...col, enabled: false })));
+    setColumns((prev) => prev.map((col) => ({ ...col, enabled: false })));
   };
 
   const handleExport = async () => {
     const selectedColumns = columns
-      .filter(col => col.enabled)
-      .map(col => col.key);
+      .filter((col) => col.enabled)
+      .map((col) => col.key);
 
     if (selectedColumns.length === 0) {
       return;
@@ -63,7 +70,7 @@ export function ExportDialog({
     await onExport(selectedColumns);
   };
 
-  const selectedCount = columns.filter(col => col.enabled).length;
+  const selectedCount = columns.filter((col) => col.enabled).length;
   const totalCount = columns.length;
 
   return (
@@ -81,7 +88,7 @@ export function ExportDialog({
           {/* Column Selection Controls */}
           <div className="flex items-center justify-between border-b pb-3">
             <div className="text-sm text-muted-foreground">
-              {t("export.selectedColumns", `${selectedCount} of ${totalCount} columns selected`)}
+              {t("export.selectedColumns")}
             </div>
             <div className="flex gap-2">
               <Button
@@ -90,7 +97,7 @@ export function ExportDialog({
                 onClick={selectAll}
                 disabled={isExporting}
               >
-                {t("export.selectAll", "Select All")}
+                {t("export.selectAll")}
               </Button>
               <Button
                 variant="outline"
@@ -98,7 +105,7 @@ export function ExportDialog({
                 onClick={deselectAll}
                 disabled={isExporting}
               >
-                {t("export.deselectAll", "Deselect All")}
+                {t("export.deselectAll")}
               </Button>
             </div>
           </div>
@@ -132,12 +139,12 @@ export function ExportDialog({
           {selectedCount > 0 && (
             <div className="bg-muted/50 rounded-md p-3 border">
               <div className="text-xs font-medium text-muted-foreground mb-2">
-                {t("export.preview", "Preview of selected columns:")}
+                {t("export.preview")}
               </div>
               <div className="flex flex-wrap gap-2">
                 {columns
-                  .filter(col => col.enabled)
-                  .map(col => (
+                  .filter((col) => col.enabled)
+                  .map((col) => (
                     <span
                       key={col.key}
                       className="inline-flex items-center px-2 py-1 rounded-md bg-orange-500/10 text-orange-500 text-xs font-medium"
@@ -156,7 +163,7 @@ export function ExportDialog({
             onClick={() => onOpenChange(false)}
             disabled={isExporting}
           >
-            {t("common.cancel", "Cancel")}
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleExport}
@@ -166,12 +173,12 @@ export function ExportDialog({
             {isExporting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t("export.exporting", "Exporting...")}
+                {t("export.exporting")}
               </>
             ) : (
               <>
                 <Download className="mr-2 h-4 w-4" />
-                {t("export.download", "Download Excel")}
+                {t("export.download")}
               </>
             )}
           </Button>
