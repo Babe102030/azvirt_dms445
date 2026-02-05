@@ -2,10 +2,18 @@ import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
 import { ollamaService } from "../_core/ollama";
+import { geminiService, formatToGeminiMessages } from "../_core/gemini";
+import { ENV } from "../_core/env";
 import { executeTool } from "../_core/aiTools";
 import { transcribeAudio } from "../_core/voiceTranscription";
 import { storagePut } from "../storage";
-import { PROMPT_TEMPLATES, getTemplatesByCategory, searchTemplates, getTemplateById, type TemplateCategory } from "../../shared/promptTemplates";
+import {
+  PROMPT_TEMPLATES,
+  getTemplatesByCategory,
+  searchTemplates,
+  getTemplateById,
+  type TemplateCategory,
+} from "../../shared/promptTemplates";
 
 /**
  * AI Assistant Router
@@ -19,21 +27,26 @@ export const aiAssistantRouter = router({
     .input(
       z.object({
         conversationId: z.number().optional(),
-        message: z.string().min(1, 'Message cannot be empty'),
+        message: z.string().min(1, "Message cannot be empty"),
         model: z.string().default("llama3.2"),
         imageUrl: z.string().optional(),
         audioUrl: z.string().optional(),
         useTools: z.boolean().default(true),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const userId = ctx.user.id;
 
         // Validate model availability
-        const availableModels = await ollamaService.listModels();
-        if (!availableModels.some(m => m.name === input.model)) {
-          throw new Error(`Model "${input.model}" is not available. Please pull it first or use an available model.`);
+        const isGemini = input.model.startsWith("gemini-");
+        if (!isGemini) {
+          const availableModels = await ollamaService.listModels();
+          if (!availableModels.some((m) => m.name === input.model)) {
+            throw new Error(
+              `Model "${input.model}" is not available. Please pull it first or use an available model.`,
+            );
+          }
         }
 
         // Create or get conversation
@@ -47,8 +60,8 @@ export const aiAssistantRouter = router({
         } else {
           // Verify user owns this conversation
           const conversations = await db.getAiConversations(userId);
-          if (!conversations.some(c => c.id === conversationId)) {
-            throw new Error('Conversation not found or access denied');
+          if (!conversations.some((c) => c.id === conversationId)) {
+            throw new Error("Conversation not found or access denied");
           }
         }
 
@@ -113,37 +126,54 @@ GUIDELINES:
 Be helpful, accurate, and professional. Use tools to fetch real data and perform requested operations.`,
         };
 
-        // Chat with Ollama (non-streaming)
-        const response = await ollamaService.chat(
-          input.model,
-          [systemMessage, ...messages],
-          {
-            stream: false,
-            temperature: 0.7,
-          }
-        ) as import("../_core/ollama").OllamaResponse;
+        let responseContent = "";
 
-        if (!response || !response.message || !response.message.content) {
-          throw new Error('Invalid response from AI model');
+        if (isGemini) {
+          const geminiMessages = formatToGeminiMessages([
+            systemMessage,
+            ...messages,
+          ]);
+          const response = await geminiService.chat(geminiMessages, {
+            model: input.model,
+          });
+          if (!response.candidates?.[0]?.content?.parts?.[0]?.text) {
+            throw new Error("Invalid response from Gemini API");
+          }
+          responseContent = response.candidates[0].content.parts[0].text;
+        } else {
+          // Chat with Ollama (non-streaming)
+          const response = (await ollamaService.chat(
+            input.model,
+            [systemMessage, ...messages],
+            {
+              stream: false,
+              temperature: 0.7,
+            },
+          )) as import("../_core/ollama").OllamaResponse;
+
+          if (!response || !response.message || !response.message.content) {
+            throw new Error("Invalid response from AI model");
+          }
+          responseContent = response.message.content;
         }
 
         // Save assistant response
         const assistantMessageId = await db.createAiMessage({
           conversationId: finalConversationId,
           role: "assistant",
-          content: response.message.content,
+          content: responseContent,
           model: input.model,
         });
 
         return {
           conversationId: finalConversationId,
           messageId: assistantMessageId,
-          content: response.message.content,
+          content: responseContent,
           model: input.model,
         };
       } catch (error: any) {
-        console.error('AI chat error:', error);
-        throw new Error(`Chat failed: ${error.message || 'Unknown error'}`);
+        console.error("AI chat error:", error);
+        throw new Error(`Chat failed: ${error.message || "Unknown error"}`);
       }
     }),
 
@@ -156,7 +186,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         conversationId: z.number(),
         message: z.string(),
         model: z.string().default("llama3.2"),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       // This would require tRPC subscriptions for true streaming
@@ -172,7 +202,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       z.object({
         audioData: z.string(), // base64 encoded audio
         language: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
@@ -184,7 +214,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         const { url: audioUrl } = await storagePut(
           `voice/${ctx.user.id}/recording-${timestamp}.webm`,
           audioBuffer,
-          "audio/webm"
+          "audio/webm",
         );
 
         // Transcribe using Whisper API
@@ -194,7 +224,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         });
 
         // Check if transcription was successful
-        if ('error' in result) {
+        if ("error" in result) {
           throw new Error(result.error);
         }
 
@@ -224,7 +254,9 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .query(async ({ input, ctx }) => {
       // Verify conversation belongs to user
       const conversations = await db.getAiConversations(ctx.user.id);
-      const conversation = conversations.find((c) => c.id === input.conversationId);
+      const conversation = conversations.find(
+        (c) => c.id === input.conversationId,
+      );
 
       if (!conversation) {
         throw new Error("Conversation not found");
@@ -241,7 +273,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       z.object({
         title: z.string().optional(),
         modelName: z.string().default("llama3.2"),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       const conversationId = await db.createAiConversation({
@@ -261,7 +293,9 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
       const conversations = await db.getAiConversations(ctx.user.id);
-      const conversation = conversations.find((c) => c.id === input.conversationId);
+      const conversation = conversations.find(
+        (c) => c.id === input.conversationId,
+      );
 
       if (!conversation) {
         throw new Error("Conversation not found");
@@ -277,13 +311,41 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   listModels: protectedProcedure.query(async () => {
     try {
       const models = await ollamaService.listModels();
-      return models.map((model) => ({
+      const result = models.map((model) => ({
         name: model.name,
         size: model.size,
         modifiedAt: model.modified_at,
         family: model.details?.family || "unknown",
         parameterSize: model.details?.parameter_size || "unknown",
       }));
+
+      // Add Gemini models if API key is present
+      if (ENV.geminiApiKey) {
+        const geminiModels = [
+          "gemini-1.5-flash",
+          "gemini-1.5-pro",
+          "gemini-2.0-flash",
+          "gemini-2.0-flash-lite",
+          "gemini-2.5-flash-lite",
+        ];
+
+        // Ensure current default model is included
+        if (ENV.geminiModel && !geminiModels.includes(ENV.geminiModel)) {
+          geminiModels.push(ENV.geminiModel);
+        }
+
+        geminiModels.forEach((modelName) => {
+          result.push({
+            name: modelName,
+            size: 0,
+            modifiedAt: new Date().toISOString(),
+            family: "gemini",
+            parameterSize: "cloud",
+          });
+        });
+      }
+
+      return result;
     } catch (error: any) {
       console.error("Failed to list models:", error);
       return [];
@@ -298,7 +360,12 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .mutation(async ({ input }) => {
       try {
         const success = await ollamaService.pullModel(input.modelName);
-        return { success, message: success ? "Model pulled successfully" : "Failed to pull model" };
+        return {
+          success,
+          message: success
+            ? "Model pulled successfully"
+            : "Failed to pull model",
+        };
       } catch (error: any) {
         console.error("Failed to pull model:", error);
         return { success: false, message: error.message };
@@ -313,7 +380,12 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .mutation(async ({ input }) => {
       try {
         const success = await ollamaService.deleteModel(input.modelName);
-        return { success, message: success ? "Model deleted successfully" : "Failed to delete model" };
+        return {
+          success,
+          message: success
+            ? "Model deleted successfully"
+            : "Failed to delete model",
+        };
       } catch (error: any) {
         console.error("Failed to delete model:", error);
         return { success: false, message: error.message };
@@ -323,16 +395,27 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   /**
    * Get all prompt templates
    */
-  getTemplates: publicProcedure
-    .query(async () => {
-      return PROMPT_TEMPLATES;
-    }),
+  getTemplates: publicProcedure.query(async () => {
+    return PROMPT_TEMPLATES;
+  }),
 
   /**
    * Get templates by category
    */
   getTemplatesByCategory: publicProcedure
-    .input(z.object({ category: z.enum(['inventory', 'deliveries', 'quality', 'reports', 'analysis', 'forecasting', 'bulk_import']) }))
+    .input(
+      z.object({
+        category: z.enum([
+          "inventory",
+          "deliveries",
+          "quality",
+          "reports",
+          "analysis",
+          "forecasting",
+          "bulk_import",
+        ]),
+      }),
+    )
     .query(async ({ input }) => {
       return getTemplatesByCategory(input.category as TemplateCategory);
     }),
@@ -354,7 +437,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .query(async ({ input }) => {
       const template = getTemplateById(input.id);
       if (!template) {
-        throw new Error('Template not found');
+        throw new Error("Template not found");
       }
       return template;
     }),
@@ -367,14 +450,14 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       z.object({
         toolName: z.string(),
         parameters: z.record(z.string(), z.any()),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         const result = await executeTool(
           input.toolName,
           input.parameters,
-          ctx.user.id
+          ctx.user.id,
         );
         return result;
       } catch (error: any) {
@@ -384,7 +467,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
           success: false,
           toolName: input.toolName,
           parameters: input.parameters,
-          error: error.message || 'Unknown error',
+          error: error.message || "Unknown error",
         };
       }
     }),
