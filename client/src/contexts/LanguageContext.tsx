@@ -13,7 +13,9 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(
+  undefined,
+);
 
 const translations = {
   en,
@@ -25,13 +27,18 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [language, setLanguageState] = useState<Language>("bs");
   const [isLoaded, setIsLoaded] = useState(false);
   const { user } = useAuth();
-  const updateLanguageMutation = trpc.auth.updateLanguagePreference.useMutation();
+  const updateLanguageMutation =
+    trpc.auth.updateLanguagePreference.useMutation();
 
   useEffect(() => {
     // Load language preference from user profile if logged in, otherwise from localStorage
-    if (user?.languagePreference && ["en", "bs", "az"].includes(user.languagePreference)) {
-      setLanguageState(user.languagePreference as Language);
-      localStorage.setItem("language", user.languagePreference);
+    const currentUser = user as any;
+    if (
+      currentUser?.languagePreference &&
+      ["en", "bs", "az"].includes(currentUser.languagePreference)
+    ) {
+      setLanguageState(currentUser.languagePreference as Language);
+      localStorage.setItem("language", currentUser.languagePreference);
     } else {
       const savedLanguage = localStorage.getItem("language") as Language | null;
       if (savedLanguage && ["en", "bs", "az"].includes(savedLanguage)) {
@@ -39,13 +46,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setIsLoaded(true);
-  }, [user?.languagePreference]);
+  }, [(user as any)?.languagePreference]);
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem("language", lang);
     // Save to user profile if logged in
-    if (user?.id) {
+    if ((user as any)?.id) {
       updateLanguageMutation.mutate({ language: lang });
     }
   };

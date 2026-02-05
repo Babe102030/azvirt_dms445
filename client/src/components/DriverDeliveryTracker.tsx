@@ -48,13 +48,14 @@ export function DriverDeliveryTracker({
       { enabled: !!deliveryId },
     );
 
-  const { data: etaData } = trpc.deliveries.calculateETA.useMutation();
+  const { mutateAsync: calculateETA } =
+    trpc.deliveries.calculateETA.useMutation();
   const [eta, setEta] = useState<number | null>(null);
 
   useEffect(() => {
     if (currentLocation && delivery?.status === "en_route") {
       const getETA = async () => {
-        const result = await etaData({
+        const result = await calculateETA({
           deliveryId,
           currentGPS: currentLocation,
         });
