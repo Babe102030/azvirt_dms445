@@ -18,6 +18,7 @@ import {
   FileText,
   Clock,
   Package,
+  Users,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { trpc } from "@/lib/trpc";
@@ -25,7 +26,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export type ImportType = "work_hours" | "materials" | "documents";
+export type ImportType = "work_hours" | "materials" | "documents" | "employees";
 
 export type ImportDialogProps = {
   open: boolean;
@@ -52,6 +53,7 @@ export function ImportDialog({
   const importMaterialsMutation = trpc.bulkImport.importMaterials.useMutation();
   const importWorkHoursMutation = trpc.bulkImport.importWorkHours.useMutation();
   const importDocumentsMutation = trpc.bulkImport.importDocuments.useMutation();
+  const importEmployeesMutation = trpc.bulkImport.importEmployees.useMutation();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -104,6 +106,8 @@ export function ImportDialog({
         result = await importMaterialsMutation.mutateAsync(payload);
       } else if (importType === "work_hours") {
         result = await importWorkHoursMutation.mutateAsync(payload);
+      } else if (importType === "employees") {
+        result = await importEmployeesMutation.mutateAsync(payload);
       } else {
         result = await importDocumentsMutation.mutateAsync(payload);
       }
@@ -136,6 +140,8 @@ export function ImportDialog({
         return <Clock className="h-5 w-5 text-orange-500" />;
       case "documents":
         return <FileText className="h-5 w-5 text-orange-500" />;
+      case "employees":
+        return <Users className="h-5 w-5 text-orange-500" />;
     }
   };
 
