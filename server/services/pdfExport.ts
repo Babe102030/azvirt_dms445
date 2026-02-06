@@ -1,14 +1,13 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import {
+import * as db from "../db";
+import type {
   Material,
   Employee,
   Project,
   Delivery,
-  Timesheet,
   QualityTest,
   PurchaseOrder,
-} from "@prisma/client";
-import prisma from "../_core/prisma"; // Assuming prisma client is available here
+} from "../../drizzle/schema.ts";
 
 interface ExportColumn {
   key: string;
@@ -52,7 +51,7 @@ async function generatePdf<T extends Record<string, any>>(
     x: margin,
     y: y,
     font,
-    fontSize: 18,
+    size: 18,
     color: headerColor,
   });
   y -= headerRowHeight * 2; // Move down for the actual content
@@ -69,7 +68,7 @@ async function generatePdf<T extends Record<string, any>>(
         x: currentX,
         y: currentY,
         font,
-        fontSize,
+        size: fontSize,
         color: headerColor,
       });
       currentX += col.width || 80; // Default width if not specified
@@ -95,7 +94,7 @@ async function generatePdf<T extends Record<string, any>>(
         x,
         y,
         font,
-        fontSize,
+        size: fontSize,
         color: textColor,
       });
       x += col.width || 80;
@@ -109,7 +108,7 @@ async function generatePdf<T extends Record<string, any>>(
 export async function exportMaterialsToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const materials = await prisma.material.findMany();
+  const materials = await db.getMaterials();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
@@ -137,19 +136,17 @@ export async function exportMaterialsToPdf(
 export async function exportEmployeesToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const employees = await prisma.employee.findMany();
+  const employees = await db.getEmployees();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
     { key: "firstName", header: "First Name", width: 80 },
     { key: "lastName", header: "Last Name", width: 80 },
     { key: "employeeNumber", header: "Employee Number", width: 100 },
-    { key: "position", header: "Position", width: 80 },
+    { key: "jobTitle", header: "Job Title", width: 80 },
     { key: "department", header: "Department", width: 80 },
-    { key: "phoneNumber", header: "Phone", width: 80 },
-    { key: "email", header: "Email", width: 120 },
     { key: "hourlyRate", header: "Hourly Rate", width: 70 },
-    { key: "status", header: "Status", width: 60 },
+    { key: "active", header: "Active", width: 60 },
     { key: "hireDate", header: "Hire Date", width: 90 },
     { key: "createdAt", header: "Created At", width: 90 },
   ];
@@ -165,7 +162,7 @@ export async function exportEmployeesToPdf(
 export async function exportProjectsToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const projects = await prisma.project.findMany();
+  const projects = await db.getProjects();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
@@ -184,14 +181,14 @@ export async function exportProjectsToPdf(
 export async function exportDeliveriesToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const deliveries = await prisma.delivery.findMany();
+  const deliveries = await db.getDeliveries();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
     { key: "projectId", header: "Project ID", width: 80 },
     { key: "materialId", header: "Material ID", width: 80 },
     { key: "quantity", header: "Quantity", width: 60 },
-    { key: "deliveryDate", header: "Delivery Date", width: 90 },
+    { key: "scheduledTime", header: "Scheduled Time", width: 90 },
     { key: "status", header: "Status", width: 70 },
     { key: "supplier", header: "Supplier", width: 100 },
     { key: "notes", header: "Notes", width: 120 },
@@ -209,33 +206,26 @@ export async function exportDeliveriesToPdf(
 export async function exportTimesheetsToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const timesheets = await prisma.timesheet.findMany();
+  const timesheets = await db.getAllShifts();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
     { key: "employeeId", header: "Employee ID", width: 80 },
-    { key: "projectId", header: "Project ID", width: 80 },
-    { key: "date", header: "Date", width: 80 },
-    { key: "hoursWorked", header: "Hours Worked", width: 80 },
-    { key: "overtimeHours", header: "Overtime Hours", width: 90 },
-    { key: "breakMinutes", header: "Break Minutes", width: 90 },
+    { key: "employeeName", header: "Employee Name", width: 120 },
+    { key: "startTime", header: "Start Time", width: 120 },
+    { key: "endTime", header: "End Time", width: 120 },
     { key: "status", header: "Status", width: 70 },
     { key: "notes", header: "Notes", width: 120 },
     { key: "createdAt", header: "Created At", width: 90 },
   ];
 
-  return generatePdf<Timesheet>(
-    timesheets,
-    allColumns,
-    options,
-    "Timesheets Export",
-  );
+  return generatePdf<any>(timesheets, allColumns, options, "Timesheets Export");
 }
 
 export async function exportQualityTestsToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const qualityTests = await prisma.qualityTest.findMany();
+  const qualityTests = await db.getQualityTests();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "ID", width: 50 },
@@ -259,7 +249,7 @@ export async function exportQualityTestsToPdf(
 export async function exportPurchaseOrdersToPdf(
   options?: ExportOptions,
 ): Promise<Buffer> {
-  const purchaseOrders = await prisma.purchaseOrder.findMany();
+  const purchaseOrders = await db.getPurchaseOrders();
 
   const allColumns: ExportColumn[] = [
     { key: "id", header: "PO #", width: 60 },
