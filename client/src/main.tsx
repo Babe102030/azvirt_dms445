@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { UNAUTHED_ERR_MSG } from '@shared/const';
+import { UNAUTHED_ERR_MSG } from "@shared/const";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
@@ -9,6 +9,8 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import RTLInitializer from "./components/RTLInitializer";
 import { ClerkProvider } from "./components/ClerkProvider";
 import { useAuth } from "@clerk/clerk-react";
+import { Provider } from "react-redux";
+import store from "./store";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -25,7 +27,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   window.location.reload();
 };
 
-queryClient.getQueryCache().subscribe(event => {
+queryClient.getQueryCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.query.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -33,7 +35,7 @@ queryClient.getQueryCache().subscribe(event => {
   }
 });
 
-queryClient.getMutationCache().subscribe(event => {
+queryClient.getMutationCache().subscribe((event) => {
   if (event.type === "updated" && event.action.type === "error") {
     const error = event.mutation.state.error;
     redirectToLoginIfUnauthorized(error);
@@ -66,9 +68,7 @@ function TRPCProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </trpc.Provider>
   );
 }
@@ -78,9 +78,11 @@ createRoot(document.getElementById("root")!).render(
     <TRPCProvider>
       <LanguageProvider>
         <RTLInitializer>
-          <App />
+          <Provider store={store}>
+            <App />
+          </Provider>
         </RTLInitializer>
       </LanguageProvider>
     </TRPCProvider>
-  </ClerkProvider>
+  </ClerkProvider>,
 );
