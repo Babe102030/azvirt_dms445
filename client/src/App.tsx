@@ -27,6 +27,7 @@ import Recipes from "./pages/Recipes";
 import MixingLog from "./pages/MixingLog";
 import ProductionAnalytics from "./pages/ProductionAnalytics";
 import TimesheetApproval from "./pages/TimesheetApproval";
+import ShiftManagement from "./pages/ShiftManagement";
 
 function Router() {
   return (
@@ -45,14 +46,19 @@ function Router() {
       <Route path={"/quality"} component={QualityControl} />
       <Route path={"/employees"} component={Employees} />
       <Route path={"/machines"} component={Machines} />
-      <Route path={"/timesheets"} component={Timesheets} />      <Route path={"/timesheet-summary"} component={TimesheetSummary} />
+      <Route path={"/timesheets"} component={Timesheets} />{" "}
+      <Route path={"/timesheet-summary"} component={TimesheetSummary} />
       <Route path={"/timesheet-approval"} component={TimesheetApproval} />
+      <Route path={"/shift-management"} component={ShiftManagement} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />
       <Route path={"/ai-assistant"} component={AIAssistant} />
       <Route path={"/dashboard-custom"} component={CustomizableDashboard} />
-      <Route path={"/notification-templates"} component={NotificationTemplates} />
+      <Route
+        path={"/notification-templates"}
+        component={NotificationTemplates}
+      />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
