@@ -64,6 +64,8 @@ export default function ShiftManagement() {
     endTime: "19:00",
     shiftDate: format(new Date(), "yyyy-MM-dd"),
   });
+  const [availabilityEmployeeId, setAvailabilityEmployeeId] =
+    useState<string>("");
   const [templateForm, setTemplateForm] = useState({
     name: "",
     startTime: "07:00",
@@ -85,6 +87,12 @@ export default function ShiftManagement() {
     trpc.shiftAssignments.getTemplates.useQuery();
   const { data: employees, isLoading: employeesLoading } =
     trpc.shiftAssignments.getEmployees.useQuery();
+
+  const { data: availabilityData, refetch: refetchAvailability } =
+    trpc.shiftAssignments.getAvailability.useQuery(
+      { employeeId: parseInt(availabilityEmployeeId) },
+      { enabled: !!availabilityEmployeeId },
+    );
 
   const {
     data: pendingSwaps,
@@ -128,6 +136,17 @@ export default function ShiftManagement() {
       },
     },
   );
+
+  const setAvailabilityMutation =
+    trpc.shiftAssignments.setAvailability.useMutation({
+      onSuccess: () => {
+        toast.success(t("common.success"));
+        refetchAvailability();
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    });
 
   const handleAssignShift = async () => {
     if (!assignForm.employeeId) {
@@ -338,7 +357,7 @@ export default function ShiftManagement() {
           onValueChange={setSelectedTab}
           className="space-y-6"
         >
-          <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+          <TabsList className="grid w-full grid-cols-4 md:w-[800px]">
             <TabsTrigger value="calendar">
               <CalendarIcon className="h-4 w-4 mr-2" />
               {t("common.filter")}
@@ -355,6 +374,10 @@ export default function ShiftManagement() {
                   {pendingSwaps.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="availability">
+              <Clock className="h-4 w-4 mr-2" />
+              {t("shiftManagement.employeeAvailability")}
             </TabsTrigger>
           </TabsList>
 
@@ -696,6 +719,136 @@ export default function ShiftManagement() {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="availability" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {t("shiftManagement.employeeAvailability")}
+                </CardTitle>
+                <CardDescription>
+                  View and manage weekly availability for employees.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-end gap-4">
+                  <div className="grid gap-2 flex-1 max-w-sm">
+                    <Label>{t("employees.title")}</Label>
+                    <Select
+                      value={availabilityEmployeeId}
+                      onValueChange={setAvailabilityEmployeeId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employees?.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id.toString()}>
+                            {emp.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {availabilityEmployeeId ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[0, 1, 2, 3, 4, 5, 6].map((day) => {
+                      const dayName = [
+                        "Sunday",
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                      ][day];
+                      const record = availabilityData?.find(
+                        (a: any) => a.dayOfWeek === day,
+                      );
+
+                      return (
+                        <Card key={day} className="bg-muted/5">
+                          <CardHeader className="p-4 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                              {dayName}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-4 pt-0 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <Label className="text-xs text-muted-foreground">
+                                Available
+                              </Label>
+                              <Badge
+                                variant={
+                                  record?.isAvailable !== false
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {record?.isAvailable !== false ? "Yes" : "No"}
+                              </Badge>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">
+                                  Start
+                                </Label>
+                                <Input
+                                  type="time"
+                                  className="h-8 text-xs"
+                                  defaultValue={record?.startTime || "09:00"}
+                                  onBlur={(e) => {
+                                    setAvailabilityMutation.mutate({
+                                      employeeId: parseInt(
+                                        availabilityEmployeeId,
+                                      ),
+                                      dayOfWeek: day,
+                                      startTime: e.target.value,
+                                      endTime: record?.endTime || "17:00",
+                                      isAvailable: true,
+                                    });
+                                  }}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] uppercase">
+                                  End
+                                </Label>
+                                <Input
+                                  type="time"
+                                  className="h-8 text-xs"
+                                  defaultValue={record?.endTime || "17:00"}
+                                  onBlur={(e) => {
+                                    setAvailabilityMutation.mutate({
+                                      employeeId: parseInt(
+                                        availabilityEmployeeId,
+                                      ),
+                                      dayOfWeek: day,
+                                      startTime: record?.startTime || "09:00",
+                                      endTime: e.target.value,
+                                      isAvailable: true,
+                                    });
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 border rounded-lg bg-muted/10">
+                    <p className="text-muted-foreground">
+                      Select an employee to view or edit availability.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

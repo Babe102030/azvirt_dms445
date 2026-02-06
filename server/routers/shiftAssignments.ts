@@ -149,6 +149,32 @@ export const shiftAssignmentsRouter = router({
     }),
 
   /**
+   * Set employee availability
+   */
+  setAvailability: protectedProcedure
+    .input(
+      z.object({
+        employeeId: z.number(),
+        dayOfWeek: z.number().min(0).max(6),
+        startTime: z.string(),
+        endTime: z.string(),
+        isAvailable: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return await db.setEmployeeAvailability(input);
+    }),
+
+  /**
+   * Get employee availability
+   */
+  getAvailability: protectedProcedure
+    .input(z.object({ employeeId: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getEmployeeAvailability(input.employeeId);
+    }),
+
+  /**
    * Request a shift swap
    */
   requestSwap: protectedProcedure
