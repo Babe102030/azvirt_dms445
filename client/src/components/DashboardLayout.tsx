@@ -21,10 +21,33 @@ import {
 } from "@/components/ui/sidebar";
 import { SignInButton } from "@clerk/clerk-react";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, FileText, Folder, Package, Truck, FlaskConical, Users, Cog, Clock, TrendingUp, Settings, ShoppingCart, Mail, Palette, Bot, BellRing, Beaker, BarChart3, CheckCircle2 } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  PanelLeft,
+  FileText,
+  Folder,
+  Package,
+  Truck,
+  FlaskConical,
+  Users,
+  Cog,
+  Clock,
+  TrendingUp,
+  Settings,
+  ShoppingCart,
+  Mail,
+  Palette,
+  Bot,
+  BellRing,
+  Beaker,
+  BarChart3,
+  CheckCircle2,
+  Calendar,
+} from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -36,21 +59,42 @@ const getMenuItems = (t: (key: string) => string) => [
   { icon: Package, label: t("nav.materials"), path: "/materials" },
   { icon: Beaker, label: t("nav.recipes"), path: "/recipes" },
   { icon: Beaker, label: t("nav.mixingLog"), path: "/mixing-log" },
-  { icon: BarChart3, label: t("nav.productionAnalytics"), path: "/production-analytics" },
+  {
+    icon: BarChart3,
+    label: t("nav.productionAnalytics"),
+    path: "/production-analytics",
+  },
   { icon: TrendingUp, label: t("nav.forecasting"), path: "/forecasting" },
-  { icon: ShoppingCart, label: t("nav.purchaseOrders"), path: "/purchase-orders" },
+  {
+    icon: ShoppingCart,
+    label: t("nav.purchaseOrders"),
+    path: "/purchase-orders",
+  },
   { icon: Truck, label: t("nav.deliveries"), path: "/deliveries" },
   { icon: Truck, label: t("nav.driverDeliveries"), path: "/driver-deliveries" },
   { icon: FlaskConical, label: t("nav.qualityControl"), path: "/quality" },
   { icon: Users, label: t("nav.workforce"), path: "/employees" },
   { icon: Cog, label: t("nav.machines"), path: "/machines" },
   { icon: Clock, label: t("nav.timesheets"), path: "/timesheets" },
-  { icon: CheckCircle2, label: t("nav.timesheetApproval"), path: "/timesheet-approval" },
+  {
+    icon: CheckCircle2,
+    label: t("nav.timesheetApproval"),
+    path: "/timesheet-approval",
+  },
+  {
+    icon: Calendar,
+    label: t("nav.shiftManagement"),
+    path: "/shift-management",
+  },
   { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
   { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },
   { icon: Palette, label: t("nav.emailBranding"), path: "/email-branding" },
   { icon: Bot, label: t("nav.aiAssistant"), path: "/ai-assistant" },
-  { icon: BellRing, label: t("nav.notificationTemplates"), path: "/notification-templates" },
+  {
+    icon: BellRing,
+    label: t("nav.notificationTemplates"),
+    path: "/notification-templates",
+  },
   { icon: Settings, label: t("nav.settings"), path: "/settings" },
 ];
 
@@ -76,7 +120,7 @@ export default function DashboardLayout({
   }, [sidebarWidth]);
 
   if (loading) {
-    return <DashboardLayoutSkeleton />
+    return <DashboardLayoutSkeleton />;
   }
 
   if (!user) {
@@ -136,7 +180,7 @@ function DashboardLayoutContent({
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const menuItems = getMenuItems(t);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const activeMenuItem = menuItems.find((item) => item.path === location);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -194,7 +238,11 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <img src="/azvirt-logo.png" alt="AzVirt" className="h-8 w-auto" />
+                  <img
+                    src="/azvirt-logo.png"
+                    alt="AzVirt"
+                    className="h-8 w-auto"
+                  />
                 </div>
               ) : null}
             </div>
@@ -202,7 +250,7 @@ function DashboardLayoutContent({
 
           <SidebarContent className="gap-0 bg-[#1a1a1a]">
             <SidebarMenu className="px-2 py-1">
-              {menuItems.map(item => {
+              {menuItems.map((item) => {
                 const isActive = location === item.path;
                 return (
                   <SidebarMenuItem key={item.path}>
@@ -285,7 +333,12 @@ function DashboardLayoutContent({
             <LanguageSwitcher />
           </div>
         )}
-        <main className="flex-1 p-4 bg-cover bg-center bg-fixed" style={{ backgroundImage: 'url(/azvirt-bg.png)' }}>{children}</main>
+        <main
+          className="flex-1 p-4 bg-cover bg-center bg-fixed"
+          style={{ backgroundImage: "url(/azvirt-bg.png)" }}
+        >
+          {children}
+        </main>
       </SidebarInset>
     </>
   );
