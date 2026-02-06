@@ -29,7 +29,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Send, CheckCircle, XCircle, Clock, Package, FileDown } from "lucide-react";
+import {
+  Plus,
+  Send,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Package,
+  FileDown,
+} from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
 import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
@@ -168,279 +176,286 @@ export default function PurchaseOrders() {
             </p>
           </div>
           <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setExportOpen(true)}>
-            <FileDown className="mr-2 h-4 w-4" />
-            Export to Excel
-          </Button>
-          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Purchase Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Create Purchase Order</DialogTitle>
-                <DialogDescription>
-                  Generate a new purchase order for material restocking
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="material">Material *</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      const materialId = parseInt(value);
-                      setSelectedMaterialId(materialId);
-                      const material = materials?.find(
-                        (m) => m.id === materialId,
-                      );
-                      const forecast = forecasts?.find(
-                        (f) => f.materialId === materialId,
-                      ) as any;
-                      if (material) {
-                        setFormData((prev) => ({
-                          ...prev,
-                          supplier: material.supplier || "",
-                          supplierEmail: material.supplierEmail || "",
-                          quantity:
-                            forecast?.recommendedOrderQty?.toString() || "",
-                        }));
-                      }
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select material" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {materials?.map((material) => (
-                        <SelectItem
-                          key={material.id}
-                          value={material.id.toString()}
-                        >
-                          {`${material.name} (${material.quantity} ${material.unit} in stock)`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="quantity">Quantity *</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={formData.quantity}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          quantity: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter quantity"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="totalCost">Total Cost (optional)</Label>
-                    <Input
-                      id="totalCost"
-                      type="number"
-                      value={formData.totalCost}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          totalCost: e.target.value,
-                        }))
-                      }
-                      placeholder="Enter cost"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="supplier">Supplier</Label>
-                    <Input
-                      id="supplier"
-                      value={formData.supplier}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          supplier: e.target.value,
-                        }))
-                      }
-                      placeholder="Supplier name"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="supplierEmail">Supplier Email</Label>
-                    <Input
-                      id="supplierEmail"
-                      type="email"
-                      value={formData.supplierEmail}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          supplierEmail: e.target.value,
-                        }))
-                      }
-                      placeholder="supplier@example.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="expectedDelivery">Expected Delivery</Label>
-                  <Input
-                    id="expectedDelivery"
-                    type="date"
-                    value={formData.expectedDelivery}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        expectedDelivery: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        notes: e.target.value,
-                      }))
-                    }
-                    placeholder="Additional notes or requirements"
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsCreateOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={handleCreate} disabled={createPO.isPending}>
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Export to Excel
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
                   Create Purchase Order
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-
-        {/* Purchase Orders Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>All Purchase Orders</CardTitle>
-            <CardDescription>Track and manage material orders</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {purchaseOrders && purchaseOrders.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left p-3">PO #</th>
-                      <th className="text-left p-3">Material</th>
-                      <th className="text-right p-3">Quantity</th>
-                      <th className="text-left p-3">Supplier</th>
-                      <th className="text-left p-3">Order Date</th>
-                      <th className="text-left p-3">Expected Delivery</th>
-                      <th className="text-center p-3">Status</th>
-                      <th className="text-center p-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseOrders.map((po) => (
-                      <tr key={po.id} className="border-b hover:bg-muted/50">
-                        <td className="p-3 font-mono text-sm">#{po.id}</td>
-                        <td className="p-3 font-medium">{po.materialName}</td>
-                        <td className="text-right p-3">{po.quantity}</td>
-                        <td className="p-3">{(po as any).supplier || "N/A"}</td>
-                        <td className="p-3">
-                          {new Date(po.orderDate).toLocaleDateString()}
-                        </td>
-                        <td className="p-3">
-                          {po.expectedDelivery
-                            ? new Date(po.expectedDelivery).toLocaleDateString()
-                            : "TBD"}
-                        </td>
-                        <td className="text-center p-3">
-                          <Badge
-                            variant={getStatusVariant(po.status)}
-                            className="flex items-center gap-1 w-fit mx-auto"
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create Purchase Order</DialogTitle>
+                  <DialogDescription>
+                    Generate a new purchase order for material restocking
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="material">Material *</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        const materialId = parseInt(value);
+                        setSelectedMaterialId(materialId);
+                        const material = materials?.find(
+                          (m) => m.id === materialId,
+                        );
+                        const forecast = forecasts?.find(
+                          (f) => f.materialId === materialId,
+                        ) as any;
+                        if (material) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier: material.supplier || "",
+                            supplierEmail: material.supplierEmail || "",
+                            quantity:
+                              forecast?.recommendedOrderQty?.toString() || "",
+                          }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {materials?.map((material) => (
+                          <SelectItem
+                            key={material.id}
+                            value={material.id.toString()}
                           >
-                            {getStatusIcon(po.status)}
-                            {po.status}
-                          </Badge>
-                        </td>
-                        <td className="text-center p-3">
-                          <div className="flex gap-2 justify-center">
-                            {po.status === "pending" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  updatePO.mutate({
-                                    id: po.id,
-                                    status: "approved",
-                                  })
-                                }
-                              >
-                                Approve
-                              </Button>
-                            )}
-                            {po.status === "approved" && po.supplierEmail && (
-                              <Button
-                                size="sm"
-                                onClick={() =>
-                                  sendToSupplier.mutate({ orderId: po.id })
-                                }
-                                disabled={sendToSupplier.isPending}
-                              >
-                                <Send className="mr-1 h-3 w-3" />
-                                Send to Supplier
-                              </Button>
-                            )}
-                            {po.status === "ordered" && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  updatePO.mutate({
-                                    id: po.id,
-                                    status: "received",
-                                    actualDelivery: new Date(),
-                                  })
-                                }
-                              >
-                                Mark Received
-                              </Button>
-                            )}
-                          </div>
-                        </td>
+                            {`${material.name} (${material.quantity} ${material.unit} in stock)`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        value={formData.quantity}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            quantity: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter quantity"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="totalCost">Total Cost (optional)</Label>
+                      <Input
+                        id="totalCost"
+                        type="number"
+                        value={formData.totalCost}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            totalCost: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter cost"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplier">Supplier</Label>
+                      <Input
+                        id="supplier"
+                        value={formData.supplier}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier: e.target.value,
+                          }))
+                        }
+                        placeholder="Supplier name"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplierEmail">Supplier Email</Label>
+                      <Input
+                        id="supplierEmail"
+                        type="email"
+                        value={formData.supplierEmail}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplierEmail: e.target.value,
+                          }))
+                        }
+                        placeholder="supplier@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="expectedDelivery">Expected Delivery</Label>
+                    <Input
+                      id="expectedDelivery"
+                      type="date"
+                      value={formData.expectedDelivery}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          expectedDelivery: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          notes: e.target.value,
+                        }))
+                      }
+                      placeholder="Additional notes or requirements"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreate} disabled={createPO.isPending}>
+                    Create Purchase Order
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {/* Purchase Orders Table */}
+          <Card>
+            <CardHeader>
+              <CardTitle>All Purchase Orders</CardTitle>
+              <CardDescription>
+                Track and manage material orders
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {purchaseOrders && purchaseOrders.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3">PO #</th>
+                        <th className="text-left p-3">Material</th>
+                        <th className="text-right p-3">Quantity</th>
+                        <th className="text-left p-3">Supplier</th>
+                        <th className="text-left p-3">Order Date</th>
+                        <th className="text-left p-3">Expected Delivery</th>
+                        <th className="text-center p-3">Status</th>
+                        <th className="text-center p-3">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No purchase orders yet. Create one to get started.</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </thead>
+                    <tbody>
+                      {purchaseOrders.map((po) => (
+                        <tr key={po.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 font-mono text-sm">#{po.id}</td>
+                          <td className="p-3 font-medium">{po.materialName}</td>
+                          <td className="text-right p-3">{po.quantity}</td>
+                          <td className="p-3">
+                            {(po as any).supplier || "N/A"}
+                          </td>
+                          <td className="p-3">
+                            {new Date(po.orderDate).toLocaleDateString()}
+                          </td>
+                          <td className="p-3">
+                            {po.expectedDelivery
+                              ? new Date(
+                                  po.expectedDelivery,
+                                ).toLocaleDateString()
+                              : "TBD"}
+                          </td>
+                          <td className="text-center p-3">
+                            <Badge
+                              variant={getStatusVariant(po.status)}
+                              className="flex items-center gap-1 w-fit mx-auto"
+                            >
+                              {getStatusIcon(po.status)}
+                              {po.status}
+                            </Badge>
+                          </td>
+                          <td className="text-center p-3">
+                            <div className="flex gap-2 justify-center">
+                              {po.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    updatePO.mutate({
+                                      id: po.id,
+                                      status: "approved",
+                                    })
+                                  }
+                                >
+                                  Approve
+                                </Button>
+                              )}
+                              {po.status === "approved" && po.supplierEmail && (
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    sendToSupplier.mutate({ orderId: po.id })
+                                  }
+                                  disabled={sendToSupplier.isPending}
+                                >
+                                  <Send className="mr-1 h-3 w-3" />
+                                  Send to Supplier
+                                </Button>
+                              )}
+                              {po.status === "ordered" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    updatePO.mutate({
+                                      id: po.id,
+                                      status: "received",
+                                      actualDelivery: new Date(),
+                                    })
+                                  }
+                                >
+                                  Mark Received
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No purchase orders yet. Create one to get started.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
       <ExportDialog
         open={exportOpen}
@@ -453,7 +468,11 @@ export default function PurchaseOrders() {
           { key: "quantity", label: "Quantity", enabled: true },
           { key: "supplier", label: "Supplier", enabled: true },
           { key: "orderDate", label: "Order Date", enabled: true },
-          { key: "expectedDelivery", label: "Expected Delivery", enabled: false },
+          {
+            key: "expectedDelivery",
+            label: "Expected Delivery",
+            enabled: false,
+          },
           { key: "status", label: "Status", enabled: true },
           { key: "totalCost", label: "Total Cost", enabled: false },
         ]}
@@ -463,5 +482,5 @@ export default function PurchaseOrders() {
         isExporting={exportMutation.isPending}
       />
     </DashboardLayout>
-    );
-  }
+  );
+}
