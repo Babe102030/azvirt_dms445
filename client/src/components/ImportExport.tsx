@@ -50,6 +50,7 @@ import {
   Trash2,
   CheckSquare,
   Square,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -210,6 +211,7 @@ export const ImportComponent: React.FC = () => {
             },
             (p) => setProgress(p),
           );
+          dispatch(setRows({ rows: [], fileName: file.name }));
         } else if (isExcelMime(file)) {
           const rows = await parseExcel(file);
           dispatch(setRows({ rows, fileName: file.name }));
@@ -239,8 +241,9 @@ export const ImportComponent: React.FC = () => {
         toast.success(`Imported ${file.name} successfully`);
       } catch (ex: any) {
         setStatus("error");
-        setError(ex?.message ?? String(ex));
-        toast.error(ex?.message ?? "Import failed");
+        const errorMsg = ex?.message ?? String(ex);
+        setError(errorMsg);
+        toast.error(errorMsg);
       }
     },
     [dispatch],
@@ -308,7 +311,7 @@ export const ImportComponent: React.FC = () => {
             </div>
             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
+                className="h-full bg-orange-500 transition-all duration-300"
                 style={{ width: `${Math.min(100, progress)}%` }}
               />
             </div>
@@ -334,87 +337,6 @@ export const ImportComponent: React.FC = () => {
         )}
       </CardContent>
     </Card>
-  );
-};
-
-/**
- * Export Component with Dialog
- */
-export const ExportComponent: React.FC = () => {
-  const rows = useAppSelector(selectImportedRows);
-  const fileName = useAppSelector(selectImportedFileName);
-  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-  const dispatch = useAppDispatch();
-
-  const availableColumns = useMemo(() => {
-    if (!rows || rows.length === 0) return [];
-    return Object.keys(rows[0]);
-  }, [rows]);
-
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5 text-orange-500" />
-            Export Data
-          </CardTitle>
-          <CardDescription>
-            Choose columns and format to export your imported data
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {!rows || rows.length === 0 ? (
-            <Alert className="border-muted bg-muted/30">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                No data available to export. Import a file first.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label className="text-sm font-medium">Data Summary</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {rows.length} records from {fileName}
-                  </p>
-                </div>
-                <Badge variant="secondary">
-                  {availableColumns.length} columns
-                </Badge>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setIsExportDialogOpen(true)}
-                  className="bg-orange-500 hover:bg-orange-600"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export ({rows.length} rows)
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => dispatch(clearRows())}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Clear Data
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <ExportDialog
-        isOpen={isExportDialogOpen}
-        onClose={() => setIsExportDialogOpen(false)}
-        rows={rows}
-        fileName={fileName}
-        columns={availableColumns}
-      />
-    </>
   );
 };
 
@@ -496,7 +418,6 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
   };
 
   const allSelected = selectedColumns.size === columns.length;
-  const someSelected = selectedColumns.size > 0 && !allSelected;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -637,6 +558,87 @@ const ExportDialog: React.FC<ExportDialogProps> = ({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+};
+
+/**
+ * Export Component
+ */
+export const ExportComponent: React.FC = () => {
+  const rows = useAppSelector(selectImportedRows);
+  const fileName = useAppSelector(selectImportedFileName);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const dispatch = useAppDispatch();
+
+  const availableColumns = useMemo(() => {
+    if (!rows || rows.length === 0) return [];
+    return Object.keys(rows[0]);
+  }, [rows]);
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-orange-500" />
+            Export Data
+          </CardTitle>
+          <CardDescription>
+            Choose columns and format to export your imported data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!rows || rows.length === 0 ? (
+            <Alert className="border-muted bg-muted/30">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                No data available to export. Import a file first.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Data Summary</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {rows.length} records from {fileName}
+                  </p>
+                </div>
+                <Badge variant="secondary">
+                  {availableColumns.length} columns
+                </Badge>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsExportDialogOpen(true)}
+                  className="flex-1 bg-orange-500 hover:bg-orange-600"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export ({rows.length} rows)
+                </Button>
+                <Button
+                  onClick={() => dispatch(clearRows())}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Data
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        rows={rows || []}
+        fileName={fileName}
+        columns={availableColumns}
+      />
+    </>
   );
 };
 
