@@ -117,16 +117,26 @@ export const exportRouter = router({
   /**
    * Export all data to a single Excel file with multiple sheets
    */
-  all: publicProcedure.mutation(async () => {
-    const buffer = await excelExport.exportAllDataToExcel();
+  all: publicProcedure
+    .input(z.record(z.string(), z.array(z.string())).optional())
+    .mutation(async ({ input }) => {
+      // Transform input simple array to ExportOptions object structure expected by service
+      const options: Record<string, { columns: string[] }> = {};
+      if (input) {
+        Object.entries(input).forEach(([key, columns]) => {
+          options[key] = { columns };
+        });
+      }
 
-    return {
-      data: buffer.toString("base64"),
-      filename: `azvirt_dms_export_${new Date().toISOString().split("T")[0]}.xlsx`,
-      mimeType:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    };
-  }),
+      const buffer = await excelExport.exportAllDataToExcel(options);
+
+      return {
+        data: buffer.toString("base64"),
+        filename: `azvirt_dms_export_${new Date().toISOString().split("T")[0]}.xlsx`,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+    }),
 
   /**
    * Export quality tests to Excel
