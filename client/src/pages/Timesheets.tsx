@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ImportDialog } from "@/components/ImportDialog";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export default function Timesheets() {
   const { user } = useAuth();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -205,6 +207,10 @@ export default function Timesheets() {
           <Button variant="outline" onClick={() => setExportOpen(true)}>
             <FileDown className="mr-2 h-4 w-4" />
             Izvezi u Excel
+          </Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Uvezi iz Excel-a
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -489,6 +495,12 @@ export default function Timesheets() {
         </Table>
       </Card>
 
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        importType="work_hours"
+        onImportComplete={() => refetch()}
+      />
       <ExportDialog
         open={exportOpen}
         onOpenChange={setExportOpen}
