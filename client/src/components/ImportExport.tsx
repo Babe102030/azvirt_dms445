@@ -1,4 +1,3 @@
-/azvirt_dms445/ceilnt / src / components / ImportExport.tsx;
 import React, { useCallback, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import Papa from "papaparse";
@@ -13,23 +12,51 @@ import {
   selectImportedFileName,
   selectImportedAt,
 } from "../store/importedRowsSlice";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Upload,
+  Download,
+  FileSpreadsheet,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Trash2,
+  CheckSquare,
+  Square,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /**
- * ImportExport.tsx
- *
- * - `ImportComponent` lets the user drop/click to import CSV / XLSX / XLS files.
- *   It uses PapaParse for CSV (chunked parsing) and xlsx for Excel files.
- *   Parsed rows are stored in Redux via the `setRows` / `appendRows` actions.
- *
- * - `ExportComponent` reads parsed rows from Redux and exports them as CSV or XLSX.
- *   Columns can be chosen via a native multi-select. Uses simple browser-driven download.
- *
- * Notes:
- * - This code assumes the project has `react-dropzone`, `papaparse`, `xlsx`, and redux setup.
- * - You can style the components to match your design system (Tailwind / Chakra / MUI).
+ * Helper utilities
  */
-
-/* -------------------------- Helper utilities --------------------------- */
 
 const isExcelMime = (file: File) =>
   file.type ===
@@ -41,7 +68,7 @@ const isCsv = (file: File) =>
   file.type === "text/csv" || file.name.toLowerCase().endsWith(".csv");
 
 /**
- * Export rows to CSV and trigger download.
+ * Export to CSV with proper escaping
  */
 function exportToCSV(rows: Row[], fileName = "export.csv", columns?: string[]) {
   if (!rows || rows.length === 0) return;
@@ -71,7 +98,7 @@ function exportToCSV(rows: Row[], fileName = "export.csv", columns?: string[]) {
 }
 
 /**
- * Export rows to Excel (.xlsx) via xlsx library.
+ * Export to Excel via xlsx
  */
 function exportToExcel(
   rows: Row[],
@@ -81,7 +108,6 @@ function exportToExcel(
   if (!rows || rows.length === 0) return;
   const keys =
     columns && columns.length > 0 ? columns : Object.keys(rows[0] || {});
-  // build array of objects filtered by columns (xlsx utils handles arrays of objects)
   const filtered = rows.map((r) => {
     const obj: Record<string, any> = {};
     keys.forEach((k) => {
@@ -104,11 +130,8 @@ function exportToExcel(
   URL.revokeObjectURL(url);
 }
 
-/* ------------------------- Import parsing logic ------------------------ */
-
 /**
- * Parse CSV using PapaParse in chunked mode so big files don't blow memory.
- * Dispatches `appendRows` for each chunk; onComplete nothing else needed.
+ * Parse CSV with PapaParse in chunked mode
  */
 function parseCsvWithPapa(
   file: File,
@@ -117,24 +140,20 @@ function parseCsvWithPapa(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let totalRows = 0;
-    let estimatedTotal = 0;
-    // Try to estimate from file size for a naive progress bar (optional)
-    estimatedTotal = file.size;
+    const estimatedTotal = file.size;
 
     Papa.parse(file, {
       header: true,
       dynamicTyping: false,
       worker: true,
       skipEmptyLines: true,
-      chunkSize: 1024 * 1024, // 1MB chunks
+      chunkSize: 1024 * 1024,
       chunk: (results, parser) => {
-        // results.data is an array of objects (rows)
         const data = results.data as Row[];
         totalRows += data.length;
         dispatchAppend(data);
         if (onProgress) {
-          // Use number of bytes parsed if available (not reliably exposed), fallback to row count
-          onProgress(Math.min(100, Math.round((totalRows / 10000) * 100))); // heuristic
+          onProgress(Math.min(100, Math.round((totalRows / 10000) * 100)));
         }
       },
       complete: () => {
@@ -149,7 +168,7 @@ function parseCsvWithPapa(
 }
 
 /**
- * Parse Excel (.xlsx/.xls) using xlsx lib. Reads first sheet.
+ * Parse Excel files
  */
 async function parseExcel(file: File): Promise<Row[]> {
   const buf = await file.arrayBuffer();
@@ -160,18 +179,8 @@ async function parseExcel(file: File): Promise<Row[]> {
   return json as Row[];
 }
 
-/* ------------------------ React components ---------------------------- */
-
 /**
- * ImportComponent
- *
- * Props: none
- *
- * Behavior:
- * - Accepts CSV/XLSX/XLS files via drop or click.
- * - Parses CSV in chunks (appending rows) and Excel in one go.
- * - Stores parsed rows in Redux slice.
- * - Shows simple progress and status messages.
+ * Import Component
  */
 export const ImportComponent: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -191,7 +200,6 @@ export const ImportComponent: React.FC = () => {
       setStatus("parsing");
 
       try {
-        // Clear previous rows first
         dispatch(clearRows());
 
         if (isCsv(file)) {
@@ -207,7 +215,6 @@ export const ImportComponent: React.FC = () => {
           dispatch(setRows({ rows, fileName: file.name }));
           setProgress(100);
         } else {
-          // Unknown extension: try csv first then excel fallback
           if (file.name.toLowerCase().endsWith(".txt")) {
             await parseCsvWithPapa(
               file,
@@ -215,13 +222,11 @@ export const ImportComponent: React.FC = () => {
               (p) => setProgress(p),
             );
           } else {
-            // Attempt excel parse first
             try {
               const rows = await parseExcel(file);
               dispatch(setRows({ rows, fileName: file.name }));
               setProgress(100);
             } catch (ex) {
-              // fallback to papa
               await parseCsvWithPapa(
                 file,
                 (r) => dispatch(appendRows(r)),
@@ -231,9 +236,11 @@ export const ImportComponent: React.FC = () => {
           }
         }
         setStatus("done");
+        toast.success(`Imported ${file.name} successfully`);
       } catch (ex: any) {
         setStatus("error");
         setError(ex?.message ?? String(ex));
+        toast.error(ex?.message ?? "Import failed");
       }
     },
     [dispatch],
@@ -252,203 +259,399 @@ export const ImportComponent: React.FC = () => {
   });
 
   return (
-    <div>
-      <div
-        {...getRootProps()}
-        role="button"
-        tabIndex={0}
-        aria-label="Import CSV or Excel file"
-        style={{
-          border: "2px dashed #888",
-          padding: 16,
-          borderRadius: 6,
-          textAlign: "center",
-          background: isDragActive ? "#fafafa" : "transparent",
-          cursor: "pointer",
-        }}
-      >
-        <input {...getInputProps()} />
-        <p>
-          {isDragActive
-            ? "Drop file here..."
-            : "Drop or click to upload CSV / XLSX / XLS"}
-        </p>
-        <small>Supports CSV (chunked parsing) and Excel files</small>
-      </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="h-5 w-5 text-orange-500" />
+          Import Data
+        </CardTitle>
+        <CardDescription>
+          Upload CSV, XLSX, or XLS files to import records
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div
+          {...getRootProps()}
+          role="button"
+          tabIndex={0}
+          aria-label="Import CSV or Excel file"
+          className={cn(
+            "border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer",
+            isDragActive
+              ? "border-orange-500 bg-orange-50 dark:bg-orange-950/20"
+              : "border-muted-foreground/25 hover:border-orange-500/50 hover:bg-muted/50",
+          )}
+        >
+          <input {...getInputProps()} />
+          <div className="flex flex-col items-center gap-3">
+            <FileSpreadsheet className="h-12 w-12 text-muted-foreground opacity-50" />
+            <div>
+              <p className="font-semibold">
+                {isDragActive
+                  ? "Drop file here..."
+                  : "Drag and drop your file, or click to browse"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Supports CSV, XLSX, XLS (up to 50MB)
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <div style={{ marginTop: 12 }}>
-        <strong>Status:</strong> {status}
         {status === "parsing" && (
-          <>
-            <div
-              aria-hidden
-              style={{
-                height: 8,
-                background: "#eee",
-                borderRadius: 4,
-                marginTop: 8,
-                overflow: "hidden",
-              }}
-            >
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">Importing...</Label>
+              <span className="text-xs text-muted-foreground">
+                {Math.min(100, progress)}%
+              </span>
+            </div>
+            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
               <div
-                style={{
-                  width: `${Math.min(100, progress)}%`,
-                  height: "100%",
-                  background: "#4f46e5",
-                }}
+                className="h-full bg-gradient-to-r from-orange-500 to-orange-600 transition-all duration-300"
+                style={{ width: `${Math.min(100, progress)}%` }}
               />
             </div>
-            <div style={{ marginTop: 6 }}>
-              Progress: {Math.min(100, progress)}%
-            </div>
-          </>
+          </div>
         )}
+
         {status === "done" && importedFileName && (
-          <div style={{ marginTop: 8 }}>
-            Imported: <strong>{importedFileName}</strong>
-          </div>
+          <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              Successfully imported <strong>{importedFileName}</strong>
+            </AlertDescription>
+          </Alert>
         )}
+
         {status === "error" && error && (
-          <div role="alert" style={{ color: "crimson", marginTop: 8 }}>
-            Error: {error}
-          </div>
+          <Alert className="border-red-200 bg-red-50 dark:bg-red-950/20">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertDescription className="text-red-800 dark:text-red-200">
+              {error}
+            </AlertDescription>
+          </Alert>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
 
 /**
- * ExportComponent
- *
- * - Reads rows from Redux.
- * - Lets user pick CSV or XLSX and select which columns to export.
- * - Exports selected columns in chosen format.
+ * Export Component with Dialog
  */
 export const ExportComponent: React.FC = () => {
   const rows = useAppSelector(selectImportedRows);
   const fileName = useAppSelector(selectImportedFileName);
-  const [format, setFormat] = useState<"csv" | "xlsx">("csv");
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const dispatch = useAppDispatch();
 
   const availableColumns = useMemo(() => {
     if (!rows || rows.length === 0) return [];
-    // Collect keys from first row (you may want to union across all rows)
     return Object.keys(rows[0]);
   }, [rows]);
 
-  // ensure selectedColumns defaults to all columns when rows change
-  React.useEffect(() => {
-    if (availableColumns.length > 0 && selectedColumns.length === 0) {
-      setSelectedColumns(availableColumns);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableColumns.join(",")]);
-
-  const handleExport = useCallback(() => {
-    if (!rows || rows.length === 0) return;
-    const outName =
-      (fileName ? fileName.replace(/\.[^.]+$/, "") : "exported") +
-      (format === "csv" ? ".csv" : ".xlsx");
-
-    if (format === "csv") {
-      exportToCSV(rows, outName, selectedColumns);
-    } else {
-      exportToExcel(rows, outName, selectedColumns);
-    }
-  }, [rows, format, selectedColumns, fileName]);
-
-  const toggleColumn = (col: string) => {
-    setSelectedColumns((prev) =>
-      prev.includes(col) ? prev.filter((c) => c !== col) : [...prev, col],
-    );
-  };
-
-  const handleClear = () => {
-    dispatch(clearRows());
-  };
-
   return (
-    <div style={{ marginTop: 16 }}>
-      <h4>Export</h4>
-      <div style={{ marginBottom: 8 }}>
-        <label>
-          <input
-            type="radio"
-            name="format"
-            value="csv"
-            checked={format === "csv"}
-            onChange={() => setFormat("csv")}
-          />{" "}
-          CSV
-        </label>{" "}
-        <label style={{ marginLeft: 12 }}>
-          <input
-            type="radio"
-            name="format"
-            value="xlsx"
-            checked={format === "xlsx"}
-            onChange={() => setFormat("xlsx")}
-          />{" "}
-          Excel (.xlsx)
-        </label>
-      </div>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-orange-500" />
+            Export Data
+          </CardTitle>
+          <CardDescription>
+            Choose columns and format to export your imported data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!rows || rows.length === 0 ? (
+            <Alert className="border-muted bg-muted/30">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                No data available to export. Import a file first.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label className="text-sm font-medium">Data Summary</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {rows.length} records from {fileName}
+                  </p>
+                </div>
+                <Badge variant="secondary">
+                  {availableColumns.length} columns
+                </Badge>
+              </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <label htmlFor="columns">Columns to export (use checkboxes)</label>
-        <div
-          id="columns"
-          style={{
-            border: "1px solid #eee",
-            padding: 8,
-            borderRadius: 6,
-            maxHeight: 160,
-            overflow: "auto",
-          }}
-        >
-          {availableColumns.length === 0 && <div>No columns available</div>}
-          {availableColumns.map((col) => (
-            <div key={col}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={selectedColumns.includes(col)}
-                  onChange={() => toggleColumn(col)}
-                  aria-label={`Include column ${col}`}
-                />{" "}
-                {col}
-              </label>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setIsExportDialogOpen(true)}
+                  className="bg-orange-500 hover:bg-orange-600"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export ({rows.length} rows)
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => dispatch(clearRows())}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Data
+                </Button>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+        </CardContent>
+      </Card>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={!rows || rows.length === 0}
-          aria-disabled={!rows || rows.length === 0}
-        >
-          Export ({rows ? rows.length : 0} rows)
-        </button>
-
-        <button
-          type="button"
-          onClick={handleClear}
-          disabled={!rows || rows.length === 0}
-        >
-          Clear imported
-        </button>
-      </div>
-    </div>
+      <ExportDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        rows={rows}
+        fileName={fileName}
+        columns={availableColumns}
+      />
+    </>
   );
 };
 
+/**
+ * Export Dialog Component
+ */
+interface ExportDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  rows: Row[];
+  fileName: string | null;
+  columns: string[];
+}
+
+const ExportDialog: React.FC<ExportDialogProps> = ({
+  isOpen,
+  onClose,
+  rows,
+  fileName,
+  columns,
+}) => {
+  const [format, setFormat] = useState<"csv" | "xlsx">("csv");
+  const [selectedColumns, setSelectedColumns] = useState<Set<string>>(
+    new Set(columns),
+  );
+  const [isExporting, setIsExporting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedColumns(new Set(columns));
+    }
+  }, [isOpen, columns]);
+
+  const handleExport = async () => {
+    if (selectedColumns.size === 0) return;
+
+    setIsExporting(true);
+    try {
+      const selectedCols = Array.from(selectedColumns);
+      const outName =
+        (fileName ? fileName.replace(/\.[^.]+$/, "") : "exported") +
+        (format === "csv" ? ".csv" : ".xlsx");
+
+      // Small delay to allow UI to update
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      if (format === "csv") {
+        exportToCSV(rows, outName, selectedCols);
+      } else {
+        exportToExcel(rows, outName, selectedCols);
+      }
+
+      toast.success(`Exported ${selectedCols.length} columns as ${format}`);
+      onClose();
+    } catch (error) {
+      toast.error("Export failed");
+      console.error("Export error:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const toggleColumn = (col: string) => {
+    const newSet = new Set(selectedColumns);
+    if (newSet.has(col)) {
+      newSet.delete(col);
+    } else {
+      newSet.add(col);
+    }
+    setSelectedColumns(newSet);
+  };
+
+  const selectAll = () => {
+    setSelectedColumns(new Set(columns));
+  };
+
+  const deselectAll = () => {
+    setSelectedColumns(new Set());
+  };
+
+  const allSelected = selectedColumns.size === columns.length;
+  const someSelected = selectedColumns.size > 0 && !allSelected;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-[550px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FileSpreadsheet className="h-5 w-5 text-orange-500" />
+            Export Settings
+          </DialogTitle>
+          <DialogDescription>
+            Choose which columns to include and select your preferred file
+            format
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Column Selection Controls */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Columns to Export</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAll}
+                  disabled={isExporting}
+                  className="h-8 text-xs"
+                >
+                  <CheckSquare className="h-3.5 w-3.5 mr-1" />
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={deselectAll}
+                  disabled={isExporting}
+                  className="h-8 text-xs"
+                >
+                  <Square className="h-3.5 w-3.5 mr-1" />
+                  Deselect All
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="h-[250px] border rounded-lg p-4 bg-muted/30">
+              <div className="space-y-2">
+                {columns.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No columns available
+                  </p>
+                ) : (
+                  columns.map((col) => (
+                    <div
+                      key={col}
+                      className="flex items-center space-x-3 p-2 rounded-md hover:bg-accent transition-colors"
+                    >
+                      <Checkbox
+                        id={`col-${col}`}
+                        checked={selectedColumns.has(col)}
+                        onCheckedChange={() => toggleColumn(col)}
+                        disabled={isExporting}
+                      />
+                      <Label
+                        htmlFor={`col-${col}`}
+                        className="text-sm font-medium cursor-pointer flex-1 select-none"
+                      >
+                        {col}
+                      </Label>
+                    </div>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* Preview Section */}
+          {selectedColumns.size > 0 && (
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Preview ({selectedColumns.size} selected)
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {Array.from(selectedColumns).map((col) => (
+                  <Badge
+                    key={col}
+                    variant="secondary"
+                    className="bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200"
+                  >
+                    {col}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Format Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="export-format" className="text-sm font-semibold">
+              File Format
+            </Label>
+            <Select
+              value={format}
+              onValueChange={(v) => setFormat(v as "csv" | "xlsx")}
+              disabled={isExporting}
+            >
+              <SelectTrigger id="export-format">
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="csv">CSV (.csv)</SelectItem>
+                <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isExporting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleExport}
+            disabled={selectedColumns.size === 0 || isExporting}
+            className="bg-orange-500 hover:bg-orange-600"
+          >
+            {isExporting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" />
+                Export ({selectedColumns.size})
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/**
+ * Main ImportExport Component
+ */
 export default function ImportExport() {
   return (
-    <div>
+    <div className="space-y-6 p-4 md:p-6">
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight">Import & Export</h2>
+        <p className="text-muted-foreground mt-1">
+          Manage your data with bulk import and export functionality
+        </p>
+      </div>
       <ImportComponent />
       <ExportComponent />
     </div>
