@@ -16,7 +16,12 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
-import { createWorkHour, createMaterial, createDocument } from "../db";
+import {
+  createWorkHour,
+  createMaterial,
+  createDocument,
+  createEmployee,
+} from "../db";
 
 /**
  * Helper to save base64 data to a temporary file
@@ -70,6 +75,16 @@ const DOCUMENTS_SCHEMA: ColumnSchema[] = [
   { name: "projectId", type: "number", required: false },
 ];
 
+// Schema for employees import
+const EMPLOYEES_SCHEMA: ColumnSchema[] = [
+  { name: "firstName", type: "string", required: true },
+  { name: "lastName", type: "string", required: true },
+  { name: "employeeNumber", type: "string", required: false },
+  { name: "jobTitle", type: "string", required: false },
+  { name: "department", type: "string", required: false },
+  { name: "hourlyRate", type: "number", required: false },
+];
+
 export const bulkImportRouter = router({
   /**
    * Upload and preview file
@@ -79,7 +94,12 @@ export const bulkImportRouter = router({
       z.object({
         fileData: z.string(),
         fileName: z.string(),
-        importType: z.enum(["work_hours", "materials", "documents"]),
+        importType: z.enum([
+          "work_hours",
+          "materials",
+          "documents",
+          "employees",
+        ]),
         sheetName: z.string().optional(),
       }),
     )
@@ -109,6 +129,9 @@ export const bulkImportRouter = router({
             break;
           case "documents":
             schema = DOCUMENTS_SCHEMA;
+            break;
+          case "employees":
+            schema = EMPLOYEES_SCHEMA;
             break;
         }
 
@@ -411,6 +434,92 @@ export const bulkImportRouter = router({
           total: rows.length,
           errors: errors.slice(0, 10),
           message: `Successfully imported ${successCount} document records`,
+        };
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Import failed",
+        });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      }
+    }),
+
+  /**
+   * Import employees from file
+   */
+  importEmployees: protectedProcedure
+    .input(
+      z.object({
+        fileData: z.string(),
+        fileName: z.string(),
+        sheetName: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      let tempPath = "";
+      try {
+        const { fileData, fileName, sheetName } = input;
+        tempPath = saveTempFile(fileData, fileName);
+
+        // Parse file
+        const parseResult = parseFile(tempPath, sheetName);
+        if (!parseResult.success) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: parseResult.error || "Failed to parse file",
+          });
+        }
+
+        const rows = parseResult.data!;
+        let successCount = 0;
+        const errors: Array<{ rowIndex: number; error: string }> = [];
+
+        // Process rows
+        await batchProcess(
+          rows,
+          async (row, index) => {
+            // Validate
+            const validation = validateRow(row, EMPLOYEES_SCHEMA);
+            if (!validation.valid) {
+              throw new Error(validation.errors.join("; "));
+            }
+
+            // Transform
+            const transformed = transformRow(row, EMPLOYEES_SCHEMA);
+
+            // Insert
+            await createEmployee({
+              firstName: transformed.firstName as string,
+              lastName: transformed.lastName as string,
+              employeeNumber: (transformed.employeeNumber as string) || null,
+              jobTitle: (transformed.jobTitle as string) || null,
+              department: (transformed.department as string) || null,
+              hourlyRate: (transformed.hourlyRate as number) || null,
+              active: true,
+            });
+
+            successCount++;
+            return { success: true };
+          },
+          {
+            batchSize: 50,
+            onError: (rowIndex, error) => {
+              errors.push({ rowIndex: rowIndex + 2, error });
+            },
+          },
+        );
+
+        return {
+          success: true,
+          imported: successCount,
+          failed: errors.length,
+          total: rows.length,
+          errors: errors.slice(0, 10),
+          message: `Successfully imported ${successCount} employee records`,
         };
       } catch (error) {
         if (error instanceof TRPCError) throw error;

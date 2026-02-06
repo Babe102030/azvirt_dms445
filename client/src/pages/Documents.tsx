@@ -23,9 +23,11 @@ import { trpc } from "@/lib/trpc";
 import { Upload, FileText, Search, Download, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { ImportDialog } from "@/components/ImportDialog";
 
 export default function Documents() {
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -105,59 +107,69 @@ export default function Documents() {
             <h1 className="text-3xl font-bold text-white">Documents</h1>
             <p className="text-white/70">Manage your construction documents</p>
           </div>
-          <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-            <DialogTrigger asChild>
-              <Button size="lg">
-                <Upload className="mr-2 h-5 w-5" />
-                Upload Document
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="bg-card/95 backdrop-blur">
-              <DialogHeader>
-                <DialogTitle>Upload New Document</DialogTitle>
-                <DialogDescription>
-                  Add a new document to the system
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleFileUpload} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Document Name</Label>
-                  <Input id="name" name="name" required />
-                </div>
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" rows={3} />
-                </div>
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Select name="category" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contract">Contract</SelectItem>
-                      <SelectItem value="blueprint">Blueprint</SelectItem>
-                      <SelectItem value="report">Report</SelectItem>
-                      <SelectItem value="certificate">Certificate</SelectItem>
-                      <SelectItem value="invoice">Invoice</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="file">File</Label>
-                  <Input id="file" type="file" ref={fileInputRef} required />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={uploadMutation.isPending}
-                >
-                  {uploadMutation.isPending ? "Uploading..." : "Upload"}
+          <div className="flex gap-3">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="mr-2 h-5 w-5" />
+              Import from Excel
+            </Button>
+            <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg">
+                  <Upload className="mr-2 h-5 w-5" />
+                  Upload Document
                 </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="bg-card/95 backdrop-blur">
+                <DialogHeader>
+                  <DialogTitle>Upload New Document</DialogTitle>
+                  <DialogDescription>
+                    Add a new document to the system
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleFileUpload} className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Document Name</Label>
+                    <Input id="name" name="name" required />
+                  </div>
+                  <div>
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea id="description" name="description" rows={3} />
+                  </div>
+                  <div>
+                    <Label htmlFor="category">Category</Label>
+                    <Select name="category" required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contract">Contract</SelectItem>
+                        <SelectItem value="blueprint">Blueprint</SelectItem>
+                        <SelectItem value="report">Report</SelectItem>
+                        <SelectItem value="certificate">Certificate</SelectItem>
+                        <SelectItem value="invoice">Invoice</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="file">File</Label>
+                    <Input id="file" type="file" ref={fileInputRef} required />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={uploadMutation.isPending}
+                  >
+                    {uploadMutation.isPending ? "Uploading..." : "Upload"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <Card className="bg-card/90 backdrop-blur border-primary/20">
@@ -259,6 +271,13 @@ export default function Documents() {
           </CardContent>
         </Card>
       </div>
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        importType="documents"
+        onImportComplete={() => refetch()}
+      />
     </DashboardLayout>
   );
 }
