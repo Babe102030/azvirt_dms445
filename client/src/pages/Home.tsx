@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,8 +10,30 @@ import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
 import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
 import DashboardFilters from "@/components/DashboardFilters";
 import {
-  FileText, Package, Truck, FlaskConical, Folder, TrendingUp,
-  AlertCircle, CheckCircle, Clock, Search, Filter, Download, Activity
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  FileText,
+  Package,
+  Truck,
+  FlaskConical,
+  Folder,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Search,
+  Filter,
+  Download,
+  Activity,
 } from "lucide-react";
 import { Link } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -24,11 +46,19 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
+  const [isExportAllOpen, setIsExportAllOpen] = useState(false);
+  const [exportSelections, setExportSelections] = useState<
+    Record<string, string[]>
+  >({});
 
   const exportAllMutation = trpc.export.all.useMutation({
     onSuccess: (data) => {
-      downloadExcelFile(data.data, generateExportFilename("azvirt_dms_all_data"));
+      downloadExcelFile(
+        data.data,
+        generateExportFilename("azvirt_dms_all_data"),
+      );
       toast.success("Svi podaci uspješno izvezeni");
+      setIsExportAllOpen(false);
     },
     onError: (error) => {
       toast.error(`Neuspjeli izvoz: ${error.message}`);
@@ -36,11 +66,69 @@ export default function Home() {
   });
 
   const handleExportAll = () => {
-    exportAllMutation.mutate();
+    exportAllMutation.mutate(exportSelections);
   };
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, {
-    enabled: !!user,
-  });
+
+  const exportableEntities = [
+    "materials",
+    "employees",
+    "projects",
+    "deliveries",
+    "timesheets",
+    "qualityTests",
+    "purchaseOrders",
+  ] as const;
+
+  const columnQueries = trpc.useQueries((t) =>
+    exportableEntities.map((entity) =>
+      t.export.getAvailableColumns(entity, {
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+      }),
+    ),
+  );
+
+  useEffect(() => {
+    const initialSelections: Record<string, string[]> = {};
+    let allLoaded = true;
+    columnQueries.forEach((query, index) => {
+      if (query.isLoading) {
+        allLoaded = false;
+      }
+      if (query.data) {
+        const entity = exportableEntities[index];
+        initialSelections[entity] = query.data.map((col) => col.key);
+      }
+    });
+    if (allLoaded) {
+      setExportSelections(initialSelections);
+    }
+  }, [columnQueries.every((q) => q.isSuccess)]);
+
+  const handleColumnToggle = (
+    entity: string,
+    columnKey: string,
+    checked: boolean,
+  ) => {
+    setExportSelections((prev) => {
+      const currentSelection = prev[entity] || [];
+      if (checked) {
+        return {
+          ...prev,
+          [entity]: [...currentSelection, columnKey],
+        };
+      } else {
+        return {
+          ...prev,
+          [entity]: currentSelection.filter((key) => key !== columnKey),
+        };
+      }
+    });
+  };
+  const { data: stats, isLoading: statsLoading } =
+    trpc.dashboard.stats.useQuery(undefined, {
+      enabled: !!user,
+    });
 
   if (loading) {
     return (
@@ -54,7 +142,7 @@ export default function Home() {
     return (
       <div
         className="min-h-screen flex flex-col items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(/azvirt-35years-bg.png)' }}
+        style={{ backgroundImage: "url(/azvirt-35years-bg.png)" }}
       >
         <div className="text-center max-w-2xl bg-black/40 backdrop-blur-sm p-12 rounded-2xl">
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 drop-shadow-2xl">
@@ -64,7 +152,10 @@ export default function Home() {
             {t("dashboard.welcome")}
           </p>
           <SignInButton mode="modal">
-            <Button size="lg" className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700">
+            <Button
+              size="lg"
+              className="text-lg px-8 py-6 bg-orange-600 hover:bg-orange-700"
+            >
               {t("auth.loginToContinue")}
             </Button>
           </SignInButton>
@@ -79,7 +170,9 @@ export default function Home() {
         {/* Enhanced Header with Search and Filters */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">{t("dashboard.title")}</h1>
+            <h1 className="text-3xl font-bold text-white mb-2">
+              {t("dashboard.title")}
+            </h1>
             <p className="text-white/70">{t("dashboard.welcome")}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -99,13 +192,9 @@ export default function Home() {
             >
               <Filter className="h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleExportAll}
-              disabled={exportAllMutation.isPending}
-            >
+            <Button variant="outline" onClick={() => setIsExportAllOpen(true)}>
               <Download className="h-4 w-4 mr-2" />
-              {exportAllMutation.isPending ? "Izvoz..." : "Izvezi sve podatke"}
+              Izvezi sve podatke
             </Button>
           </div>
         </div>
@@ -125,7 +214,10 @@ export default function Home() {
               <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold">Niska zaliha</h3>
-                <p className="text-sm">{stats?.lowStockMaterials} artikala ima nisku zalihu. Preporučuje se dopuna.</p>
+                <p className="text-sm">
+                  {stats?.lowStockMaterials} artikala ima nisku zalihu.
+                  Preporučuje se dopuna.
+                </p>
               </div>
             </div>
           )}
@@ -134,7 +226,10 @@ export default function Home() {
               <Clock className="h-5 w-5 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold">Zakazane isporuke</h3>
-                <p className="text-sm">Danas je zakazano {stats?.todayDeliveries} isporuke. Proverite status.</p>
+                <p className="text-sm">
+                  Danas je zakazano {stats?.todayDeliveries} isporuke. Proverite
+                  status.
+                </p>
               </div>
             </div>
           )}
@@ -145,11 +240,15 @@ export default function Home() {
           <Link href="/projects">
             <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("dashboard.activeProjects")}</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.activeProjects")}
+                </CardTitle>
                 <Folder className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.activeProjects ?? 0}</div>
+                <div className="text-2xl font-bold">
+                  {stats?.activeProjects ?? 0}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {stats?.totalProjects ?? 0} {t("dashboard.totalProjects")}
                 </p>
@@ -160,44 +259,72 @@ export default function Home() {
           <Link href="/documents">
             <Card className="bg-card/90 backdrop-blur border-primary/20 hover:border-primary/40 transition-all cursor-pointer hover:shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("dashboard.documents")}</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.documents")}
+                </CardTitle>
                 <FileText className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalDocuments ?? 0}</div>
-                <p className="text-xs text-muted-foreground">{t("dashboard.totalDocuments")}</p>
+                <div className="text-2xl font-bold">
+                  {stats?.totalDocuments ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.totalDocuments")}
+                </p>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/deliveries">
-            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${(stats?.todayDeliveries ?? 0) > 0
-              ? "border-yellow-500/20 hover:border-yellow-500/40"
-              : "border-primary/20 hover:border-primary/40"
-              }`}>
+            <Card
+              className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
+                (stats?.todayDeliveries ?? 0) > 0
+                  ? "border-yellow-500/20 hover:border-yellow-500/40"
+                  : "border-primary/20 hover:border-primary/40"
+              }`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("dashboard.todayDeliveries")}</CardTitle>
-                <Truck className={`h-4 w-4 ${(stats?.todayDeliveries ?? 0) > 0 ? "text-yellow-500" : "text-primary"}`} />
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.todayDeliveries")}
+                </CardTitle>
+                <Truck
+                  className={`h-4 w-4 ${(stats?.todayDeliveries ?? 0) > 0 ? "text-yellow-500" : "text-primary"}`}
+                />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.todayDeliveries ?? 0}</div>
-                <p className="text-xs text-muted-foreground">{t("dashboard.scheduledToday")}</p>
+                <div className="text-2xl font-bold">
+                  {stats?.todayDeliveries ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.scheduledToday")}
+                </p>
               </CardContent>
             </Card>
           </Link>
 
           <Link href="/materials">
-            <Card className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${(stats?.lowStockMaterials ?? 0) > 0
-              ? "border-red-500/20 hover:border-red-500/40"
-              : "border-primary/20 hover:border-primary/40"
-              }`}>
+            <Card
+              className={`bg-card/90 backdrop-blur transition-all cursor-pointer hover:shadow-lg ${
+                (stats?.lowStockMaterials ?? 0) > 0
+                  ? "border-red-500/20 hover:border-red-500/40"
+                  : "border-primary/20 hover:border-primary/40"
+              }`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{t("dashboard.lowStockItems")}</CardTitle>
-                <Package className={`h-4 w-4 ${(stats?.lowStockMaterials ?? 0) > 0 ? "text-red-500" : "text-primary"}`} />
+                <CardTitle className="text-sm font-medium">
+                  {t("dashboard.lowStockItems")}
+                </CardTitle>
+                <Package
+                  className={`h-4 w-4 ${(stats?.lowStockMaterials ?? 0) > 0 ? "text-red-500" : "text-primary"}`}
+                />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.lowStockMaterials ?? 0}</div>
-                <p className="text-xs text-muted-foreground">{t("dashboard.needsReplenishment")}</p>
+                <div className="text-2xl font-bold">
+                  {stats?.lowStockMaterials ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t("dashboard.needsReplenishment")}
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -207,31 +334,49 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">{t("dashboard.totalMaterials")}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {t("dashboard.totalMaterials")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalMaterials ?? 0}</div>
-              <p className="text-xs text-muted-foreground">{t("dashboard.inStock")}</p>
+              <div className="text-2xl font-bold">
+                {stats?.totalMaterials ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("dashboard.inStock")}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">{t("dashboard.pendingTests")}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {t("dashboard.pendingTests")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-500">{stats?.pendingTests ?? 0}</div>
-              <p className="text-xs text-muted-foreground">{t("dashboard.awaitingProcessing")}</p>
+              <div className="text-2xl font-bold text-yellow-500">
+                {stats?.pendingTests ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("dashboard.awaitingProcessing")}
+              </p>
             </CardContent>
           </Card>
 
           <Card className="bg-card/90 backdrop-blur border-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">{t("dashboard.totalDeliveries")}</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {t("dashboard.totalDeliveries")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalDeliveries ?? 0}</div>
-              <p className="text-xs text-muted-foreground">{t("dashboard.allDeliveries")}</p>
+              <div className="text-2xl font-bold">
+                {stats?.totalDeliveries ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t("dashboard.allDeliveries")}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -243,25 +388,41 @@ export default function Home() {
             </CardHeader>
             <CardContent className="grid gap-4">
               <Link href="/documents">
-                <Button variant="outline" className="w-full justify-start" size="lg">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                >
                   <FileText className="mr-2 h-5 w-5" />
                   {t("dashboard.uploadDocument")}
                 </Button>
               </Link>
               <Link href="/deliveries">
-                <Button variant="outline" className="w-full justify-start" size="lg">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                >
                   <Truck className="mr-2 h-5 w-5" />
                   {t("dashboard.scheduleDelivery")}
                 </Button>
               </Link>
               <Link href="/quality">
-                <Button variant="outline" className="w-full justify-start" size="lg">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                >
                   <FlaskConical className="mr-2 h-5 w-5" />
                   {t("dashboard.recordQualityTest")}
                 </Button>
               </Link>
               <Link href="/materials">
-                <Button variant="outline" className="w-full justify-start" size="lg">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  size="lg"
+                >
                   <Package className="mr-2 h-5 w-5" />
                   {t("dashboard.manageInventory")}
                 </Button>
@@ -276,11 +437,17 @@ export default function Home() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm">{t("dashboard.totalMaterials")}</span>
-                <span className="font-medium">{stats?.totalMaterials ?? 0}</span>
+                <span className="font-medium">
+                  {stats?.totalMaterials ?? 0}
+                </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">{t("dashboard.totalDeliveries")}</span>
-                <span className="font-medium">{stats?.totalDeliveries ?? 0}</span>
+                <span className="text-sm">
+                  {t("dashboard.totalDeliveries")}
+                </span>
+                <span className="font-medium">
+                  {stats?.totalDeliveries ?? 0}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">{t("dashboard.pendingTests")}</span>
@@ -288,7 +455,9 @@ export default function Home() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">{t("dashboard.activeProjects")}</span>
-                <span className="font-medium">{stats?.activeProjects ?? 0}</span>
+                <span className="font-medium">
+                  {stats?.activeProjects ?? 0}
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -300,6 +469,79 @@ export default function Home() {
           <MaterialConsumptionChart />
         </div>
       </div>
+
+      <Dialog open={isExportAllOpen} onOpenChange={setIsExportAllOpen}>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Export All Data</DialogTitle>
+            <DialogDescription>
+              Select columns for each data type to include in the Excel export.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-grow pr-6">
+            <div className="space-y-6">
+              {columnQueries.map((query, index) => {
+                const entity = exportableEntities[index];
+                if (query.isLoading) {
+                  return <div key={entity}>Loading {entity} columns...</div>;
+                }
+                if (query.error) {
+                  return (
+                    <div key={entity}>Error loading {entity} columns.</div>
+                  );
+                }
+                return (
+                  <div key={entity} className="space-y-2">
+                    <h3 className="font-semibold text-lg capitalize border-b pb-2">
+                      {entity.replace(/([A-Z])/g, " $1")}
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                      {query.data?.map((column) => (
+                        <div
+                          key={column.key}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`${entity}-${column.key}`}
+                            checked={exportSelections[entity]?.includes(
+                              column.key,
+                            )}
+                            onCheckedChange={(checked) =>
+                              handleColumnToggle(
+                                entity,
+                                column.key,
+                                checked as boolean,
+                              )
+                            }
+                          />
+                          <Label
+                            htmlFor={`${entity}-${column.key}`}
+                            className="text-sm font-normal"
+                          >
+                            {column.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportAllOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExportAll}
+              disabled={exportAllMutation.isPending}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {exportAllMutation.isPending ? "Exporting..." : "Export All Data"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
