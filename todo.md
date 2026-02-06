@@ -1051,16 +1051,16 @@
 - [x] Implement Excel export for deliveries with customizable columns
 - [x] Add customizable column selection for exports
 - [x] Add styling and formatting to Excel sheets (colored headers, filters, widths)
-- [ ] Build import progress tracking and status reporting
-- [ ] Create tRPC procedures for import operations
+- [x] Build import progress tracking and status reporting
+- [x] Create tRPC procedures for import operations
 - [x] Create tRPC procedures for export operations (6 procedures)
-- [ ] Build import UI component with file upload
-- [ ] Build export UI component with column selector
-- [ ] Add data preview before import
+- [x] Build import UI component with file upload
+- [x] Build export UI component with column selector
+- [x] Add data preview before import
 - [x] Implement duplicate detection and conflict resolution
 - [ ] Write vitest tests for CSV import
 - [ ] Write vitest tests for Excel export
-- [ ] Test end-to-end import/export workflows
+- [x] Test end-to-end import/export workflows
 
 
 ## Export UI Component (NEW)
