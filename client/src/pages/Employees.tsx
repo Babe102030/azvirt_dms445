@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ImportDialog } from "@/components/ImportDialog";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { UserPlus, Trash2, Edit, Users, FileDown } from "lucide-react";
+import { UserPlus, Trash2, Edit, Users, FileDown, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
 import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
@@ -34,6 +35,7 @@ import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 export default function Employees() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
 
   const {
@@ -127,6 +129,10 @@ export default function Employees() {
           <Button variant="outline" onClick={() => setExportOpen(true)}>
             <FileDown className="mr-2 h-4 w-4" />
             Izvezi u Excel
+          </Button>
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Uvezi iz Excel-a
           </Button>
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
@@ -340,6 +346,13 @@ export default function Employees() {
         columns={exportColumns}
         onExport={handleExport}
         isExporting={exportMutation.isPending}
+      />
+
+      <ImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        importType="employees"
+        onImportComplete={() => refetch()}
       />
     </div>
   );
