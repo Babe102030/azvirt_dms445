@@ -1131,27 +1131,27 @@
 
 
 ## Shift Management & Timesheet Approval (NEW)
-- [ ] Create shift_templates table (name, start_time, end_time, duration)
-- [ ] Create employee_shifts table (employee_id, shift_id, date, status)
-- [ ] Create shift_swaps table (from_employee, to_employee, date, status)
-- [ ] Create timesheet_approvals table (timesheet_id, approver_id, status, comments)
-- [ ] Build backend procedures for shift CRUD operations
-- [ ] Build backend procedures for shift assignment and swap management
-- [ ] Build backend procedures for timesheet approval workflow
-- [ ] Create Shift Management page with shift template creation
-- [ ] Add shift assignment interface for assigning employees to shifts
-- [ ] Add shift swap request and approval interface
-- [ ] Create Timesheet Approval page for managers
-- [ ] Add timesheet review, approval, and rejection functionality
-- [ ] Add overtime calculation based on shift assignments
-- [ ] Test shift management and timesheet approval workflow
+- [x] Create shift_templates table (name, start_time, end_time, duration)
+- [x] Create employee_shifts table (employee_id, shift_id, date, status)
+- [x] Create shift_swaps table (from_employee, to_employee, date, status)
+- [x] Create timesheet_approvals table (timesheet_id, approver_id, status, comments)
+- [x] Build backend procedures for shift CRUD operations
+- [x] Build backend procedures for shift assignment and swap management
+- [x] Build backend procedures for timesheet approval workflow
+- [x] Create Shift Management page with shift template creation
+- [x] Add shift assignment interface for assigning employees to shifts
+- [x] Add shift swap request and approval interface
+- [x] Create Timesheet Approval page for managers
+- [x] Add timesheet review, approval, and rejection functionality
+- [x] Add overtime calculation based on shift assignments
+- [x] Test shift management and timesheet approval workflow
 
 
 ## Shift Assignment UI with Calendar (NEW)
-- [ ] Create shift templates (Morning 7-19, Daily 7-17)
-- [ ] Build backend API for employee shift assignments
-- [ ] Create Shift Assignment page with calendar view
+- [x] Create shift templates (Morning 7-19, Daily 7-17)
+- [x] Build backend API for employee shift assignments
+- [x] Create Shift Assignment page with calendar view
 - [ ] Add drag-and-drop employee assignment to shifts
-- [ ] Implement shift conflict detection
-- [ ] Add shift swap request functionality
-- [ ] Test shift assignment workflow
+- [x] Implement shift conflict detection
+- [x] Add shift swap request functionality
+- [x] Test shift assignment workflow

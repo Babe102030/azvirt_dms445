@@ -2164,6 +2164,38 @@ export async function updateShift(
   id: number,
   updates: Partial<typeof schema.shifts.$inferInsert>,
 ) {
+  const [existing] = await db
+    .select()
+    .from(schema.shifts)
+    .where(eq(schema.shifts.id, id));
+
+  if (
+    existing &&
+    updates.status === "completed" &&
+    existing.startTime &&
+    updates.endTime
+  ) {
+    const start = new Date(existing.startTime);
+    const end = new Date(updates.endTime);
+    const diffMs = end.getTime() - start.getTime();
+    const hoursWorked = diffMs / (1000 * 60 * 60);
+
+    if (hoursWorked > 8) {
+      const overtimeHours = hoursWorked - 8;
+      // If we had a separate workHours table with overtime columns, we would update it here.
+      // Since we are using the shifts table, we can add overtime information to notes if needed,
+      // or ensure compliance logs are updated.
+      await logComplianceAudit({
+        employeeId: existing.employeeId,
+        action: "overtime_detected",
+        entityType: "shift",
+        entityId: id,
+        newValue: `Overtime: ${overtimeHours.toFixed(2)} hours`,
+        performedBy: existing.employeeId,
+      });
+    }
+  }
+
   await db
     .update(schema.shifts)
     .set({ ...updates, updatedAt: new Date() })
@@ -2198,11 +2230,48 @@ export async function createShiftTemplate(
 }
 
 export async function getShiftTemplates() {
-  return await db
+  const templates = await db
     .select()
     .from(schema.shiftTemplates)
     .where(eq(schema.shiftTemplates.isActive, true))
     .orderBy(schema.shiftTemplates.name);
+
+  if (templates.length === 0) {
+    // Seed default templates if none exist
+    const defaults = [
+      {
+        name: "Morning Shift (7-19)",
+        startTime: "07:00",
+        endTime: "19:00",
+        durationHours: 12.0,
+        color: "#FF6C0E",
+      },
+      {
+        name: "Daily Shift (7-17)",
+        startTime: "07:00",
+        endTime: "17:00",
+        durationHours: 10.0,
+        color: "#FFA500",
+      },
+    ];
+
+    for (const template of defaults) {
+      await db.insert(schema.shiftTemplates).values({
+        ...template,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
+    return await db
+      .select()
+      .from(schema.shiftTemplates)
+      .where(eq(schema.shiftTemplates.isActive, true))
+      .orderBy(schema.shiftTemplates.name);
+  }
+
+  return templates;
 }
 
 export async function setEmployeeAvailability(
