@@ -20,8 +20,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { trpc } from "@/lib/trpc";
-import { FlaskConical, Plus, Smartphone } from "lucide-react";
+import { FlaskConical, Plus, Smartphone, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 import { Textarea } from "@/components/ui/textarea";
 import { MobileQCForm } from "@/components/MobileQCForm";
 import { QCTrendsDashboard } from "@/components/QCTrendsDashboard";
@@ -30,6 +32,7 @@ import { ComplianceCertificate } from "@/components/ComplianceCertificate";
 export default function QualityControl() {
   const [createOpen, setCreateOpen] = useState(false);
   const [mobileFormOpen, setMobileFormOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { data: tests, isLoading, refetch } = trpc.qualityTests.list.useQuery();
 
@@ -43,6 +46,32 @@ export default function QualityControl() {
       toast.error(`Failed to record test: ${error.message}`);
     },
   });
+
+  const exportMutation = trpc.export.qualityTests.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("quality_tests"));
+      toast.success("Testovi kvaliteta uspješno izvezeni");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Neuspjeli izvoz: ${error.message}`);
+    },
+  });
+
+  const exportColumns: ExportColumn[] = [
+    { key: "id", label: "ID", enabled: true },
+    { key: "testName", label: "Naziv testa", enabled: true },
+    { key: "testType", label: "Tip testa", enabled: true },
+    { key: "result", label: "Rezultat", enabled: true },
+    { key: "unit", label: "Jedinica", enabled: true },
+    { key: "status", label: "Status", enabled: true },
+    { key: "testedBy", label: "Testirao", enabled: true },
+    { key: "createdAt", label: "Datum", enabled: false },
+  ];
+
+  const handleExport = async (selectedColumns: string[]) => {
+    await exportMutation.mutateAsync({ columns: selectedColumns });
+  };
 
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,6 +108,14 @@ export default function QualityControl() {
             <p className="text-white/70">Manage quality tests and results</p>
           </div>
           <div className="flex gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={() => setExportOpen(true)}
+            >
+              <FileDown className="mr-2 h-5 w-5" />
+              Izvezi u Excel
+            </Button>
             <Dialog open={mobileFormOpen} onOpenChange={setMobileFormOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -250,6 +287,16 @@ export default function QualityControl() {
           </CardContent>
         </Card>
       </div>
+
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Izvezi testove kvaliteta"
+        description="Izaberite kolone koje želite uključiti u Excel izvoz"
+        columns={exportColumns}
+        onExport={handleExport}
+        isExporting={exportMutation.isPending}
+      />
     </DashboardLayout>
   );
 }

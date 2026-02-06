@@ -29,11 +29,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Send, CheckCircle, XCircle, Clock, Package } from "lucide-react";
+import { Plus, Send, CheckCircle, XCircle, Clock, Package, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
+import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
 
 export default function PurchaseOrders() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | null>(
     null,
   );
@@ -74,6 +77,17 @@ export default function PurchaseOrders() {
       } else {
         toast.error(data.message || "Failed to send email");
       }
+    },
+  });
+
+  const exportMutation = trpc.export.purchaseOrders.useMutation({
+    onSuccess: (data) => {
+      downloadExcelFile(data.data, generateExportFilename("purchase_orders"));
+      toast.success("Purchase orders exported successfully");
+      setExportOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Export failed: ${error.message}`);
     },
   });
 
@@ -153,6 +167,11 @@ export default function PurchaseOrders() {
               Manage material orders and supplier communications
             </p>
           </div>
+          <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setExportOpen(true)}>
+            <FileDown className="mr-2 h-4 w-4" />
+            Export to Excel
+          </Button>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -424,6 +443,26 @@ export default function PurchaseOrders() {
           </CardContent>
         </Card>
       </div>
+      <ExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        title="Export Purchase Orders"
+        description="Select columns to include in the Excel export"
+        columns={[
+          { key: "id", label: "PO #", enabled: true },
+          { key: "materialName", label: "Material", enabled: true },
+          { key: "quantity", label: "Quantity", enabled: true },
+          { key: "supplier", label: "Supplier", enabled: true },
+          { key: "orderDate", label: "Order Date", enabled: true },
+          { key: "expectedDelivery", label: "Expected Delivery", enabled: false },
+          { key: "status", label: "Status", enabled: true },
+          { key: "totalCost", label: "Total Cost", enabled: false },
+        ]}
+        onExport={async (selectedColumns) => {
+          await exportMutation.mutateAsync({ columns: selectedColumns });
+        }}
+        isExporting={exportMutation.isPending}
+      />
     </DashboardLayout>
-  );
-}
+    );
+    }
