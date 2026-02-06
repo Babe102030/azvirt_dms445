@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import * as excelExport from "../services/excelExport";
+import * as pdfExport from "../services/pdfExport"; // Import the new PDF export service
 
 export const exportRouter = router({
   /**
@@ -27,6 +28,28 @@ export const exportRouter = router({
     }),
 
   /**
+   * Export materials to PDF
+   */
+  materialsPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportMaterialsToPdf({
+        columns: input.columns,
+      });
+
+      // Convert buffer to base64 for transmission
+      return {
+        data: buffer.toString("base64"),
+        filename: `materials_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
+      };
+    }),
+
+  /**
    * Export employees to Excel
    */
   employees: publicProcedure
@@ -45,6 +68,27 @@ export const exportRouter = router({
         filename: `employees_${new Date().toISOString().split("T")[0]}.xlsx`,
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+    }),
+
+  /**
+   * Export employees to PDF
+   */
+  employeesPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportEmployeesToPdf({
+        columns: input.columns,
+      });
+
+      return {
+        data: buffer.toString("base64"),
+        filename: `employees_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
       };
     }),
 
@@ -71,6 +115,27 @@ export const exportRouter = router({
     }),
 
   /**
+   * Export projects to PDF
+   */
+  projectsPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportProjectsToPdf({
+        columns: input.columns,
+      });
+
+      return {
+        data: buffer.toString("base64"),
+        filename: `projects_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
+      };
+    }),
+
+  /**
    * Export deliveries to Excel
    */
   deliveries: publicProcedure
@@ -89,6 +154,27 @@ export const exportRouter = router({
         filename: `deliveries_${new Date().toISOString().split("T")[0]}.xlsx`,
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+    }),
+
+  /**
+   * Export deliveries to PDF
+   */
+  deliveriesPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportDeliveriesToPdf({
+        columns: input.columns,
+      });
+
+      return {
+        data: buffer.toString("base64"),
+        filename: `deliveries_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
       };
     }),
 
@@ -115,6 +201,27 @@ export const exportRouter = router({
     }),
 
   /**
+   * Export timesheets to PDF
+   */
+  timesheetsPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportTimesheetsToPdf({
+        columns: input.columns,
+      });
+
+      return {
+        data: buffer.toString("base64"),
+        filename: `timesheets_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
+      };
+    }),
+
+  /**
    * Export all data to a single Excel file with multiple sheets
    */
   all: publicProcedure
@@ -132,7 +239,9 @@ export const exportRouter = router({
 
       return {
         data: buffer.toString("base64"),
-        filename: `azvirt_dms_export_${new Date().toISOString().split("T")[0]}.xlsx`,
+        filename: `azvirt_dms_export_${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`,
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       };
@@ -153,9 +262,31 @@ export const exportRouter = router({
       });
       return {
         data: buffer.toString("base64"),
-        filename: `quality_tests_${new Date().toISOString().split("T")[0]}.xlsx`,
+        filename: `quality_tests_${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`,
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+    }),
+
+  /**
+   * Export quality tests to PDF
+   */
+  qualityTestsPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportQualityTestsToPdf({
+        columns: input.columns,
+      });
+      return {
+        data: buffer.toString("base64"),
+        filename: `quality_tests_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
       };
     }),
 
@@ -174,9 +305,31 @@ export const exportRouter = router({
       });
       return {
         data: buffer.toString("base64"),
-        filename: `purchase_orders_${new Date().toISOString().split("T")[0]}.xlsx`,
+        filename: `purchase_orders_${
+          new Date().toISOString().split("T")[0]
+        }.xlsx`,
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      };
+    }),
+
+  /**
+   * Export purchase orders to PDF
+   */
+  purchaseOrdersPdf: publicProcedure
+    .input(
+      z.object({
+        columns: z.array(z.string()).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const buffer = await pdfExport.exportPurchaseOrdersToPdf({
+        columns: input.columns,
+      });
+      return {
+        data: buffer.toString("base64"),
+        filename: `purchase_orders_${new Date().toISOString().split("T")[0]}.pdf`,
+        mimeType: "application/pdf",
       };
     }),
 
@@ -272,14 +425,14 @@ export const exportRouter = router({
           { key: "createdAt", label: "Date" },
         ],
         purchaseOrders: [
-          { key: "id", header: "PO #" },
-          { key: "materialName", header: "Material" },
-          { key: "quantity", header: "Quantity" },
-          { key: "supplier", header: "Supplier" },
-          { key: "orderDate", header: "Order Date" },
-          { key: "expectedDelivery", header: "Expected Delivery" },
-          { key: "status", header: "Status" },
-          { key: "totalCost", header: "Total Cost" },
+          { key: "id", label: "PO #" },
+          { key: "materialName", label: "Material" },
+          { key: "quantity", label: "Quantity" },
+          { key: "supplier", label: "Supplier" },
+          { key: "orderDate", label: "Order Date" },
+          { key: "expectedDelivery", label: "Expected Delivery" },
+          { key: "status", label: "Status" },
+          { key: "totalCost", label: "Total Cost" },
         ],
       };
 
