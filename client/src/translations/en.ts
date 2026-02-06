@@ -235,6 +235,31 @@ export const en = {
     itemsNeedingAttention: "Items needing attention",
   },
 
+  // Shift Management
+  shiftManagement: {
+    title: "Shift Management",
+    description: "Manage employee shifts, templates, and schedules",
+    assignShift: "Assign Shift",
+    createTemplate: "Create Template",
+    shiftTemplates: "Shift Templates",
+    employeeAvailability: "Employee Availability",
+    shiftSwaps: "Shift Swaps",
+    startTime: "Start Time",
+    endTime: "End Time",
+    duration: "Duration",
+    color: "Color",
+    isActive: "Active",
+    shiftDate: "Shift Date",
+    noShifts: "No shifts scheduled",
+    conflictDetected: "Shift conflict detected",
+    swapRequested: "Swap Requested",
+    approveSwap: "Approve Swap",
+    rejectSwap: "Reject Swap",
+    breakStartTime: "Break Start",
+    breakEndTime: "Break End",
+    complianceAudit: "Compliance Audit",
+  },
+
   // Common
   common: {
     loading: "Loading...",

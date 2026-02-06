@@ -30,7 +30,8 @@ export const bs = {
   // Auth
   auth: {
     loginToContinue: "Prijavite se za nastavak",
-    loginDescription: "Pristup kontrolnoj tabli zahtijeva autentifikaciju. Nastavite za pokretanje prijave.",
+    loginDescription:
+      "Pristup kontrolnoj tabli zahtijeva autentifikaciju. Nastavite za pokretanje prijave.",
     login: "Prijavi se",
   },
 
@@ -79,7 +80,8 @@ export const bs = {
     supplier: "Dobavljač",
     unitPrice: "Cijena po jedinici",
     loading: "Učitavanje...",
-    noMaterials: "Nisu pronađeni materijali. Dodajte svoj prvi materijal za početak.",
+    noMaterials:
+      "Nisu pronađeni materijali. Dodajte svoj prvi materijal za početak.",
     lowStock: "Niske zalihe",
     critical: "Kritično",
     stock: "Zaliha",
@@ -91,9 +93,11 @@ export const bs = {
     title: "Podešavanja",
     manage: "Upravljajte svojim preferencijama obavještenja",
     smsNotifications: "SMS obavještenja",
-    receiveAlerts: "Primajte kritična upozorenja o zalihama putem SMS-a kada materijali padnu ispod kritičnih pragova",
+    receiveAlerts:
+      "Primajte kritična upozorenja o zalihama putem SMS-a kada materijali padnu ispod kritičnih pragova",
     phoneNumber: "Broj telefona",
-    enterPhoneFormat: "Unesite svoj broj telefona u međunarodnom formatu (npr. +1234567890)",
+    enterPhoneFormat:
+      "Unesite svoj broj telefona u međunarodnom formatu (npr. +1234567890)",
     enableSMS: "Omogući SMS upozorenja",
     willReceive: "Primaćete SMS obavještenja za kritične nivoe zaliha",
     saveSettings: "Sačuvaj podešavanja",
@@ -101,15 +105,19 @@ export const bs = {
     criticalThreshold: "Kritični prag zaliha",
     howWorks: "Kako SMS upozorenja funkcioniraju",
     alertLevels: "Nivoi upozorenja",
-    lowStockLabel: "Niske zalihe: Količina materijala pada ispod minimalnog nivoa zaliha",
-    criticalStockLabel: "Kritične zalihe: Količina materijala pada ispod kritičnog praga (aktivira SMS)",
+    lowStockLabel:
+      "Niske zalihe: Količina materijala pada ispod minimalnog nivoa zaliha",
+    criticalStockLabel:
+      "Kritične zalihe: Količina materijala pada ispod kritičnog praga (aktivira SMS)",
     settingThresholds: "Podešavanje kritičnih pragova",
-    goToMaterials: "Idite na stranicu Materijali i postavite \"Kritični prag\" za svaki materijal. Kada zalihe padnu ispod ovog nivoa, SMS upozorenja će biti poslana svim menedžerima sa omogućenim SMS obavještenjima.",
+    goToMaterials:
+      'Idite na stranicu Materijali i postavite "Kritični prag" za svaki materijal. Kada zalihe padnu ispod ovog nivoa, SMS upozorenja će biti poslana svim menedžerima sa omogućenim SMS obavještenjima.',
     requirements: "Zahtjevi",
     mustBeAdmin: "Morate biti admin korisnik da biste primali SMS upozorenja",
     phoneValid: "Broj telefona mora biti validan i u međunarodnom formatu",
     smsEnabled: "SMS obavještenja moraju biti omogućena u ovim podešavanjima",
-    materialThreshold: "Materijal mora imati postavljenu vrijednost kritičnog praga",
+    materialThreshold:
+      "Materijal mora imati postavljenu vrijednost kritičnog praga",
     successMessage: "SMS podešavanja uspješno ažurirana",
     errorMessage: "Neuspjelo ažuriranje SMS podešavanja",
     enterPhoneRequired: "Molimo unesite broj telefona",
@@ -227,6 +235,31 @@ export const bs = {
     manager: "Menadžer",
     approver: "Odobravač",
     itemsNeedingAttention: "Stavke koje trebaju pažnju",
+  },
+
+  // Shift Management
+  shiftManagement: {
+    title: "Upravljanje smjenama",
+    description: "Upravljajte smjenama zaposlenika, šablonima i rasporedima",
+    assignShift: "Dodijeli smjenu",
+    createTemplate: "Kreiraj šablon",
+    shiftTemplates: "Šabloni smjena",
+    employeeAvailability: "Dostupnost zaposlenika",
+    shiftSwaps: "Zamjene smjena",
+    startTime: "Vrijeme početka",
+    endTime: "Vrijeme završetka",
+    duration: "Trajanje",
+    color: "Boja",
+    isActive: "Aktivno",
+    shiftDate: "Datum smjene",
+    noShifts: "Nema zakazanih smjena",
+    conflictDetected: "Detektovan konflikt smjena",
+    swapRequested: "Zahtjev za zamjenu poslan",
+    approveSwap: "Odobri zamjenu",
+    rejectSwap: "Odbij zamjenu",
+    breakStartTime: "Početak pauze",
+    breakEndTime: "Kraj pauze",
+    complianceAudit: "Revizija usklađenosti",
   },
 
   // Common
