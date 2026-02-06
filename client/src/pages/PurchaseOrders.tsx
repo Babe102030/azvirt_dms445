@@ -219,8 +219,7 @@ export default function PurchaseOrders() {
                           key={material.id}
                           value={material.id.toString()}
                         >
-                          {material.name} ({material.quantity} {material.unit}{" "}
-                          in stock)
+                          {`${material.name} (${material.quantity} ${material.unit} in stock)`}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -465,4 +464,4 @@ export default function PurchaseOrders() {
       />
     </DashboardLayout>
     );
-    }
+  }
