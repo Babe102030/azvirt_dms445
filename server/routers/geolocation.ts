@@ -105,14 +105,14 @@ export const geolocationRouter = router({
       }
 
       // Check if within geofence
-      const jobSiteLat = parseFloat(jobSite.latitude as any);
-      const jobSiteLon = parseFloat(jobSite.longitude as any);
+      const jobSiteLat = parseFloat((jobSite as any).latitude);
+      const jobSiteLon = parseFloat((jobSite as any).longitude);
       const isWithinGeofence = isWithinCircularGeofence(
         input.latitude,
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius,
+        (jobSite as any).geofenceRadius,
       );
 
       const distanceFromGeofence = distanceToGeofence(
@@ -120,7 +120,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius,
+        (jobSite as any).geofenceRadius,
       );
 
       // Log location
@@ -231,14 +231,14 @@ export const geolocationRouter = router({
       }
 
       // Check if within geofence
-      const jobSiteLat = parseFloat(jobSite.latitude as any);
-      const jobSiteLon = parseFloat(jobSite.longitude as any);
+      const jobSiteLat = parseFloat((jobSite as any).latitude);
+      const jobSiteLon = parseFloat((jobSite as any).longitude);
       const isWithinGeofence = isWithinCircularGeofence(
         input.latitude,
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius,
+        (jobSite as any).geofenceRadius,
       );
 
       const distanceFromGeofence = distanceToGeofence(
@@ -246,7 +246,7 @@ export const geolocationRouter = router({
         input.longitude,
         jobSiteLat,
         jobSiteLon,
-        jobSite.geofenceRadius,
+        (jobSite as any).geofenceRadius,
       );
 
       // Log location
