@@ -12,16 +12,31 @@ import {
   transformRow,
   batchProcess,
   ColumnSchema,
-  ParsedRow,
 } from "../_core/fileParser";
 import * as fs from "fs";
 import * as path from "path";
-import {
-  createWorkHour,
-  createMaterial,
-  createDocument,
-  getProjectById,
-} from "../db";
+import * as os from "os";
+import { createWorkHour, createMaterial, createDocument } from "../db";
+
+/**
+ * Helper to save base64 data to a temporary file
+ */
+function saveTempFile(fileData: string, fileName: string): string {
+  const tempDir = os.tmpdir();
+  const fileExt = path.extname(fileName);
+  const tempPath = path.join(
+    tempDir,
+    `import_${Date.now()}_${Math.random().toString(36).substring(7)}${fileExt}`,
+  );
+
+  // Remove data URL prefix if present (e.g. "data:text/csv;base64,")
+  const base64Data = fileData.includes(";base64,")
+    ? fileData.split(";base64,")[1]
+    : fileData;
+
+  fs.writeFileSync(tempPath, Buffer.from(base64Data, "base64"));
+  return tempPath;
+}
 
 // Schema for work hours import
 const WORK_HOURS_SCHEMA: ColumnSchema[] = [
@@ -62,25 +77,20 @@ export const bulkImportRouter = router({
   previewFile: protectedProcedure
     .input(
       z.object({
-        filePath: z.string(),
+        fileData: z.string(),
+        fileName: z.string(),
         importType: z.enum(["work_hours", "materials", "documents"]),
         sheetName: z.string().optional(),
       }),
     )
     .mutation(async ({ input }) => {
+      let tempPath = "";
       try {
-        const { filePath, importType, sheetName } = input;
-
-        // Validate file exists
-        if (!fs.existsSync(filePath)) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "File not found",
-          });
-        }
+        const { fileData, fileName, importType, sheetName } = input;
+        tempPath = saveTempFile(fileData, fileName);
 
         // Parse file
-        const parseResult = parseFile(filePath, sheetName);
+        const parseResult = parseFile(tempPath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -112,7 +122,7 @@ export const bulkImportRouter = router({
 
         return {
           success: true,
-          fileName: path.basename(filePath),
+          fileName: fileName,
           totalRows: parseResult.rowCount,
           columns: parseResult.columns,
           preview: preview.slice(0, 3),
@@ -125,6 +135,10 @@ export const bulkImportRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Preview failed",
         });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
       }
     }),
 
@@ -134,16 +148,19 @@ export const bulkImportRouter = router({
   importWorkHours: protectedProcedure
     .input(
       z.object({
-        filePath: z.string(),
+        fileData: z.string(),
+        fileName: z.string(),
         sheetName: z.string().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      let tempPath = "";
       try {
-        const { filePath, sheetName } = input;
+        const { fileData, fileName, sheetName } = input;
+        tempPath = saveTempFile(fileData, fileName);
 
         // Parse file
-        const parseResult = parseFile(filePath, sheetName);
+        const parseResult = parseFile(tempPath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -205,6 +222,10 @@ export const bulkImportRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Import failed",
         });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
       }
     }),
 
@@ -214,16 +235,19 @@ export const bulkImportRouter = router({
   importMaterials: protectedProcedure
     .input(
       z.object({
-        filePath: z.string(),
+        fileData: z.string(),
+        fileName: z.string(),
         sheetName: z.string().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      let tempPath = "";
       try {
-        const { filePath, sheetName } = input;
+        const { fileData, fileName, sheetName } = input;
+        tempPath = saveTempFile(fileData, fileName);
 
         // Parse file
-        const parseResult = parseFile(filePath, sheetName);
+        const parseResult = parseFile(tempPath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -298,6 +322,10 @@ export const bulkImportRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Import failed",
         });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
       }
     }),
 
@@ -307,16 +335,19 @@ export const bulkImportRouter = router({
   importDocuments: protectedProcedure
     .input(
       z.object({
-        filePath: z.string(),
+        fileData: z.string(),
+        fileName: z.string(),
         sheetName: z.string().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      let tempPath = "";
       try {
-        const { filePath, sheetName } = input;
+        const { fileData, fileName, sheetName } = input;
+        tempPath = saveTempFile(fileData, fileName);
 
         // Parse file
-        const parseResult = parseFile(filePath, sheetName);
+        const parseResult = parseFile(tempPath, sheetName);
         if (!parseResult.success) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -387,6 +418,10 @@ export const bulkImportRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Import failed",
         });
+      } finally {
+        if (tempPath && fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
       }
     }),
 });
