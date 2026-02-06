@@ -83,10 +83,8 @@ export default function Documents() {
 
       uploadMutation.mutate({
         name: formData.get("name") as string,
-        description: formData.get("description") as string,
         fileData: base64,
         mimeType: file.type,
-        fileSize: file.size,
         category: formData.get("category") as any,
       });
     };

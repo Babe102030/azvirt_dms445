@@ -11,20 +11,20 @@
  * Note: This file assumes @reduxjs/toolkit and react-redux are installed in the project.
  */
 
-import { configureStore } from '@reduxjs/toolkit';
-import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
-import importedRowsReducer from './importedRowsSlice';
+import { configureStore } from "@reduxjs/toolkit";
+import { useDispatch, useSelector, TypedUseSelectorHook } from "react-redux";
+import importedRowsReducer from "./importedRowsSlice";
 
 export const store = configureStore({
   reducer: {
     importedRows: importedRowsReducer,
   },
   // Keep default middleware but disable strict serializable check if you plan to store non-serializable items
-  middleware: (getDefaultMiddleware) =>
+  middleware: (getDefaultMiddleware: any) =>
     getDefaultMiddleware({
       serializableCheck: false,
     }),
-  devTools: process.env.NODE_ENV !== 'production',
+  devTools: process.env.NODE_ENV !== "production",
 });
 
 /**

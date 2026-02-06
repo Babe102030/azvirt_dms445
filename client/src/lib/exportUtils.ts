@@ -109,3 +109,57 @@ export async function exportData<T>({
     }, 0);
   });
 }
+
+/**
+ * Convert a base64-encoded string to an ArrayBuffer
+ */
+export function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString =
+    typeof window !== "undefined" && typeof window.atob === "function"
+      ? window.atob(base64)
+      : // Fallback for non-browser environments (Node)
+        Buffer.from(base64, "base64").toString("binary");
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+/**
+ * Download a file from base64 data
+ */
+export function downloadFileFromBase64(
+  base64Data: string,
+  filename: string,
+  mimeType: string = "application/octet-stream",
+) {
+  const buffer = base64ToArrayBuffer(base64Data);
+  const blob = new Blob([buffer], { type: mimeType });
+  triggerDownload(blob, filename);
+}
+
+/**
+ * Convenience helper to download Excel files (assumes .xlsx)
+ */
+export function downloadExcelFile(base64Data: string, filename: string) {
+  const finalFilename = filename.endsWith(".xlsx")
+    ? filename
+    : `${filename}.xlsx`;
+  downloadFileFromBase64(
+    base64Data,
+    finalFilename,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+}
+
+/**
+ * Convenience helper to download PDF files (assumes .pdf)
+ */
+export function downloadPdfFile(base64Data: string, filename: string) {
+  const finalFilename = filename.endsWith(".pdf")
+    ? filename
+    : `${filename}.pdf`;
+  downloadFileFromBase64(base64Data, finalFilename, "application/pdf");
+}

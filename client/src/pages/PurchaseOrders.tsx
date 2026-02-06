@@ -78,7 +78,7 @@ export default function PurchaseOrders() {
   });
 
   const sendToSupplier = trpc.purchaseOrders.sendToSupplier.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data.success) {
         toast.success("Purchase order sent to supplier");
         refetch();
@@ -89,12 +89,12 @@ export default function PurchaseOrders() {
   });
 
   const exportMutation = trpc.export.purchaseOrders.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       downloadExcelFile(data.data, generateExportFilename("purchase_orders"));
       toast.success("Purchase orders exported successfully");
       setExportOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Export failed: ${error.message}`);
     },
   });
@@ -370,7 +370,7 @@ export default function PurchaseOrders() {
                       </tr>
                     </thead>
                     <tbody>
-                      {purchaseOrders.map((po) => (
+                      {purchaseOrders.map((po: any) => (
                         <tr key={po.id} className="border-b hover:bg-muted/50">
                           <td className="p-3 font-mono text-sm">#{po.id}</td>
                           <td className="p-3 font-medium">{po.materialName}</td>
