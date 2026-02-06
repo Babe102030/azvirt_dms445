@@ -18,6 +18,7 @@ export const en = {
     machines: "Machines",
     timesheets: "Timesheets",
     timesheetApproval: "Timesheet Approvals",
+    shiftManagement: "Shift Management",
     reports: "Reports",
     reportSettings: "Report Settings",
     emailBranding: "Email Branding",

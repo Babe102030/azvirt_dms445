@@ -18,6 +18,7 @@ export const bs = {
     machines: "Mašine",
     timesheets: "Evidencija rada",
     timesheetApproval: "Odobravanje vremenskih listova",
+    shiftManagement: "Upravljanje smjenama",
     reports: "Izvještaji",
     reportSettings: "Postavke izvještaja",
     emailBranding: "Email branding",
