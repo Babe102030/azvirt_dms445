@@ -85,7 +85,7 @@ export default function PurchaseOrders() {
   const { data: suppliers, refetch: refetchSuppliers } =
     trpc.suppliers.list.useQuery();
   const { data: templates, refetch: refetchTemplates } =
-    trpc.notificationTemplates.list.useQuery();
+    trpc.notificationTemplates.listTemplates.useQuery();
   const [location] = useLocation();
 
   useEffect(() => {
@@ -174,16 +174,25 @@ export default function PurchaseOrders() {
     },
   });
 
-  const upsertTemplate = trpc.notificationTemplates.upsert.useMutation({
+  const createTemplate = trpc.notificationTemplates.createTemplate.useMutation({
     onSuccess: () => {
-      toast.success("Template saved successfully");
+      toast.success("Template created successfully");
       setIsTemplateEditorOpen(false);
       setEditingTemplate(null);
       refetchTemplates();
     },
   });
 
-  const deleteTemplate = trpc.notificationTemplates.delete.useMutation({
+  const updateTemplate = trpc.notificationTemplates.updateTemplate.useMutation({
+    onSuccess: () => {
+      toast.success("Template updated successfully");
+      setIsTemplateEditorOpen(false);
+      setEditingTemplate(null);
+      refetchTemplates();
+    },
+  });
+
+  const deleteTemplate = trpc.notificationTemplates.deleteTemplate.useMutation({
     onSuccess: () => {
       toast.success("Template deleted");
       refetchTemplates();
@@ -814,11 +823,18 @@ export default function PurchaseOrders() {
               <TemplateEditor
                 initialData={editingTemplate}
                 onSave={(data) => {
-                  upsertTemplate.mutate({
-                    id: editingTemplate?.id,
-                    ...data,
-                    type: "purchase_order",
-                  });
+                  if (editingTemplate?.id) {
+                    updateTemplate.mutate({
+                      id: editingTemplate.id,
+                      ...data,
+                      channels: data.channels.join(","),
+                    });
+                  } else {
+                    createTemplate.mutate({
+                      ...data,
+                      channels: data.channels as any,
+                    });
+                  }
                 }}
                 onCancel={() => {
                   setIsTemplateEditorOpen(false);
@@ -842,53 +858,51 @@ export default function PurchaseOrders() {
                 <CardContent>
                   {templates && templates.length > 0 ? (
                     <div className="grid gap-4">
-                      {templates
-                        .filter((t: any) => t.type === "purchase_order")
-                        .map((template: any) => (
-                          <div
-                            key={template.id}
-                            className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm"
-                          >
-                            <div className="flex items-center gap-4">
-                              <div className="bg-blue-500/10 p-3 rounded-full">
-                                <Mail className="h-6 w-6 text-blue-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-bold">{template.name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {template.subject}
-                                </p>
-                              </div>
+                      {templates.map((template: any) => (
+                        <div
+                          key={template.id}
+                          className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="bg-blue-500/10 p-3 rounded-full">
+                              <Mail className="h-6 w-6 text-blue-600" />
                             </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingTemplate(template);
-                                  setIsTemplateEditorOpen(true);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                  if (
-                                    confirm(
-                                      "Are you sure you want to delete this template?",
-                                    )
-                                  ) {
-                                    deleteTemplate.mutate({ id: template.id });
-                                  }
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                            <div>
+                              <h4 className="font-bold">{template.name}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {template.subject}
+                              </p>
                             </div>
                           </div>
-                        ))}
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingTemplate(template);
+                                setIsTemplateEditorOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    "Are you sure you want to delete this template?",
+                                  )
+                                ) {
+                                  deleteTemplate.mutate({ id: template.id });
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
