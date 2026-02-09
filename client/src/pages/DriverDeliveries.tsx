@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
+import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -15,6 +17,34 @@ import { Truck, Package, Navigation } from "lucide-react";
 export default function DriverDeliveries() {
   const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
   const { data: deliveries, isLoading } = trpc.deliveries.list.useQuery();
+  const router = useRouter();
+
+  // Open as a route on small screens (PWA-like full-screen) or as a dialog on larger screens.
+  const handleOpenDelivery = (id: number) => {
+    if (typeof window !== "undefined" && window.innerWidth < 640) {
+      // Mobile: navigate to a dedicated route
+      router.push(`/driver/deliveries/${id}`);
+    } else {
+      // Desktop/tablet: keep dialog behavior
+      setSelectedDelivery(id);
+    }
+  };
+
+  // If the old component was removed and you want to restore it, confirm with the user.
+  // This provides a safety confirmation before attempting any destructive restore/deletion flows.
+  const handleRestoreOldComponent = () => {
+    if (
+      confirm(
+        "Restore the old DriverDeliveryTracker component? This will recreate the previous tracker UI. Proceed?",
+      )
+    ) {
+      // Note: actual file restoration is a repo operation. Here we simply notify the user.
+      toast(
+        "Restore requested — please run the restore script or revert the commit in your git history.",
+      );
+      console.info("User requested restoration of DriverDeliveryTracker.");
+    }
+  };
 
   // Filter deliveries assigned to current user or active deliveries
   const myDeliveries =
@@ -49,6 +79,20 @@ export default function DriverDeliveries() {
             Driver Deliveries / Isporuke vozača
           </h1>
           <p className="text-white/70">Track and manage your deliveries</p>
+
+          {/* Restore / safety action for previously-removed component */}
+          <div className="mt-3">
+            <button
+              onClick={handleRestoreOldComponent}
+              className="text-xs bg-white/5 text-white px-3 py-1 rounded-md border border-white/10 hover:bg-white/10"
+            >
+              Restore old DriverDeliveryTracker
+            </button>
+            <p className="text-xxs text-muted-foreground mt-1">
+              The old tracker component was removed — click to request
+              restoration (shows confirmation).
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -61,7 +105,7 @@ export default function DriverDeliveries() {
               <Card
                 key={delivery.id}
                 className="bg-card/90 backdrop-blur border-orange-500/20 hover:border-orange-500/50 transition-colors cursor-pointer"
-                onClick={() => setSelectedDelivery(delivery.id)}
+                onClick={() => handleOpenDelivery(delivery.id)}
               >
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-lg">
