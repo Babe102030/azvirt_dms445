@@ -31,6 +31,8 @@ import {
   ShoppingCart,
   Calendar,
   RefreshCw,
+  Calculator,
+  GitCompare,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -326,7 +328,13 @@ export default function ForecastingDashboard() {
         <Tabs defaultValue="overview" className="w-full space-y-6">
           <div className="flex items-center justify-between border-b pb-1">
             <TabsList className="bg-transparent h-12 p-0 gap-8">
-              {["overview", "details", "consumption"].map((tab) => (
+              {[
+                "overview",
+                "details",
+                "consumption",
+                "scenarios",
+                "comparison",
+              ].map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
@@ -336,7 +344,11 @@ export default function ForecastingDashboard() {
                     ? "Command Center"
                     : tab === "details"
                       ? "Forecast Models"
-                      : "Usage Analytics"}
+                      : tab === "consumption"
+                        ? "Usage Analytics"
+                        : tab === "scenarios"
+                          ? "What-If Analysis"
+                          : "Multi-Asset Compare"}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -357,6 +369,111 @@ export default function ForecastingDashboard() {
             value="overview"
             className="animate-in fade-in duration-500 delay-150"
           >
+            {/* Reorder Recommendations Card */}
+            {forecasts?.some((f) => f.recommendedOrderQuantity > 0) && (
+              <Card className="border-none shadow-xl bg-gradient-to-br from-primary/5 via-primary/0 to-transparent mb-6 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                <CardHeader className="pb-2 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-primary/10 rounded-xl shadow-inner">
+                      <ShoppingCart className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl font-black tracking-tight">
+                        Smart Reorder Recommendations
+                      </CardTitle>
+                      <CardDescription className="font-medium text-primary/60">
+                        AI-optimized purchasing suggestions based on consumption
+                        velocity
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="relative z-10">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    {forecasts
+                      ?.filter((f) => f.recommendedOrderQuantity > 0)
+                      .sort((a, b) => {
+                        // Sort by urgency first
+                        const urgencyOrder = {
+                          critical: 0,
+                          high: 1,
+                          medium: 2,
+                          low: 3,
+                        };
+                        const urgencyA =
+                          urgencyOrder[
+                            (a.urgency || "low") as keyof typeof urgencyOrder
+                          ] ?? 4;
+                        const urgencyB =
+                          urgencyOrder[
+                            (b.urgency || "low") as keyof typeof urgencyOrder
+                          ] ?? 4;
+                        if (urgencyA !== urgencyB) return urgencyA - urgencyB;
+                        // Then by stockout days
+                        return (
+                          (a.daysUntilStockout ?? 999) -
+                          (b.daysUntilStockout ?? 999)
+                        );
+                      })
+                      .slice(0, 6)
+                      .map((item) => (
+                        <div
+                          key={item.materialId}
+                          className="bg-background/80 backdrop-blur-sm border border-border/50 p-4 rounded-xl hover:shadow-md transition-all cursor-pointer group"
+                          onClick={() => handleMaterialClick(item.materialId)}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h4 className="font-bold text-sm truncate max-w-[150px] group-hover:text-primary transition-colors">
+                                {item.materialName}
+                              </h4>
+                              <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                                {item.daysUntilStockout !== null
+                                  ? `${item.daysUntilStockout} Days Left`
+                                  : "Stable"}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={
+                                item.urgency === "critical"
+                                  ? "destructive"
+                                  : "outline"
+                              }
+                              className="scale-90"
+                            >
+                              {item.urgency}
+                            </Badge>
+                          </div>
+                          <div className="flex items-end justify-between mt-3">
+                            <div className="flex flex-col">
+                              <span className="text-[9px] uppercase font-bold text-muted-foreground">
+                                Suggested Order
+                              </span>
+                              <span className="text-xl font-black text-primary leading-none">
+                                {Math.ceil(
+                                  item.recommendedOrderQuantity,
+                                ).toLocaleString()}
+                                <span className="text-[10px] ml-1 text-muted-foreground font-bold">
+                                  {item.unit}
+                                </span>
+                              </span>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-7 text-xs rounded-full px-3"
+                              variant="secondary"
+                            >
+                              Review
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className="border-none shadow-lg overflow-hidden">
               <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
