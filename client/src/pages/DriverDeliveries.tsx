@@ -1,38 +1,53 @@
-import { useState } from 'react';
-import DashboardLayout from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { DriverDeliveryTracker } from '@/components/DriverDeliveryTracker';
-import { trpc } from '@/lib/trpc';
-import { Truck, Package, Navigation } from 'lucide-react';
+import { useState } from "react";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import DriverDeliveryView from "@/components/DriverDeliveryView";
+import { trpc } from "@/lib/trpc";
+import { Truck, Package, Navigation } from "lucide-react";
 
 export default function DriverDeliveries() {
   const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
   const { data: deliveries, isLoading } = trpc.deliveries.list.useQuery();
 
   // Filter deliveries assigned to current user or active deliveries
-  const myDeliveries = deliveries?.filter(d => 
-    ['scheduled', 'loaded', 'en_route', 'arrived', 'delivered', 'returning'].includes(d.status)
-  ) || [];
+  const myDeliveries =
+    deliveries?.filter((d) =>
+      [
+        "scheduled",
+        "loaded",
+        "en_route",
+        "arrived",
+        "delivered",
+        "returning",
+      ].includes(d.status),
+    ) || [];
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      scheduled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-      loaded: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      en_route: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      arrived: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      delivered: 'bg-green-500/20 text-green-400 border-green-500/30',
-      returning: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      scheduled: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+      loaded: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+      en_route: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+      arrived: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+      delivered: "bg-green-500/20 text-green-400 border-green-500/30",
+      returning: "bg-orange-500/20 text-orange-400 border-orange-500/30",
     };
-    return colors[status] || 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    return colors[status] || "bg-gray-500/20 text-gray-400 border-gray-500/30";
   };
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Driver Deliveries / Isporuke vozača</h1>
+          <h1 className="text-3xl font-bold text-white">
+            Driver Deliveries / Isporuke vozača
+          </h1>
           <p className="text-white/70">Track and manage your deliveries</p>
         </div>
 
@@ -56,30 +71,44 @@ export default function DriverDeliveries() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="text-sm text-muted-foreground">Projekat / Project</p>
-                    <p className="font-medium text-white">{delivery.projectName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Projekat / Project
+                    </p>
+                    <p className="font-medium text-white">
+                      {delivery.projectName}
+                    </p>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <p className="text-xs text-muted-foreground">Tip / Type</p>
-                      <p className="text-sm text-white">{delivery.concreteType}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Tip / Type
+                      </p>
+                      <p className="text-sm text-white">
+                        {delivery.concreteType}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Količina / Volume</p>
+                      <p className="text-xs text-muted-foreground">
+                        Količina / Volume
+                      </p>
                       <p className="text-sm text-white">{delivery.volume} m³</p>
                     </div>
                   </div>
 
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Status</p>
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium border ${getStatusColor(delivery.status)}`}>
-                      {delivery.status.replace('_', ' ').toUpperCase()}
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-xs font-medium border ${getStatusColor(delivery.status)}`}
+                    >
+                      {delivery.status.replace("_", " ").toUpperCase()}
                     </span>
                   </div>
 
                   <div>
-                    <p className="text-xs text-muted-foreground">Zakazano / Scheduled</p>
+                    <p className="text-xs text-muted-foreground">
+                      Zakazano / Scheduled
+                    </p>
                     <p className="text-sm text-white">
                       {new Date(delivery.scheduledTime).toLocaleString()}
                     </p>
@@ -106,15 +135,18 @@ export default function DriverDeliveries() {
       </div>
 
       {/* Delivery Tracker Dialog */}
-      <Dialog open={selectedDelivery !== null} onOpenChange={(open) => !open && setSelectedDelivery(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur">
+      <Dialog
+        open={selectedDelivery !== null}
+        onOpenChange={(open) => !open && setSelectedDelivery(null)}
+      >
+        <DialogContent className="w-full max-w-none h-[96vh] md:max-w-4xl md:max-h-[90vh] overflow-y-auto bg-card/95 backdrop-blur rounded-none md:rounded-lg">
           <DialogHeader>
             <DialogTitle>Praćenje isporuke / Delivery Tracking</DialogTitle>
           </DialogHeader>
           {selectedDelivery && (
-            <DriverDeliveryTracker
+            <DriverDeliveryView
               deliveryId={selectedDelivery}
-              onComplete={() => setSelectedDelivery(null)}
+              onClose={() => setSelectedDelivery(null)}
             />
           )}
         </DialogContent>
