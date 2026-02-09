@@ -39,6 +39,11 @@ import {
   Clock,
   Package,
   FileDown,
+  Users,
+  Mail,
+  Truck,
+  Phone,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
@@ -154,6 +159,13 @@ export default function PurchaseOrders() {
     },
   });
 
+  const deleteSupplier = trpc.suppliers.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Supplier deleted successfully");
+      refetchSuppliers();
+    },
+  });
+
   const exportMutation = trpc.export.purchaseOrders.useMutation({
     onSuccess: (data: any) => {
       downloadExcelFile(data.data, generateExportFilename("purchase_orders"));
@@ -200,6 +212,14 @@ export default function PurchaseOrders() {
     });
   };
 
+  const handleCreateSupplier = () => {
+    if (!supplierFormData.name) {
+      toast.error("Supplier name is required");
+      return;
+    }
+    createSupplier.mutate(supplierFormData);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
@@ -230,98 +250,565 @@ export default function PurchaseOrders() {
     }
   };
 
+  return (
+    <DashboardLayout>
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">
+              Purchase Order Management
+            </h1>
+            <p className="text-muted-foreground">
+              Streamline procurement, manage suppliers, and track deliveries.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
+              <FileDown className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+              <DialogTrigger asChild>
+                <Button className="shadow-md">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Order
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create Purchase Order</DialogTitle>
+                  <DialogDescription>
+                    Generate a new purchase order for material restocking
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="material">Material *</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        const materialId = parseInt(value);
+                        setSelectedMaterialId(materialId);
+                        const material = materials?.find(
+                          (m) => m.id === materialId,
+                        );
+                        const forecast = forecasts?.find(
+                          (f) => f.materialId === materialId,
+                        ) as any;
+                        if (material) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier: material.supplier || "",
+                            supplierEmail: material.supplierEmail || "",
+                            quantity:
+                              forecast?.recommendedOrderQty?.toString() || "",
+                          }));
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select material" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {materials?.map((material) => (
+                          <SelectItem
+                            key={material.id}
+                            value={material.id.toString()}
+                          >
+                            {`${material.name} (${material.quantity} ${material.unit} in stock)`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                        <th className="text-center p-3">Status</th>
-                        <th className="text-center p-3">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {purchaseOrders.map((po: any) => (
-                        <tr key={po.id} className="border-b hover:bg-muted/50">
-                          <td className="p-3 font-mono text-sm">#{po.id}</td>
-                          <td className="p-3 font-medium">{po.materialName}</td>
-                          <td className="text-right p-3">{po.quantity}</td>
-                          <td className="p-3">
-                            {(po as any).supplier || "N/A"}
-                          </td>
-                          <td className="p-3">
-                            {new Date(po.orderDate).toLocaleDateString()}
-                          </td>
-                          <td className="p-3">
-                            {po.expectedDelivery
-                              ? new Date(
-                                  po.expectedDelivery,
-                                ).toLocaleDateString()
-                              : "TBD"}
-                          </td>
-                          <td className="text-center p-3">
-                            <Badge
-                              variant={getStatusVariant(po.status)}
-                              className="flex items-center gap-1 w-fit mx-auto"
-                            >
-                              {getStatusIcon(po.status)}
-                              {po.status}
-                            </Badge>
-                          </td>
-                          <td className="text-center p-3">
-                            <div className="flex gap-2 justify-center">
-                              {po.status === "pending" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    updatePO.mutate({
-                                      id: po.id,
-                                      status: "approved",
-                                    })
-                                  }
-                                >
-                                  Approve
-                                </Button>
-                              )}
-                              {po.status === "approved" && po.supplierEmail && (
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    sendToSupplier.mutate({ orderId: po.id })
-                                  }
-                                  disabled={sendToSupplier.isPending}
-                                >
-                                  <Send className="mr-1 h-3 w-3" />
-                                  Send to Supplier
-                                </Button>
-                              )}
-                              {po.status === "ordered" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    updatePO.mutate({
-                                      id: po.id,
-                                      status: "received",
-                                      actualDelivery: new Date(),
-                                    })
-                                  }
-                                >
-                                  Mark Received
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="quantity">Quantity *</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        value={formData.quantity}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            quantity: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter quantity"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="totalCost">Total Cost (optional)</Label>
+                      <Input
+                        id="totalCost"
+                        type="number"
+                        value={formData.totalCost}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            totalCost: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter cost"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplier">Supplier</Label>
+                      <Input
+                        id="supplier"
+                        value={formData.supplier}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplier: e.target.value,
+                          }))
+                        }
+                        placeholder="Supplier name"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="supplierEmail">Supplier Email</Label>
+                      <Input
+                        id="supplierEmail"
+                        type="email"
+                        value={formData.supplierEmail}
+                        onChange={(e) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            supplierEmail: e.target.value,
+                          }))
+                        }
+                        placeholder="supplier@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="expectedDelivery">Expected Delivery</Label>
+                    <Input
+                      id="expectedDelivery"
+                      type="date"
+                      value={formData.expectedDelivery}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          expectedDelivery: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">Notes</Label>
+                    <Textarea
+                      id="notes"
+                      value={formData.notes}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          notes: e.target.value,
+                        }))
+                      }
+                      placeholder="Additional notes or requirements"
+                      rows={3}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No purchase orders yet. Create one to get started.</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreate} disabled={createPO.isPending}>
+                    Create Purchase Order
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        <Tabs defaultValue="orders" className="w-full space-y-6">
+          <TabsList className="bg-background border">
+            <TabsTrigger value="orders" className="gap-2">
+              <Package className="h-4 w-4" /> Orders
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="gap-2">
+              <Users className="h-4 w-4" /> Suppliers
+            </TabsTrigger>
+            <TabsTrigger value="receiving" className="gap-2">
+              <Truck className="h-4 w-4" /> Receiving
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-2">
+              <Mail className="h-4 w-4" /> Templates
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orders">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Purchase Orders</CardTitle>
+                <CardDescription>
+                  Track and manage material orders
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {purchaseOrders && purchaseOrders.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-xs uppercase text-muted-foreground">
+                          <th className="text-left p-3 font-medium">PO #</th>
+                          <th className="text-left p-3 font-medium">
+                            Material
+                          </th>
+                          <th className="text-right p-3 font-medium">
+                            Quantity
+                          </th>
+                          <th className="text-left p-3 font-medium">
+                            Supplier
+                          </th>
+                          <th className="text-left p-3 font-medium">
+                            Order Date
+                          </th>
+                          <th className="text-left p-3 font-medium">
+                            Expected Delivery
+                          </th>
+                          <th className="text-center p-3 font-medium">
+                            Status
+                          </th>
+                          <th className="text-center p-3 font-medium">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {purchaseOrders.map((po: any) => (
+                          <tr
+                            key={po.id}
+                            className="border-b hover:bg-muted/50 transition-colors"
+                          >
+                            <td className="p-3 font-mono text-sm">#{po.id}</td>
+                            <td className="p-3 font-medium">
+                              {po.materialName}
+                            </td>
+                            <td className="text-right p-3">{po.quantity}</td>
+                            <td className="p-3">
+                              {(po as any).supplier || "N/A"}
+                            </td>
+                            <td className="p-3">
+                              {new Date(po.orderDate).toLocaleDateString()}
+                            </td>
+                            <td className="p-3">
+                              {po.expectedDelivery
+                                ? new Date(
+                                    po.expectedDelivery,
+                                  ).toLocaleDateString()
+                                : "TBD"}
+                            </td>
+                            <td className="text-center p-3">
+                              <Badge
+                                variant={getStatusVariant(po.status)}
+                                className="flex items-center gap-1 w-fit mx-auto"
+                              >
+                                {getStatusIcon(po.status)}
+                                {po.status}
+                              </Badge>
+                            </td>
+                            <td className="text-center p-3">
+                              <div className="flex gap-2 justify-center">
+                                {po.status === "pending" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      updatePO.mutate({
+                                        id: po.id,
+                                        status: "approved",
+                                      })
+                                    }
+                                  >
+                                    Approve
+                                  </Button>
+                                )}
+                                {po.status === "approved" &&
+                                  po.supplierEmail && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() =>
+                                        sendToSupplier.mutate({
+                                          orderId: po.id,
+                                        })
+                                      }
+                                      disabled={sendToSupplier.isPending}
+                                    >
+                                      <Send className="mr-1 h-3 w-3" />
+                                      Send
+                                    </Button>
+                                  )}
+                                {po.status === "ordered" && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                      updatePO.mutate({
+                                        id: po.id,
+                                        status: "received",
+                                        actualDelivery: new Date(),
+                                      })
+                                    }
+                                  >
+                                    Receive
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                    <Package className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p className="font-medium">No purchase orders found</p>
+                    <p className="text-sm mt-1">
+                      Create a new order to get started.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="suppliers">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Supplier Directory</CardTitle>
+                  <CardDescription>
+                    Manage external vendors and contact information
+                  </CardDescription>
+                </div>
+                <Dialog
+                  open={isCreateSupplierOpen}
+                  onOpenChange={setIsCreateSupplierOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button variant="outline">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Supplier
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add New Supplier</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label>Company Name *</Label>
+                        <Input
+                          value={supplierFormData.name}
+                          onChange={(e) =>
+                            setSupplierFormData((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }))
+                          }
+                          placeholder="Acme Corp"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Contact Person</Label>
+                        <Input
+                          value={supplierFormData.contactPerson}
+                          onChange={(e) =>
+                            setSupplierFormData((prev) => ({
+                              ...prev,
+                              contactPerson: e.target.value,
+                            }))
+                          }
+                          placeholder="John Doe"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Email</Label>
+                        <Input
+                          value={supplierFormData.email}
+                          onChange={(e) =>
+                            setSupplierFormData((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
+                          placeholder="contact@acme.com"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Phone</Label>
+                        <Input
+                          value={supplierFormData.phone}
+                          onChange={(e) =>
+                            setSupplierFormData((prev) => ({
+                              ...prev,
+                              phone: e.target.value,
+                            }))
+                          }
+                          placeholder="+1 234 567 890"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button onClick={handleCreateSupplier}>
+                        Add Supplier
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                {suppliers && suppliers.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {suppliers.map((supplier) => (
+                      <Card key={supplier.id} className="overflow-hidden">
+                        <CardHeader className="bg-muted/30 pb-3">
+                          <div className="flex justify-between items-start">
+                            <CardTitle className="text-lg">
+                              {supplier.name}
+                            </CardTitle>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                if (
+                                  confirm(
+                                    "Are you sure you want to delete this supplier?",
+                                  )
+                                ) {
+                                  deleteSupplier.mutate({ id: supplier.id });
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Users className="h-4 w-4" />
+                            <span>
+                              {supplier.contactPerson || "No contact person"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="h-4 w-4" />
+                            <span>{supplier.email || "No email"}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-4 w-4" />
+                            <span>{supplier.phone || "No phone"}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>No suppliers found</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="receiving">
+            <Card>
+              <CardHeader>
+                <CardTitle>Receiving Dock</CardTitle>
+                <CardDescription>
+                  Process incoming shipments and update inventory
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {purchaseOrders?.filter((po: any) => po.status === "ordered")
+                  .length > 0 ? (
+                  <div className="space-y-4">
+                    {purchaseOrders
+                      ?.filter((po: any) => po.status === "ordered")
+                      .map((po: any) => (
+                        <div
+                          key={po.id}
+                          className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="bg-purple-500/10 p-3 rounded-full">
+                              <Truck className="h-6 w-6 text-purple-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold">
+                                Order #{po.id} - {po.supplierName || "Unknown"}
+                              </h4>
+                              <p className="text-sm text-muted-foreground">
+                                {po.quantity} {po.unit} of {po.materialName} •
+                                Est. Delivery:{" "}
+                                {new Date(
+                                  po.expectedDelivery || new Date(),
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() => receivePO.mutate({ id: po.id })}
+                            disabled={receivePO.isPending}
+                          >
+                            <Package className="mr-2 h-4 w-4" />
+                            Receive Shipment
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                    <Truck className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p>No pending shipments to receive</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="templates">
+            <Card>
+              <CardHeader>
+                <CardTitle>Communication Templates</CardTitle>
+                <CardDescription>
+                  Standardize supplier emails and alerts
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                  <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                  <p>Template Editor is currently under maintenance.</p>
+                  <p className="text-sm mt-1">
+                    Please use the system settings to configure global
+                    templates.
+                  </p>
+                  <Button variant="outline" className="mt-4" disabled>
+                    Open Editor
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
       <ExportDialog
         open={exportOpen}

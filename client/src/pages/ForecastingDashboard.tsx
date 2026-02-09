@@ -482,7 +482,7 @@ export default function ForecastingDashboard() {
                                 );
                               }}
                             >
-                              Review
+                              Order Now
                             </Button>
                           </div>
                         </div>
