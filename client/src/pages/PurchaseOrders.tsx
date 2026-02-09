@@ -59,9 +59,20 @@ export default function PurchaseOrders() {
     notes: "",
   });
 
+  // Supplier State
+  const [isCreateSupplierOpen, setIsCreateSupplierOpen] = useState(false);
+  const [supplierFormData, setSupplierFormData] = useState({
+    name: "",
+    contactPerson: "",
+    email: "",
+    phone: "",
+  });
+
   const { data: purchaseOrders, refetch } = trpc.purchaseOrders.list.useQuery();
   const { data: materials } = trpc.materials.list.useQuery();
   const { data: forecasts } = trpc.materials.getForecasts.useQuery();
+  const { data: suppliers, refetch: refetchSuppliers } =
+    trpc.suppliers.list.useQuery();
   const [location] = useLocation();
 
   useEffect(() => {
@@ -119,6 +130,27 @@ export default function PurchaseOrders() {
       } else {
         toast.error(data.message || "Failed to send email");
       }
+    },
+  });
+
+  const receivePO = trpc.purchaseOrders.receive.useMutation({
+    onSuccess: () => {
+      toast.success("Purchase order received and inventory updated");
+      refetch();
+    },
+  });
+
+  const createSupplier = trpc.suppliers.create.useMutation({
+    onSuccess: () => {
+      toast.success("Supplier created successfully");
+      setIsCreateSupplierOpen(false);
+      refetchSuppliers();
+      setSupplierFormData({
+        name: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+      });
     },
   });
 
@@ -198,207 +230,7 @@ export default function PurchaseOrders() {
     }
   };
 
-  return (
-    <DashboardLayout>
-      <div className="p-6 space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Purchase Orders</h1>
-            <p className="text-muted-foreground">
-              Manage material orders and supplier communications
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setExportOpen(true)}>
-              <FileDown className="mr-2 h-4 w-4" />
-              Export to Excel
-            </Button>
-            <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Purchase Order
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Create Purchase Order</DialogTitle>
-                  <DialogDescription>
-                    Generate a new purchase order for material restocking
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="material">Material *</Label>
-                    <Select
-                      onValueChange={(value) => {
-                        const materialId = parseInt(value);
-                        setSelectedMaterialId(materialId);
-                        const material = materials?.find(
-                          (m) => m.id === materialId,
-                        );
-                        const forecast = forecasts?.find(
-                          (f) => f.materialId === materialId,
-                        ) as any;
-                        if (material) {
-                          setFormData((prev) => ({
-                            ...prev,
-                            supplier: material.supplier || "",
-                            supplierEmail: material.supplierEmail || "",
-                            quantity:
-                              forecast?.recommendedOrderQty?.toString() || "",
-                          }));
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select material" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {materials?.map((material) => (
-                          <SelectItem
-                            key={material.id}
-                            value={material.id.toString()}
-                          >
-                            {`${material.name} (${material.quantity} ${material.unit} in stock)`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="quantity">Quantity *</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={formData.quantity}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            quantity: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter quantity"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="totalCost">Total Cost (optional)</Label>
-                      <Input
-                        id="totalCost"
-                        type="number"
-                        value={formData.totalCost}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            totalCost: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter cost"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="supplier">Supplier</Label>
-                      <Input
-                        id="supplier"
-                        value={formData.supplier}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            supplier: e.target.value,
-                          }))
-                        }
-                        placeholder="Supplier name"
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="supplierEmail">Supplier Email</Label>
-                      <Input
-                        id="supplierEmail"
-                        type="email"
-                        value={formData.supplierEmail}
-                        onChange={(e) =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            supplierEmail: e.target.value,
-                          }))
-                        }
-                        placeholder="supplier@example.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="expectedDelivery">Expected Delivery</Label>
-                    <Input
-                      id="expectedDelivery"
-                      type="date"
-                      value={formData.expectedDelivery}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          expectedDelivery: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          notes: e.target.value,
-                        }))
-                      }
-                      placeholder="Additional notes or requirements"
-                      rows={3}
-                    />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCreateOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreate} disabled={createPO.isPending}>
-                    Create Purchase Order
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Purchase Orders Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle>All Purchase Orders</CardTitle>
-              <CardDescription>
-                Track and manage material orders
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {purchaseOrders && purchaseOrders.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-3">PO #</th>
-                        <th className="text-left p-3">Material</th>
-                        <th className="text-right p-3">Quantity</th>
-                        <th className="text-left p-3">Supplier</th>
-                        <th className="text-left p-3">Order Date</th>
-                        <th className="text-left p-3">Expected Delivery</th>
                         <th className="text-center p-3">Status</th>
                         <th className="text-center p-3">Actions</th>
                       </tr>
