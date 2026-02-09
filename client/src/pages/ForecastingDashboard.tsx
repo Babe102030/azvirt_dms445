@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -37,6 +38,7 @@ import {
 import { toast } from "sonner";
 
 export default function ForecastingDashboard() {
+  const [, setLocation] = useLocation();
   const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [whatIfIncrease, setWhatIfIncrease] = useState(20);
@@ -463,6 +465,23 @@ export default function ForecastingDashboard() {
                               size="sm"
                               className="h-7 text-xs rounded-full px-3"
                               variant="secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLocation("/purchase-orders", {
+                                  state: {
+                                    prefillOrder: {
+                                      materialId: item.materialId,
+                                      quantity: Math.ceil(
+                                        item.recommendedOrderQuantity,
+                                      ),
+                                      notes:
+                                        "Auto-generated from Forecasting Dashboard due to " +
+                                        (item.urgency || "low") +
+                                        " stock warning",
+                                    },
+                                  },
+                                });
+                              }}
                             >
                               Review
                             </Button>
@@ -646,8 +665,23 @@ export default function ForecastingDashboard() {
                                   size="sm"
                                   variant="ghost"
                                   className="rounded-full h-10 w-10 hover:bg-primary hover:text-primary-foreground group-hover:shadow-md transition-all"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLocation("/purchase-orders", {
+                                      state: {
+                                        prefillOrder: {
+                                          materialId: forecast.materialId,
+                                          quantity: Math.ceil(
+                                            forecast.recommendedOrderQuantity,
+                                          ),
+                                          notes:
+                                            "Auto-generated from Forecasting Dashboard",
+                                        },
+                                      },
+                                    });
+                                  }}
                                 >
-                                  <Calendar className="h-5 w-5" />
+                                  <ShoppingCart className="h-5 w-5" />
                                 </Button>
                               </td>
                             </tr>
