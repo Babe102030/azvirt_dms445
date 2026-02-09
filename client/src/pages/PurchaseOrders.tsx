@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
@@ -60,6 +61,33 @@ export default function PurchaseOrders() {
   const { data: purchaseOrders, refetch } = trpc.purchaseOrders.list.useQuery();
   const { data: materials } = trpc.materials.list.useQuery();
   const { data: forecasts } = trpc.materials.getForecasts.useQuery();
+  const [location] = useLocation();
+
+  useEffect(() => {
+    const state = window.history.state;
+    if (state && state.prefillOrder && materials) {
+      const { materialId, quantity, notes } = state.prefillOrder;
+      const material = materials.find((m) => m.id === materialId);
+
+      if (material) {
+        setSelectedMaterialId(materialId);
+        setFormData((prev) => ({
+          ...prev,
+          quantity: quantity?.toString() || "",
+          supplier: material.supplier || "",
+          supplierEmail: material.supplierEmail || "",
+          notes: notes || "",
+        }));
+        setIsCreateOpen(true);
+
+        // Clear state to prevent reopening
+        window.history.replaceState(
+          { ...state, prefillOrder: null },
+          document.title,
+        );
+      }
+    }
+  }, [materials, location]);
 
   const createPO = trpc.purchaseOrders.create.useMutation({
     onSuccess: () => {
