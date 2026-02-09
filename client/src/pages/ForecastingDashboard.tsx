@@ -37,6 +37,8 @@ import { toast } from "sonner";
 export default function ForecastingDashboard() {
   const [selectedMaterial, setSelectedMaterial] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [whatIfIncrease, setWhatIfIncrease] = useState(20);
+  const [comparisonMaterials, setComparisonMaterials] = useState<number[]>([]);
 
   const {
     data: forecasts,
@@ -89,6 +91,28 @@ export default function ForecastingDashboard() {
       }),
       expectedStock: parseFloat(d.expectedStock.toFixed(2)),
     })) || [];
+
+  // What-If Scenario Data
+  const whatIfForecastData = formattedForecastData.map((d, index) => {
+    const forecast = forecasts?.find((f) => f.materialId === selectedMaterial);
+
+    if (!forecast) return { ...d, whatIfStock: d.expectedStock };
+    if (index === 0) return { ...d, whatIfStock: d.expectedStock };
+
+    const dailyRate = forecast.dailyConsumptionRate;
+    const increaseFactor = 1 + whatIfIncrease / 100;
+    const increasedDailyRate = dailyRate * increaseFactor;
+
+    const currentStock = forecast.currentStock;
+    const daysPassed = index;
+
+    const projectedStock = currentStock - increasedDailyRate * daysPassed;
+
+    return {
+      ...d,
+      whatIfStock: Math.max(0, parseFloat(projectedStock.toFixed(2))),
+    };
+  });
 
   // Critical materials (less than 7 days until stockout)
   const criticalMaterials =
@@ -1013,6 +1037,319 @@ export default function ForecastingDashboard() {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent
+            value="scenarios"
+            className="animate-in fade-in slide-in-from-right-4 duration-500"
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              <Card className="lg:col-span-4 border-none shadow-xl">
+                <CardHeader className="bg-primary/5 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Calculator className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-bold">
+                        Scenario Calculator
+                      </CardTitle>
+                      <CardDescription>Simulate demand changes</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Select Material
+                    </label>
+                    <select
+                      className="w-full p-2 rounded-md border bg-background"
+                      value={selectedMaterial || ""}
+                      onChange={(e) =>
+                        setSelectedMaterial(Number(e.target.value))
+                      }
+                    >
+                      <option value="">-- Select Material --</option>
+                      {materials?.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between">
+                      <label className="text-sm font-medium">
+                        Demand Increase
+                      </label>
+                      <span className="font-bold text-primary">
+                        +{whatIfIncrease}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="200"
+                      step="5"
+                      value={whatIfIncrease}
+                      onChange={(e) =>
+                        setWhatIfIncrease(Number(e.target.value))
+                      }
+                      className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>0%</span>
+                      <span>100%</span>
+                      <span>200%</span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted/30 rounded-lg border border-dashed space-y-2">
+                    <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">
+                      Impact Analysis
+                    </p>
+                    {selectedMaterial &&
+                    forecasts?.find(
+                      (f) => f.materialId === selectedMaterial,
+                    ) ? (
+                      (() => {
+                        const f = forecasts.find(
+                          (f) => f.materialId === selectedMaterial,
+                        )!;
+                        const currentDays = f.daysUntilStockout || 0;
+                        const increasedRate =
+                          f.dailyConsumptionRate * (1 + whatIfIncrease / 100);
+                        const newDays =
+                          increasedRate > 0
+                            ? Math.floor(f.currentStock / increasedRate)
+                            : 999;
+
+                        return (
+                          <div className="flex justify-between items-end">
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                Days until stockout:
+                              </p>
+                              <p className="text-2xl font-black">
+                                {newDays} days
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-destructive font-bold">
+                                {newDays - currentDays} days change
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">
+                        Select a material to see impact
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-8 border-none shadow-xl">
+                <CardHeader className="bg-muted/10">
+                  <CardTitle>Projected Impact Visualization</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  {selectedMaterial ? (
+                    <div className="h-[400px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={whatIfForecastData}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            vertical={false}
+                          />
+                          <XAxis
+                            dataKey="date"
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <Tooltip content={<CustomTooltip />} />
+                          <Legend />
+                          <Line
+                            type="monotone"
+                            dataKey="expectedStock"
+                            stroke="#94a3b8"
+                            strokeWidth={2}
+                            name="Current Projection"
+                            dot={false}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="whatIfStock"
+                            stroke="#f97316"
+                            strokeWidth={3}
+                            name={`With +${whatIfIncrease}% Demand`}
+                            dot={false}
+                          />
+                          <Line
+                            type="stepAfter"
+                            dataKey="reorderPoint"
+                            stroke="#ef4444"
+                            strokeDasharray="5 5"
+                            name="Reorder Point"
+                            dot={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-[400px] flex items-center justify-center text-muted-foreground">
+                      <p>Select a material to visualize scenario</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent
+            value="comparison"
+            className="animate-in fade-in slide-in-from-right-4 duration-500"
+          >
+            <Card className="border-none shadow-xl">
+              <CardHeader className="bg-primary/5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <GitCompare className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-bold">
+                      Multi-Material Comparison
+                    </CardTitle>
+                    <CardDescription>
+                      Compare stock levels and depletion rates
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="mb-6">
+                  <label className="text-sm font-medium block mb-2">
+                    Select Materials to Compare (Max 5)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {materials?.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          if (comparisonMaterials.includes(m.id)) {
+                            setComparisonMaterials((prev) =>
+                              prev.filter((id) => id !== m.id),
+                            );
+                          } else {
+                            if (comparisonMaterials.length < 5) {
+                              setComparisonMaterials((prev) => [...prev, m.id]);
+                            }
+                          }
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                          comparisonMaterials.includes(m.id)
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-background hover:bg-muted border-border"
+                        }`}
+                      >
+                        {m.name}
+                        {comparisonMaterials.includes(m.id) && (
+                          <span className="ml-2">×</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {comparisonMaterials.map((id) => {
+                    const forecast = forecasts?.find(
+                      (f) => f.materialId === id,
+                    );
+                    if (!forecast) return null;
+
+                    const daysLeft = forecast.daysUntilStockout;
+                    const urgency = forecast.urgency;
+
+                    return (
+                      <Card
+                        key={id}
+                        className="overflow-hidden border-t-4 border-t-primary"
+                      >
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-bold truncate">
+                                {forecast.materialName}
+                              </h4>
+                              <p className="text-xs text-muted-foreground">
+                                {forecast.currentStock} {forecast.unit}
+                              </p>
+                            </div>
+                            <Badge
+                              variant={
+                                urgency === "critical"
+                                  ? "destructive"
+                                  : urgency === "high"
+                                    ? "default"
+                                    : "outline"
+                              }
+                            >
+                              {urgency}
+                            </Badge>
+                          </div>
+
+                          <div className="pt-2 border-t border-dashed space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Daily Usage:
+                              </span>
+                              <span className="font-mono font-bold">
+                                {forecast.dailyConsumptionRate.toFixed(1)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Days Left:
+                              </span>
+                              <span
+                                className={`font-mono font-bold ${daysLeft !== null && daysLeft < 7 ? "text-destructive" : ""}`}
+                              >
+                                {daysLeft ?? "∞"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                Rec. Order:
+                              </span>
+                              <span className="font-mono font-bold text-primary">
+                                {forecast.recommendedOrderQuantity}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                  {comparisonMaterials.length === 0 && (
+                    <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-xl">
+                      <GitCompare className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                      <p>Select materials above to compare their status</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
