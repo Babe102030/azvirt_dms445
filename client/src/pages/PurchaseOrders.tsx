@@ -64,26 +64,31 @@ export default function PurchaseOrders() {
   const [location] = useLocation();
 
   useEffect(() => {
-    const state = window.history.state;
-    if (state && state.prefillOrder && materials) {
-      const { materialId, quantity, notes } = state.prefillOrder;
+    const searchParams = new URLSearchParams(window.location.search);
+    const materialIdParam = searchParams.get("materialId");
+    const quantityParam = searchParams.get("quantity");
+    const notesParam = searchParams.get("notes");
+
+    if (materialIdParam && materials) {
+      const materialId = parseInt(materialIdParam);
       const material = materials.find((m) => m.id === materialId);
 
       if (material) {
         setSelectedMaterialId(materialId);
         setFormData((prev) => ({
           ...prev,
-          quantity: quantity?.toString() || "",
+          quantity: quantityParam || "",
           supplier: material.supplier || "",
           supplierEmail: material.supplierEmail || "",
-          notes: notes || "",
+          notes: notesParam || "",
         }));
         setIsCreateOpen(true);
 
-        // Clear state to prevent reopening
+        // Clear query params to prevent reopening on refresh
         window.history.replaceState(
-          { ...state, prefillOrder: null },
+          {},
           document.title,
+          window.location.pathname,
         );
       }
     }
