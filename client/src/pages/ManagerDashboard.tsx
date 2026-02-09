@@ -1,3 +1,4 @@
+/// <reference types="@types/google.maps" />
 import { useState, useMemo, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

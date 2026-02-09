@@ -2,6 +2,7 @@ export const az = {
   // Navigation
   nav: {
     dashboard: "Kontrol Paneli",
+    managerDashboard: "Menecer Kontrol Paneli",
     documents: "Sənədlər",
     projects: "Layihələr",
     materials: "Materiallar",
