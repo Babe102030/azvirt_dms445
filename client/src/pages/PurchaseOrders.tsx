@@ -738,12 +738,12 @@ export default function PurchaseOrders() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {purchaseOrders?.filter((po: any) => po.status === "ordered")
-                  .length > 0 ? (
+                {(purchaseOrders?.filter((po: any) => po.status === "ordered")
+                  ?.length ?? 0) > 0 ? (
                   <div className="space-y-4">
                     {purchaseOrders
                       ?.filter((po: any) => po.status === "ordered")
-                      .map((po: any) => (
+                      ?.map((po: any) => (
                         <div
                           key={po.id}
                           className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm"
