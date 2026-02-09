@@ -44,10 +44,12 @@ import {
   Truck,
   Phone,
   Trash2,
+  Edit,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ExportDialog, type ExportColumn } from "@/components/ExportDialog";
 import { downloadExcelFile, generateExportFilename } from "@/lib/exportUtils";
+import { TemplateEditor } from "@/components/TemplateEditor";
 
 export default function PurchaseOrders() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -73,11 +75,17 @@ export default function PurchaseOrders() {
     phone: "",
   });
 
+  // Template State
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+
   const { data: purchaseOrders, refetch } = trpc.purchaseOrders.list.useQuery();
   const { data: materials } = trpc.materials.list.useQuery();
   const { data: forecasts } = trpc.materials.getForecasts.useQuery();
   const { data: suppliers, refetch: refetchSuppliers } =
     trpc.suppliers.list.useQuery();
+  const { data: templates, refetch: refetchTemplates } =
+    trpc.notificationTemplates.list.useQuery();
   const [location] = useLocation();
 
   useEffect(() => {
@@ -163,6 +171,22 @@ export default function PurchaseOrders() {
     onSuccess: () => {
       toast.success("Supplier deleted successfully");
       refetchSuppliers();
+    },
+  });
+
+  const upsertTemplate = trpc.notificationTemplates.upsert.useMutation({
+    onSuccess: () => {
+      toast.success("Template saved successfully");
+      setIsTemplateEditorOpen(false);
+      setEditingTemplate(null);
+      refetchTemplates();
+    },
+  });
+
+  const deleteTemplate = trpc.notificationTemplates.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Template deleted");
+      refetchTemplates();
     },
   });
 
@@ -786,27 +810,102 @@ export default function PurchaseOrders() {
           </TabsContent>
 
           <TabsContent value="templates">
-            <Card>
-              <CardHeader>
-                <CardTitle>Communication Templates</CardTitle>
-                <CardDescription>
-                  Standardize supplier emails and alerts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
-                  <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                  <p>Template Editor is currently under maintenance.</p>
-                  <p className="text-sm mt-1">
-                    Please use the system settings to configure global
-                    templates.
-                  </p>
-                  <Button variant="outline" className="mt-4" disabled>
-                    Open Editor
+            {isTemplateEditorOpen ? (
+              <TemplateEditor
+                initialData={editingTemplate}
+                onSave={(data) => {
+                  upsertTemplate.mutate({
+                    id: editingTemplate?.id,
+                    ...data,
+                    type: "purchase_order",
+                  });
+                }}
+                onCancel={() => {
+                  setIsTemplateEditorOpen(false);
+                  setEditingTemplate(null);
+                }}
+              />
+            ) : (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Communication Templates</CardTitle>
+                    <CardDescription>
+                      Standardize supplier emails and alerts
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => setIsTemplateEditorOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Template
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent>
+                  {templates && templates.length > 0 ? (
+                    <div className="grid gap-4">
+                      {templates
+                        .filter((t: any) => t.type === "purchase_order")
+                        .map((template: any) => (
+                          <div
+                            key={template.id}
+                            className="flex items-center justify-between p-4 border rounded-xl bg-background shadow-sm"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="bg-blue-500/10 p-3 rounded-full">
+                                <Mail className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-bold">{template.name}</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  {template.subject}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingTemplate(template);
+                                  setIsTemplateEditorOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  if (
+                                    confirm(
+                                      "Are you sure you want to delete this template?",
+                                    )
+                                  ) {
+                                    deleteTemplate.mutate({ id: template.id });
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                      <Mail className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                      <p>No templates found</p>
+                      <Button
+                        variant="outline"
+                        className="mt-4"
+                        onClick={() => setIsTemplateEditorOpen(true)}
+                      >
+                        Create Template
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
