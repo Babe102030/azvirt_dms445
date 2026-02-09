@@ -2,6 +2,7 @@ export const en = {
   // Navigation
   nav: {
     dashboard: "Dashboard",
+    managerDashboard: "Manager Dashboard",
     documents: "Documents",
     projects: "Projects",
     materials: "Materials",

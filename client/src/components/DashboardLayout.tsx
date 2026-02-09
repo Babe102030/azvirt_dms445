@@ -54,6 +54,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 const getMenuItems = (t: (key: string) => string) => [
   { icon: LayoutDashboard, label: t("nav.dashboard"), path: "/" },
+  {
+    icon: LayoutDashboard,
+    label: t("nav.managerDashboard"),
+    path: "/manager-dashboard",
+  },
   { icon: FileText, label: t("nav.documents"), path: "/documents" },
   { icon: Folder, label: t("nav.projects"), path: "/projects" },
   { icon: Package, label: t("nav.materials"), path: "/materials" },

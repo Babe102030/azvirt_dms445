@@ -28,6 +28,7 @@ import MixingLog from "./pages/MixingLog";
 import ProductionAnalytics from "./pages/ProductionAnalytics";
 import TimesheetApproval from "./pages/TimesheetApproval";
 import ShiftManagement from "./pages/ShiftManagement";
+import ManagerDashboard from "./pages/ManagerDashboard";
 
 function Router() {
   return (
@@ -43,6 +44,7 @@ function Router() {
       <Route path={"/purchase-orders"} component={PurchaseOrders} />
       <Route path={"/deliveries"} component={Deliveries} />
       <Route path={"/driver-deliveries"} component={DriverDeliveries} />
+      <Route path={"/manager-dashboard"} component={ManagerDashboard} />
       <Route path={"/quality"} component={QualityControl} />
       <Route path={"/employees"} component={Employees} />
       <Route path={"/machines"} component={Machines} />

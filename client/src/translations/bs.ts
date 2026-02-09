@@ -2,6 +2,7 @@ export const bs = {
   // Navigation
   nav: {
     dashboard: "Kontrolna tabla",
+    managerDashboard: "Menadžerska kontrolna tabla",
     documents: "Dokumenti",
     projects: "Projekti",
     materials: "Materijali",
