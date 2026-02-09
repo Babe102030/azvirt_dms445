@@ -1370,6 +1370,52 @@ export async function getReorderNeeds() {
 /**
  * Get or create a supplier by name
  */
+export async function getSuppliers() {
+  return await db
+    .select()
+    .from(schema.suppliers)
+    .orderBy(schema.suppliers.name);
+}
+
+export async function createSupplier(data: {
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+}) {
+  const result = await db
+    .insert(schema.suppliers)
+    .values({
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+  return result[0];
+}
+
+export async function updateSupplier(
+  id: number,
+  data: {
+    name?: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+  },
+) {
+  await db
+    .update(schema.suppliers)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.suppliers.id, id));
+}
+
+export async function deleteSupplier(id: number) {
+  await db.delete(schema.suppliers).where(eq(schema.suppliers.id, id));
+}
+
 export async function getOrCreateSupplier(name: string, email?: string) {
   const existing = await db
     .select()
