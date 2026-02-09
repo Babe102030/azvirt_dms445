@@ -24,6 +24,7 @@ import {
   getDefaultCompanyInfo,
 } from "./_core/complianceCertificate";
 import { purchaseOrdersRouter } from "./routers/purchaseOrders";
+import { suppliersRouter } from "./routers/suppliers";
 
 export const appRouter = router({
   system: systemRouter,
@@ -41,6 +42,7 @@ export const appRouter = router({
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
   purchaseOrders: purchaseOrdersRouter,
+  suppliers: suppliersRouter,
 
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
