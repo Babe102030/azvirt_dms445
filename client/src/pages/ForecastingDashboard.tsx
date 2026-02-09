@@ -467,20 +467,19 @@ export default function ForecastingDashboard() {
                               variant="secondary"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setLocation("/purchase-orders", {
-                                  state: {
-                                    prefillOrder: {
-                                      materialId: item.materialId,
-                                      quantity: Math.ceil(
-                                        item.recommendedOrderQuantity,
-                                      ),
-                                      notes:
-                                        "Auto-generated from Forecasting Dashboard due to " +
-                                        (item.urgency || "low") +
-                                        " stock warning",
-                                    },
-                                  },
+                                const params = new URLSearchParams({
+                                  materialId: item.materialId.toString(),
+                                  quantity: Math.ceil(
+                                    item.recommendedOrderQuantity,
+                                  ).toString(),
+                                  notes:
+                                    "Auto-generated from Forecasting Dashboard due to " +
+                                    (item.urgency || "low") +
+                                    " stock warning",
                                 });
+                                setLocation(
+                                  `/purchase-orders?${params.toString()}`,
+                                );
                               }}
                             >
                               Review
@@ -667,18 +666,18 @@ export default function ForecastingDashboard() {
                                   className="rounded-full h-10 w-10 hover:bg-primary hover:text-primary-foreground group-hover:shadow-md transition-all"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setLocation("/purchase-orders", {
-                                      state: {
-                                        prefillOrder: {
-                                          materialId: forecast.materialId,
-                                          quantity: Math.ceil(
-                                            forecast.recommendedOrderQuantity,
-                                          ),
-                                          notes:
-                                            "Auto-generated from Forecasting Dashboard",
-                                        },
-                                      },
+                                    const params = new URLSearchParams({
+                                      materialId:
+                                        forecast.materialId.toString(),
+                                      quantity: Math.ceil(
+                                        forecast.recommendedOrderQuantity,
+                                      ).toString(),
+                                      notes:
+                                        "Auto-generated from Forecasting Dashboard",
                                     });
+                                    setLocation(
+                                      `/purchase-orders?${params.toString()}`,
+                                    );
                                   }}
                                 >
                                   <ShoppingCart className="h-5 w-5" />
