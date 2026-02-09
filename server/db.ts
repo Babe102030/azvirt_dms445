@@ -153,6 +153,11 @@ export async function createMaterial(material: InsertMaterial) {
       unitPrice: material.unitPrice,
       lowStockEmailSent: material.lowStockEmailSent ?? false,
       supplierEmail: material.supplierEmail,
+      leadTimeDays: material.leadTimeDays,
+      reorderPoint: material.reorderPoint,
+      optimalOrderQuantity: material.optimalOrderQuantity,
+      supplierId: material.supplierId,
+      lastOrderDate: material.lastOrderDate,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
