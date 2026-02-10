@@ -3,14 +3,19 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerClerkRoutes, clerkAuthMiddleware, clerkBaseMiddleware } from "./clerk";
+import {
+  registerClerkRoutes,
+  clerkAuthMiddleware,
+  clerkBaseMiddleware,
+} from "./clerk";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeTriggerJobs } from "./triggerJobs";
+import { scheduleStockCheck } from "./stockJobs";
 
 function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const server = net.createServer();
     server.listen(port, () => {
       server.close(() => resolve(true));
@@ -56,8 +61,8 @@ async function startServer() {
       createContext,
       onError: ({ path, error }) => {
         console.error(`[TRPC Error] at ${path}:`, error);
-      }
-    })
+      },
+    }),
   );
 
   // In development, setup Vite for HMR and serving client files
@@ -84,6 +89,9 @@ async function startServer() {
 
     // Initialize trigger evaluation jobs
     initializeTriggerJobs();
+
+    // Initialize daily stock level checks
+    scheduleStockCheck();
   });
 }
 
