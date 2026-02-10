@@ -102,6 +102,11 @@ const getMenuItems = (t: (key: string) => string) => [
     label: "Concrete Base DB",
     path: "/concrete-base-dashboard",
   },
+  {
+    icon: BellRing,
+    label: "Low Stock Settings",
+    path: "/low-stock-settings",
+  },
   { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
   { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },
   { icon: Palette, label: t("nav.emailBranding"), path: "/email-branding" },

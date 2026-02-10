@@ -419,6 +419,7 @@ export const machines = pgTable("machines", {
   serialNumber: varchar("serialNumber", { length: 100 }),
   status: varchar("status", { length: 20 }).default("active"),
   lastMaintenanceAt: timestamp("lastMaintenanceAt"),
+  totalWorkingHours: doublePrecision("totalWorkingHours").default(0),
   concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),

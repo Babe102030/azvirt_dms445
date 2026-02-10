@@ -937,6 +937,18 @@ export async function createMachineWorkHour(
     .insert(schema.machineWorkHours)
     .values(workHour)
     .returning({ id: schema.machineWorkHours.id });
+
+  // Update the machine's total working hours automatically
+  if (workHour.machineId && workHour.hours) {
+    await db
+      .update(schema.machines)
+      .set({
+        totalWorkingHours: drizzleSql`${schema.machines.totalWorkingHours} + ${workHour.hours}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.machines.id, workHour.machineId));
+  }
+
   return result[0]?.id;
 }
 
