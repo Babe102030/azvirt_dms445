@@ -1800,19 +1800,142 @@ export async function removeReportRecipient(id: number) {
   return true;
 }
 export async function getEmailTemplates() {
-  return [];
+  const templates = await db
+    .select()
+    .from(schema.emailTemplates)
+    .orderBy(schema.emailTemplates.type);
+  return templates;
 }
+
 export async function getEmailTemplateByType(type: string) {
-  return null;
+  const templates = await db
+    .select()
+    .from(schema.emailTemplates)
+    .where(eq(schema.emailTemplates.type, type))
+    .limit(1);
+  return templates[0] || null;
 }
-export async function upsertEmailTemplate(data: any) {
-  return 0;
+
+export async function upsertEmailTemplate(data: {
+  type: string;
+  name: string;
+  description?: string;
+  subject: string;
+  bodyHtml: string;
+  bodyText?: string;
+  isCustom?: boolean;
+  isActive?: boolean;
+  variables?: string[];
+  createdBy?: number;
+}) {
+  const existing = await getEmailTemplateByType(data.type);
+
+  if (existing) {
+    await db
+      .update(schema.emailTemplates)
+      .set({
+        name: data.name,
+        description: data.description,
+        subject: data.subject,
+        bodyHtml: data.bodyHtml,
+        bodyText: data.bodyText,
+        isCustom: data.isCustom ?? true,
+        isActive: data.isActive ?? true,
+        variables: data.variables ? JSON.stringify(data.variables) : undefined,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.emailTemplates.type, data.type));
+    return existing.id;
+  } else {
+    const result = await db
+      .insert(schema.emailTemplates)
+      .values({
+        type: data.type,
+        name: data.name,
+        description: data.description,
+        subject: data.subject,
+        bodyHtml: data.bodyHtml,
+        bodyText: data.bodyText,
+        isCustom: data.isCustom ?? false,
+        isActive: data.isActive ?? true,
+        variables: data.variables ? JSON.stringify(data.variables) : null,
+        createdBy: data.createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning({ id: schema.emailTemplates.id });
+    return result[0]?.id ?? 0;
+  }
 }
+
+export async function resetEmailTemplateToDefault(type: string) {
+  await db
+    .update(schema.emailTemplates)
+    .set({
+      isCustom: false,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.emailTemplates.type, type));
+  return true;
+}
+
+export async function deleteEmailTemplate(type: string) {
+  await db
+    .delete(schema.emailTemplates)
+    .where(eq(schema.emailTemplates.type, type));
+  return true;
+}
+
 export async function getEmailBranding() {
-  return null;
+  const branding = await db.select().from(schema.emailBranding).limit(1);
+  return branding[0] || null;
 }
-export async function upsertEmailBranding(data: any) {
-  return 0;
+
+export async function upsertEmailBranding(data: {
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  companyName?: string;
+  footerText?: string;
+  headerStyle?: string;
+  fontFamily?: string;
+  updatedBy?: number;
+}) {
+  const existing = await getEmailBranding();
+
+  if (existing) {
+    await db
+      .update(schema.emailBranding)
+      .set({
+        ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
+        ...(data.primaryColor && { primaryColor: data.primaryColor }),
+        ...(data.secondaryColor && { secondaryColor: data.secondaryColor }),
+        ...(data.companyName && { companyName: data.companyName }),
+        ...(data.footerText !== undefined && { footerText: data.footerText }),
+        ...(data.headerStyle && { headerStyle: data.headerStyle }),
+        ...(data.fontFamily && { fontFamily: data.fontFamily }),
+        ...(data.updatedBy && { updatedBy: data.updatedBy }),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.emailBranding.id, existing.id));
+    return existing.id;
+  } else {
+    const result = await db
+      .insert(schema.emailBranding)
+      .values({
+        logoUrl: data.logoUrl,
+        primaryColor: data.primaryColor || "#f97316",
+        secondaryColor: data.secondaryColor || "#ea580c",
+        companyName: data.companyName || "AzVirt",
+        footerText: data.footerText,
+        headerStyle: data.headerStyle || "gradient",
+        fontFamily: data.fontFamily || "Arial, sans-serif",
+        updatedBy: data.updatedBy,
+        updatedAt: new Date(),
+      })
+      .returning({ id: schema.emailBranding.id });
+    return result[0]?.id ?? 0;
+  }
 }
 export async function createConversation(
   userId: number,

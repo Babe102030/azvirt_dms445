@@ -611,3 +611,54 @@ export const aggregateInputs = pgTable("aggregate_inputs", {
 
 export type AggregateInput = typeof aggregateInputs.$inferSelect;
 export type InsertAggregateInput = typeof aggregateInputs.$inferInsert;
+
+/**
+ * Email Templates - Custom templates for system emails
+ */
+export const emailTemplates = pgTable("email_templates", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 50 }).notNull().unique(), // daily_production_report, low_stock_alert, purchase_order, generic_notification
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  bodyHtml: text("bodyHtml").notNull(),
+  bodyText: text("bodyText"), // Plain text fallback
+  isCustom: boolean("isCustom").default(false).notNull(), // true if user customized
+  isActive: boolean("isActive").default(true).notNull(),
+  variables: text("variables"), // JSON array of available variables
+  createdBy: integer("createdBy").references(() => users.id),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
+
+/**
+ * Email Branding - Company branding settings for emails
+ */
+export const emailBranding = pgTable("email_branding", {
+  id: serial("id").primaryKey(),
+  logoUrl: text("logoUrl"),
+  primaryColor: varchar("primaryColor", { length: 20 })
+    .default("#f97316")
+    .notNull(),
+  secondaryColor: varchar("secondaryColor", { length: 20 })
+    .default("#ea580c")
+    .notNull(),
+  companyName: varchar("companyName", { length: 255 })
+    .default("AzVirt")
+    .notNull(),
+  footerText: text("footerText"),
+  headerStyle: varchar("headerStyle", { length: 50 })
+    .default("gradient")
+    .notNull(), // gradient, solid, minimal
+  fontFamily: varchar("fontFamily", { length: 100 })
+    .default("Arial, sans-serif")
+    .notNull(),
+  updatedBy: integer("updatedBy").references(() => users.id),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+export type EmailBranding = typeof emailBranding.$inferSelect;
+export type InsertEmailBranding = typeof emailBranding.$inferInsert;

@@ -6,6 +6,13 @@ import { z } from "zod";
 import { storagePut } from "./storage";
 import { nanoid } from "nanoid";
 import * as db from "./db";
+import {
+  generateEmailPreview,
+  getDefaultTemplateContent,
+  TEMPLATE_VARIABLES,
+  initializeDefaultTemplates,
+  type EmailTemplateType,
+} from "./services/emailTemplateService";
 import { aiAssistantRouter } from "./routers/aiAssistant";
 import { bulkImportRouter } from "./routers/bulkImport";
 import { notificationsRouter } from "./routers/notifications";
@@ -1519,10 +1526,15 @@ export const appRouter = router({
           secondaryColor: z.string().optional(),
           companyName: z.string().optional(),
           footerText: z.string().optional(),
+          headerStyle: z.enum(["gradient", "solid", "minimal"]).optional(),
+          fontFamily: z.string().optional(),
         }),
       )
-      .mutation(async ({ input }) => {
-        await db.upsertEmailBranding(input);
+      .mutation(async ({ input, ctx }) => {
+        await db.upsertEmailBranding({
+          ...input,
+          updatedBy: ctx.user.id,
+        });
         return { success: true };
       }),
 
@@ -1564,6 +1576,147 @@ export const appRouter = router({
 
         return { url };
       }),
+  }),
+
+  // Email Templates Router
+  emailTemplates: router({
+    // List all email templates
+    list: protectedProcedure.query(async () => {
+      const templates = await db.getEmailTemplates();
+      return templates;
+    }),
+
+    // Get a specific template by type
+    getByType: protectedProcedure
+      .input(z.object({ type: z.string() }))
+      .query(async ({ input }) => {
+        const template = await db.getEmailTemplateByType(input.type);
+        if (!template) {
+          // Return default template content if not in DB
+          const defaultContent = getDefaultTemplateContent(
+            input.type as EmailTemplateType,
+          );
+          return {
+            type: input.type,
+            ...defaultContent,
+            isCustom: false,
+            isActive: true,
+            variables:
+              TEMPLATE_VARIABLES[input.type as EmailTemplateType] || [],
+          };
+        }
+        return {
+          ...template,
+          variables: template.variables
+            ? JSON.parse(template.variables)
+            : TEMPLATE_VARIABLES[input.type as EmailTemplateType] || [],
+        };
+      }),
+
+    // Get available template types
+    getTypes: protectedProcedure.query(() => {
+      return [
+        {
+          type: "daily_production_report",
+          name: "Daily Production Report",
+          description:
+            "Sent daily with production metrics, deliveries, and quality control data",
+        },
+        {
+          type: "low_stock_alert",
+          name: "Low Stock Alert",
+          description: "Sent when materials fall below minimum stock levels",
+        },
+        {
+          type: "purchase_order",
+          name: "Purchase Order",
+          description: "Sent to suppliers when creating new purchase orders",
+        },
+        {
+          type: "generic_notification",
+          name: "Generic Notification",
+          description: "General purpose notification template",
+        },
+      ];
+    }),
+
+    // Get available variables for a template type
+    getVariables: protectedProcedure
+      .input(z.object({ type: z.string() }))
+      .query(({ input }) => {
+        return TEMPLATE_VARIABLES[input.type as EmailTemplateType] || [];
+      }),
+
+    // Create or update a template
+    upsert: protectedProcedure
+      .input(
+        z.object({
+          type: z.string(),
+          name: z.string(),
+          description: z.string().optional(),
+          subject: z.string(),
+          bodyHtml: z.string(),
+          bodyText: z.string().optional(),
+          isActive: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ input, ctx }) => {
+        const id = await db.upsertEmailTemplate({
+          ...input,
+          isCustom: true,
+          variables: TEMPLATE_VARIABLES[input.type as EmailTemplateType],
+          createdBy: ctx.user.id,
+        });
+        return { success: true, id };
+      }),
+
+    // Reset a template to default
+    resetToDefault: protectedProcedure
+      .input(z.object({ type: z.string() }))
+      .mutation(async ({ input }) => {
+        const defaultContent = getDefaultTemplateContent(
+          input.type as EmailTemplateType,
+        );
+        await db.upsertEmailTemplate({
+          type: input.type,
+          ...defaultContent,
+          isCustom: false,
+          isActive: true,
+          variables: TEMPLATE_VARIABLES[input.type as EmailTemplateType],
+        });
+        return { success: true };
+      }),
+
+    // Get default template content (without saving)
+    getDefault: protectedProcedure
+      .input(z.object({ type: z.string() }))
+      .query(({ input }) => {
+        return getDefaultTemplateContent(input.type as EmailTemplateType);
+      }),
+
+    // Preview a template with sample data
+    preview: protectedProcedure
+      .input(
+        z.object({
+          type: z.string(),
+          subject: z.string().optional(),
+          bodyHtml: z.string().optional(),
+        }),
+      )
+      .mutation(async ({ input }) => {
+        const preview = await generateEmailPreview(
+          input.type as EmailTemplateType,
+          input.subject,
+          input.bodyHtml,
+        );
+        return preview;
+      }),
+
+    // Initialize all default templates
+    initializeDefaults: protectedProcedure.mutation(async () => {
+      await initializeDefaultTemplates();
+      return { success: true };
+    }),
   }),
 });
 
