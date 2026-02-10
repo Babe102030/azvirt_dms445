@@ -51,15 +51,25 @@ async function startServer() {
       return next();
     }
 
-    // Skip Clerk middleware if keys are placeholders to allow local development without valid Clerk setup
+    // Skip Clerk middleware if keys are placeholders or missing to allow local development
+    const publishableKey = process.env.CLERK_PUBLISHABLE_KEY;
+    const secretKey = process.env.CLERK_SECRET_KEY;
+
     if (
-      process.env.CLERK_PUBLISHABLE_KEY === "pk_test_placeholder" ||
-      !process.env.CLERK_PUBLISHABLE_KEY
+      !publishableKey ||
+      publishableKey === "pk_test_placeholder" ||
+      !secretKey ||
+      secretKey === "sk_test_placeholder"
     ) {
       return next();
     }
 
-    clerkBaseMiddleware(req, res, next);
+    try {
+      clerkBaseMiddleware(req, res, next);
+    } catch (err) {
+      console.warn("[Clerk] Middleware failed to initialize, skipping...", err);
+      next();
+    }
   });
 
   // tRPC API
@@ -96,8 +106,8 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  console.log(`Attempting to listen on port ${port}...`);
-  server.listen(port, () => {
+  console.log(`Attempting to listen on port ${port} (0.0.0.0)...`);
+  server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${port}/`);
 
     // Initialize trigger evaluation jobs

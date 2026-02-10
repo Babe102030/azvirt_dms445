@@ -1,4 +1,4 @@
-import { useRouter } from "next/router";
+import { useRoute, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DriverDeliveryView from "@/components/DriverDeliveryView";
@@ -15,13 +15,16 @@ import { ArrowLeft } from "lucide-react";
  */
 
 export default function MobileDeliveryPage() {
-  const router = useRouter();
-  const { id } = router.query;
+  const [, params] = useRoute("/driver/deliveries/:id");
+  const [, setLocation] = useLocation();
+  const id = params?.id;
   const [deliveryId, setDeliveryId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    const parsed = Array.isArray(id) ? parseInt(id[0], 10) : parseInt(id as string, 10);
+    const parsed = Array.isArray(id)
+      ? parseInt(id[0], 10)
+      : parseInt(id as string, 10);
     if (!isNaN(parsed)) setDeliveryId(parsed);
   }, [id]);
 
@@ -30,7 +33,7 @@ export default function MobileDeliveryPage() {
       <div className="min-h-screen bg-card/95">
         {/* Sticky header for mobile full-screen experience */}
         <div className="sticky top-0 z-40 bg-card/95 border-b border-border p-3 flex items-center gap-3">
-          <Button variant="ghost" onClick={() => router.back()}>
+          <Button variant="ghost" onClick={() => window.history.back()}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex-1">
@@ -41,7 +44,7 @@ export default function MobileDeliveryPage() {
             {/* Optional: quick close to root route */}
             <Button
               variant="ghost"
-              onClick={() => router.push("/driver/deliveries")}
+              onClick={() => setLocation("/driver/deliveries")}
               className="text-xs"
             >
               Close
@@ -52,10 +55,15 @@ export default function MobileDeliveryPage() {
         <main className="p-3">
           {deliveryId ? (
             <div className="w-full">
-              <DriverDeliveryView deliveryId={deliveryId} onClose={() => router.back()} />
+              <DriverDeliveryView
+                deliveryId={deliveryId}
+                onClose={() => window.history.back()}
+              />
             </div>
           ) : (
-            <div className="p-6 text-center text-white/80">Loading delivery...</div>
+            <div className="p-6 text-center text-white/80">
+              Loading delivery...
+            </div>
           )}
         </main>
       </div>
