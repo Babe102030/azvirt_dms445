@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useRouter } from "next/router";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,13 @@ import { Truck, Package, Navigation } from "lucide-react";
 export default function DriverDeliveries() {
   const [selectedDelivery, setSelectedDelivery] = useState<number | null>(null);
   const { data: deliveries, isLoading } = trpc.deliveries.list.useQuery();
-  const router = useRouter();
+  const [, setLocation] = useLocation();
 
   // Open as a route on small screens (PWA-like full-screen) or as a dialog on larger screens.
   const handleOpenDelivery = (id: number) => {
     if (typeof window !== "undefined" && window.innerWidth < 640) {
       // Mobile: navigate to a dedicated route
-      router.push(`/driver/deliveries/${id}`);
+      setLocation(`/driver/deliveries/${id}`);
     } else {
       // Desktop/tablet: keep dialog behavior
       setSelectedDelivery(id);
