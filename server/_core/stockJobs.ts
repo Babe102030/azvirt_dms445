@@ -2,7 +2,7 @@ import { db } from "../db";
 import * as schema from "../../drizzle/schema";
 import { eq, sql } from "drizzle-orm";
 import { sendEmailNotification } from "./notificationService";
-import { sendSmsNotification } from "./sms";
+import { sendSMS } from "./sms";
 import { createNotification } from "../db";
 
 /**
@@ -16,8 +16,12 @@ export async function checkDailyStockLevels() {
     // 1. Get all materials
     const materials = await db.select().from(schema.materials);
 
-    const lowStockMaterials = materials.filter(m => m.quantity <= (m.minStock || 0));
-    const criticalMaterials = materials.filter(m => m.quantity <= (m.criticalThreshold || 0));
+    const lowStockMaterials = materials.filter(
+      (m) => m.quantity <= (m.minStock || 0),
+    );
+    const criticalMaterials = materials.filter(
+      (m) => m.quantity <= (m.criticalThreshold || 0),
+    );
 
     if (lowStockMaterials.length === 0) {
       console.log("[StockJobs] All stock levels are healthy.");
@@ -25,7 +29,8 @@ export async function checkDailyStockLevels() {
     }
 
     // 2. Identify Admin users to notify
-    const adminUsers = await db.select()
+    const adminUsers = await db
+      .select()
       .from(schema.users)
       .where(eq(schema.users.role, "admin"));
 
@@ -36,14 +41,19 @@ export async function checkDailyStockLevels() {
 
     // 3. Prepare message content
     const lowStockList = lowStockMaterials
-      .map(m => `- ${m.name}: ${m.quantity} ${m.unit} (Min: ${m.minStock})`)
+      .map((m) => `- ${m.name}: ${m.quantity} ${m.unit} (Min: ${m.minStock})`)
       .join("\n");
 
-    const criticalList = criticalMaterials.length > 0
-      ? "\nCRITICAL LEVELS:\n" + criticalMaterials
-          .map(m => `- ${m.name}: ${m.quantity} ${m.unit} (Critical: ${m.criticalThreshold})`)
-          .join("\n")
-      : "";
+    const criticalList =
+      criticalMaterials.length > 0
+        ? "\nCRITICAL LEVELS:\n" +
+          criticalMaterials
+            .map(
+              (m) =>
+                `- ${m.name}: ${m.quantity} ${m.unit} (Critical: ${m.criticalThreshold})`,
+            )
+            .join("\n")
+        : "";
 
     const emailSubject = `Low Stock Alert - ${new Date().toLocaleDateString()}`;
     const emailBody = `Daily Stock Report:\n\nThe following materials are below their minimum stock thresholds:\n\n${lowStockList}${criticalList}\n\nPlease review and reorder as necessary.`;
@@ -66,18 +76,24 @@ export async function checkDailyStockLevels() {
           emailSubject,
           emailBody,
           undefined,
-          "low_stock"
+          "low_stock",
         );
       }
 
       // SMS for critical materials
-      if (admin.smsNotificationsEnabled && admin.phoneNumber && criticalMaterials.length > 0) {
+      if (
+        admin.smsNotificationsEnabled &&
+        admin.phoneNumber &&
+        criticalMaterials.length > 0
+      ) {
         const smsMessage = `ALERT: ${criticalMaterials.length} materials have reached CRITICAL stock levels. Check AzVirt DMS dashboard for details.`;
-        await sendSmsNotification(admin.phoneNumber, smsMessage);
+        await sendSMS({ phoneNumber: admin.phoneNumber, message: smsMessage });
       }
     }
 
-    console.log(`[StockJobs] Stock check completed. Notified ${adminUsers.length} admins about ${lowStockMaterials.length} items.`);
+    console.log(
+      `[StockJobs] Stock check completed. Notified ${adminUsers.length} admins about ${lowStockMaterials.length} items.`,
+    );
   } catch (error) {
     console.error("[StockJobs] Error in daily stock check:", error);
   }
@@ -99,7 +115,9 @@ export function scheduleStockCheck() {
 
   const delayMs = scheduledTime.getTime() - now.getTime();
 
-  console.log(`[StockJobs] Scheduling daily stock check in ${Math.round(delayMs / 1000 / 60)} minutes`);
+  console.log(
+    `[StockJobs] Scheduling daily stock check in ${Math.round(delayMs / 1000 / 60)} minutes`,
+  );
 
   setTimeout(() => {
     checkDailyStockLevels();
