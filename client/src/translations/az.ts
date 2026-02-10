@@ -23,6 +23,7 @@ export const az = {
     reports: "Hesabatlar",
     reportSettings: "Hesabat Parametrləri",
     emailBranding: "E-poçt Brendinqi",
+    emailTemplates: "E-poçt Şablonları",
     aiAssistant: "AI Köməkçi",
     notificationTemplates: "Bildiriş Şablonları",
     settings: "Parametrlər",

@@ -23,6 +23,7 @@ export const bs = {
     reports: "Izvještaji",
     reportSettings: "Postavke izvještaja",
     emailBranding: "Email branding",
+    emailTemplates: "Email šabloni",
     aiAssistant: "AI Asistent",
     notificationTemplates: "Šabloni obavještenja",
     settings: "Podešavanja",

@@ -23,6 +23,7 @@ export const en = {
     reports: "Reports",
     reportSettings: "Report Settings",
     emailBranding: "Email Branding",
+    emailTemplates: "Email Templates",
     aiAssistant: "AI Assistant",
     notificationTemplates: "Notification Templates",
     settings: "Settings",
