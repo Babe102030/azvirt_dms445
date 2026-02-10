@@ -91,6 +91,11 @@ const getMenuItems = (t: (key: string) => string) => [
     label: t("nav.shiftManagement"),
     path: "/shift-management",
   },
+  {
+    icon: Clock,
+    label: "Workforce Entry",
+    path: "/workforce-entry",
+  },
   { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
   { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },
   { icon: Palette, label: t("nav.emailBranding"), path: "/email-branding" },

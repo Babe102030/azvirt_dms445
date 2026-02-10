@@ -28,6 +28,7 @@ import MixingLog from "./pages/MixingLog";
 import ProductionAnalytics from "./pages/ProductionAnalytics";
 import TimesheetApproval from "./pages/TimesheetApproval";
 import ShiftManagement from "./pages/ShiftManagement";
+import WorkforceTimesheetEntry from "./pages/WorkforceTimesheetEntry";
 import ManagerDashboard from "./pages/ManagerDashboard";
 
 function Router() {
@@ -52,6 +53,7 @@ function Router() {
       <Route path={"/timesheet-summary"} component={TimesheetSummary} />
       <Route path={"/timesheet-approval"} component={TimesheetApproval} />
       <Route path={"/shift-management"} component={ShiftManagement} />
+      <Route path={"/workforce-entry"} component={WorkforceTimesheetEntry} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />
