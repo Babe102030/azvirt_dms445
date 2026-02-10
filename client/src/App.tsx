@@ -32,6 +32,7 @@ import ShiftManagement from "./pages/ShiftManagement";
 import WorkforceTimesheetEntry from "./pages/WorkforceTimesheetEntry";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import ConcreteBaseDashboard from "./pages/ConcreteBaseDashboard";
+import AggregateInputs from "./pages/AggregateInputs";
 import LowStockSettings from "./pages/LowStockSettings";
 
 function Router() {
@@ -61,6 +62,7 @@ function Router() {
         path={"/concrete-base-dashboard"}
         component={ConcreteBaseDashboard}
       />
+      <Route path={"/aggregate-inputs"} component={AggregateInputs} />
       <Route path={"/low-stock-settings"} component={LowStockSettings} />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />

@@ -103,6 +103,11 @@ const getMenuItems = (t: (key: string) => string) => [
     path: "/concrete-base-dashboard",
   },
   {
+    icon: Package,
+    label: "Aggregate Inputs",
+    path: "/aggregate-inputs",
+  },
+  {
     icon: BellRing,
     label: "Low Stock Settings",
     path: "/low-stock-settings",
