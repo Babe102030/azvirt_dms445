@@ -101,7 +101,7 @@ export const purchaseOrdersRouter = router({
       }
 
       // 2. Generate Email
-      const html = generatePurchaseOrderEmailHTML({
+      const emailResult = await generatePurchaseOrderEmailHTML({
         id: po.id,
         materialName: po.materialName || "Unknown Material",
         quantity: po.quantity || 0,
@@ -119,8 +119,8 @@ export const purchaseOrdersRouter = router({
       // 3. Send Email
       const sent = await sendEmail({
         to: po.supplierEmail,
-        subject: `Purchase Order #${po.id} - AzVirt DMS`,
-        html,
+        subject: emailResult.subject,
+        html: emailResult.html,
       });
 
       if (!sent) {
