@@ -30,6 +30,7 @@ import TimesheetApproval from "./pages/TimesheetApproval";
 import ShiftManagement from "./pages/ShiftManagement";
 import WorkforceTimesheetEntry from "./pages/WorkforceTimesheetEntry";
 import ManagerDashboard from "./pages/ManagerDashboard";
+import ConcreteBaseDashboard from "./pages/ConcreteBaseDashboard";
 
 function Router() {
   return (
@@ -54,6 +55,10 @@ function Router() {
       <Route path={"/timesheet-approval"} component={TimesheetApproval} />
       <Route path={"/shift-management"} component={ShiftManagement} />
       <Route path={"/workforce-entry"} component={WorkforceTimesheetEntry} />
+      <Route
+        path={"/concrete-base-dashboard"}
+        component={ConcreteBaseDashboard}
+      />
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />

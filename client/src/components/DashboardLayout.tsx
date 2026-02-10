@@ -44,6 +44,7 @@ import {
   BarChart3,
   CheckCircle2,
   Calendar,
+  Factory,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -95,6 +96,11 @@ const getMenuItems = (t: (key: string) => string) => [
     icon: Clock,
     label: "Workforce Entry",
     path: "/workforce-entry",
+  },
+  {
+    icon: Factory,
+    label: "Concrete Base DB",
+    path: "/concrete-base-dashboard",
   },
   { icon: TrendingUp, label: t("nav.reports"), path: "/timesheet-summary" },
   { icon: Mail, label: t("nav.reportSettings"), path: "/report-settings" },

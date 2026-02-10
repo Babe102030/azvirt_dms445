@@ -1323,7 +1323,10 @@ export const appRouter = router({
           .optional(),
       )
       .query(async ({ input }) => {
-        return await db.getAggregateInputs(input);
+        return await db.getAggregateInputs(
+          input?.concreteBaseId,
+          input?.materialType,
+        );
       }),
 
     create: protectedProcedure

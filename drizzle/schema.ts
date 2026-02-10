@@ -419,6 +419,7 @@ export const machines = pgTable("machines", {
   serialNumber: varchar("serialNumber", { length: 100 }),
   status: varchar("status", { length: 20 }).default("active"),
   lastMaintenanceAt: timestamp("lastMaintenanceAt"),
+  concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 });
@@ -568,3 +569,44 @@ export const checkInRecords = pgTable("checkInRecords", {
 
 export type CheckInRecord = typeof checkInRecords.$inferSelect;
 export type InsertCheckInRecord = typeof checkInRecords.$inferInsert;
+
+/**
+ * Concrete Bases table for managing concrete production facilities
+ */
+export const concreteBases = pgTable("concrete_bases", {
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  location: text("location"),
+  capacity: integer("capacity"), // m3 per hour
+  status: varchar("status", { length: 20 }).default("active").notNull(), // active, maintenance, inactive
+  managerName: varchar("managerName", { length: 255 }),
+  phoneNumber: varchar("phoneNumber", { length: 50 }),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
+/**
+ * Aggregate Inputs table for tracking materials received at concrete bases
+ */
+export type ConcreteBase = typeof concreteBases.$inferSelect;
+export type InsertConcreteBase = typeof concreteBases.$inferInsert;
+
+export const aggregateInputs = pgTable("aggregate_inputs", {
+  id: serial("id").primaryKey(),
+  concreteBaseId: integer("concreteBaseId")
+    .references(() => concreteBases.id, { onDelete: "cascade" })
+    .notNull(),
+  date: timestamp("date").notNull().defaultNow(),
+  materialType: varchar("materialType", { length: 50 }).notNull(), // cement, sand, gravel, etc.
+  materialName: varchar("materialName", { length: 255 }).notNull(),
+  quantity: doublePrecision("quantity").notNull(),
+  unit: varchar("unit", { length: 20 }).notNull(),
+  supplier: varchar("supplier", { length: 255 }),
+  batchNumber: varchar("batchNumber", { length: 100 }),
+  receivedBy: varchar("receivedBy", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+});
+
+export type AggregateInput = typeof aggregateInputs.$inferSelect;
+export type InsertAggregateInput = typeof aggregateInputs.$inferInsert;

@@ -33,6 +33,7 @@ import MaintenanceReport from "@/components/MaintenanceReport";
 export default function Machines() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isMaintenanceDialogOpen, setIsMaintenanceDialogOpen] = useState(false);
+  const [isWorkHoursDialogOpen, setIsWorkHoursDialogOpen] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<number | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [selectedMachineForReport, setSelectedMachineForReport] =
@@ -59,6 +60,17 @@ export default function Machines() {
     },
     onError: (error) => {
       toast.error(`Failed to add maintenance record: ${error.message}`);
+    },
+  });
+
+  const createWorkHoursMutation = trpc.machineWorkHours.create.useMutation({
+    onSuccess: () => {
+      toast.success("Working hours recorded successfully");
+      setIsWorkHoursDialogOpen(false);
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`Failed to record working hours: ${error.message}`);
     },
   });
 
@@ -121,6 +133,39 @@ export default function Machines() {
       cost: formData.get("cost") ? Number(formData.get("cost")) : undefined,
       performedBy: (formData.get("performedBy") as string) || undefined,
       notes: (formData.get("notes") as string) || undefined,
+    });
+  };
+
+  const handleWorkHoursSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selectedMachine) return;
+
+    const formData = new FormData(e.currentTarget);
+    const dateStr = formData.get("date") as string;
+    const startTimeStr = formData.get("startTime") as string;
+    const endTimeStr = formData.get("endTime") as string;
+
+    const startTime = new Date(`${dateStr}T${startTimeStr}`);
+    const endTime = endTimeStr
+      ? new Date(`${dateStr}T${endTimeStr}`)
+      : undefined;
+
+    let hoursWorked = 0;
+    if (endTime) {
+      hoursWorked =
+        Math.round(
+          ((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)) * 10,
+        ) / 10;
+    }
+
+    createWorkHoursMutation.mutate({
+      machineId: selectedMachine,
+      date: new Date(dateStr),
+      startTime,
+      endTime,
+      hoursWorked:
+        hoursWorked > 0 ? hoursWorked : Number(formData.get("hours") || 0),
+      notes: formData.get("notes") as string,
     });
   };
 
@@ -424,6 +469,17 @@ export default function Machines() {
                       variant="ghost"
                       size="sm"
                       onClick={() => {
+                        setSelectedMachine(machine.id);
+                        setIsWorkHoursDialogOpen(true);
+                      }}
+                      title="Record Working Hours"
+                    >
+                      <Clock className="h-4 w-4 text-blue-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
                         if (
                           confirm(
                             "Are you sure you want to remove this machine?",
@@ -442,6 +498,78 @@ export default function Machines() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog
+        open={isWorkHoursDialogOpen}
+        onOpenChange={setIsWorkHoursDialogOpen}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Machine Working Hours</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleWorkHoursSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date *</Label>
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                required
+                defaultValue={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Time *</Label>
+                <Input id="startTime" name="startTime" type="time" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End Time</Label>
+                <Input id="endTime" name="endTime" type="time" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="hours">Total Hours (Manual Override)</Label>
+              <Input
+                id="hours"
+                name="hours"
+                type="number"
+                step="0.1"
+                placeholder="Calculated from times if empty"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes / Operator</Label>
+              <Input
+                id="notes"
+                name="notes"
+                placeholder="Operator name or task details"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsWorkHoursDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createWorkHoursMutation.isPending}
+              >
+                {createWorkHoursMutation.isPending
+                  ? "Recording..."
+                  : "Save Hours"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {selectedMachineForReport && (
         <MaintenanceReport

@@ -801,17 +801,76 @@ export async function updateWorkHour(
     .where(eq(schema.shifts.id, id));
   return true;
 }
-export async function createConcreteBase(base: any) {
-  return Date.now();
+export async function createConcreteBase(base: schema.InsertConcreteBase) {
+  const result = await db
+    .insert(schema.concreteBases)
+    .values({
+      ...base,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.concreteBases.id });
+  return result[0]?.id;
 }
+
 export async function getConcreteBases() {
-  return [];
+  return await db.select().from(schema.concreteBases);
 }
+
 export async function getConcreteBaseById(id: number) {
-  return null;
+  const result = await db
+    .select()
+    .from(schema.concreteBases)
+    .where(eq(schema.concreteBases.id, id));
+  return result[0] || null;
 }
+
 export async function updateConcreteBase(id: number, data: any) {
+  await db
+    .update(schema.concreteBases)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.concreteBases.id, id));
   return true;
+}
+
+export async function createAggregateInput(input: schema.InsertAggregateInput) {
+  const result = await db
+    .insert(schema.aggregateInputs)
+    .values({
+      ...input,
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.aggregateInputs.id });
+  return result[0]?.id;
+}
+
+export async function getAggregateInputs(
+  concreteBaseId?: number,
+  materialType?: string,
+) {
+  let conditions = [];
+  if (concreteBaseId) {
+    conditions.push(eq(schema.aggregateInputs.concreteBaseId, concreteBaseId));
+  }
+  if (materialType) {
+    conditions.push(eq(schema.aggregateInputs.materialType, materialType));
+  }
+
+  if (conditions.length > 0) {
+    return await db
+      .select()
+      .from(schema.aggregateInputs)
+      .where(and(...conditions))
+      .orderBy(desc(schema.aggregateInputs.date));
+  }
+
+  return await db
+    .select()
+    .from(schema.aggregateInputs)
+    .orderBy(desc(schema.aggregateInputs.date));
 }
 export async function createMachine(
   machine: typeof schema.machines.$inferInsert,
