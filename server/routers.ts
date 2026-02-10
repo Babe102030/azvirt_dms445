@@ -1485,7 +1485,7 @@ export const appRouter = router({
 
         const { sendEmail, generateDailyProductionReportHTML } =
           await import("./_core/email");
-        const emailHTML = generateDailyProductionReportHTML(
+        const emailResult = await generateDailyProductionReportHTML(
           {
             date: input.date,
             totalConcreteProduced,
@@ -1505,8 +1505,8 @@ export const appRouter = router({
 
         const sent = await sendEmail({
           to: input.recipientEmail,
-          subject: `Daily Production Report - ${input.date}`,
-          html: emailHTML,
+          subject: emailResult.subject,
+          html: emailResult.html,
         });
 
         return { success: sent };

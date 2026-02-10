@@ -38,5 +38,7 @@ export default defineConfig({
     "ai_messages",
     "notifications",
     "documents",
+    "email_templates",
+    "email_branding",
   ],
 });

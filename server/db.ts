@@ -961,12 +961,7 @@ export async function getMachineWorkHours(filters?: { machineId?: number }) {
   }
   return await query.orderBy(desc(schema.machineWorkHours.date));
 }
-export async function createAggregateInput(input: any) {
-  return Date.now();
-}
-export async function getAggregateInputs(filters?: any) {
-  return [];
-}
+
 export async function getWeeklyTimesheetSummary(
   employeeId?: number,
   weekStart?: Date,

@@ -20,6 +20,7 @@ import ForecastingDashboard from "./pages/ForecastingDashboard";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import ReportSettings from "./pages/ReportSettings";
 import EmailBrandingSettings from "./pages/EmailBrandingSettings";
+import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import AIAssistant from "./pages/AIAssistant";
 import CustomizableDashboard from "./pages/CustomizableDashboard";
 import NotificationTemplates from "./pages/NotificationTemplates";
@@ -64,6 +65,7 @@ function Router() {
       <Route path={"/settings"} component={Settings} />
       <Route path={"/report-settings"} component={ReportSettings} />
       <Route path={"/email-branding"} component={EmailBrandingSettings} />
+      <Route path={"/email-templates"} component={EmailTemplateEditor} />
       <Route path={"/ai-assistant"} component={AIAssistant} />
       <Route path={"/dashboard-custom"} component={CustomizableDashboard} />
       <Route

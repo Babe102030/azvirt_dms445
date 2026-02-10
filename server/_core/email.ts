@@ -1,3 +1,7 @@
+import {
+  generateEmailFromTemplate,
+  getBrandingSettings,
+} from "../services/emailTemplateService";
 
 interface EmailOptions {
   to: string;
@@ -10,23 +14,23 @@ interface EmailOptions {
  */
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   try {
-    const sgMail = (await import('@sendgrid/mail')).default;
-    
+    const sgMail = (await import("@sendgrid/mail")).default;
+
     // Check if SendGrid is configured
     const apiKey = process.env.SENDGRID_API_KEY;
     const fromEmail = process.env.SENDGRID_FROM_EMAIL;
-    const fromName = process.env.SENDGRID_FROM_NAME || 'AzVirt DMS';
-    
+    const fromName = process.env.SENDGRID_FROM_NAME || "AzVirt DMS";
+
     if (!apiKey || !fromEmail) {
-      console.warn('[EMAIL] SendGrid not configured. Email not sent.');
+      console.warn("[EMAIL] SendGrid not configured. Email not sent.");
       console.log(`[EMAIL] To: ${options.to}`);
       console.log(`[EMAIL] Subject: ${options.subject}`);
       return false;
     }
-    
+
     // Configure SendGrid
     sgMail.setApiKey(apiKey);
-    
+
     // Send email
     const msg = {
       to: options.to,
@@ -37,14 +41,14 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       subject: options.subject,
       html: options.html,
     };
-    
+
     await sgMail.send(msg);
     console.log(`[EMAIL] Successfully sent to: ${options.to}`);
     return true;
   } catch (error: any) {
-    console.error('[EMAIL] Failed to send:', error);
+    console.error("[EMAIL] Failed to send:", error);
     if (error.response) {
-      console.error('[EMAIL] SendGrid error:', error.response.body);
+      console.error("[EMAIL] SendGrid error:", error.response.body);
     }
     return false;
   }
@@ -52,14 +56,19 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 
 /**
  * Generate low stock alert email HTML
+ * Now supports custom templates and branding
  */
-export function generateLowStockEmailHTML(materials: Array<{
-  name: string;
-  quantity: number;
-  unit: string;
-  reorderLevel: number;
-}>): string {
-  const materialRows = materials.map(m => `
+export async function generateLowStockEmailHTML(
+  materials: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+    reorderLevel: number;
+  }>,
+): Promise<{ subject: string; html: string }> {
+  const materialRows = materials
+    .map(
+      (m) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">
@@ -67,8 +76,46 @@ export function generateLowStockEmailHTML(materials: Array<{
       </td>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${m.reorderLevel} ${m.unit}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
+  // Use template service for branded emails
+  try {
+    const result = await generateEmailFromTemplate(
+      "low_stock_alert",
+      {
+        materialCount: materials.length,
+        materialRows,
+        urgentCount: materials.filter((m) => m.quantity < m.reorderLevel * 0.5)
+          .length,
+        warningCount: materials.filter(
+          (m) => m.quantity >= m.reorderLevel * 0.5,
+        ).length,
+      },
+      {
+        headerTitle: "⚠️ Low Stock Alert",
+        headerSubtitle: "Upozorenje o niskim zalihama",
+      },
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error,
+    );
+    // Fall back to legacy HTML generation
+    return {
+      subject: `⚠️ Low Stock Alert - ${materials.length} materials need attention`,
+      html: generateLegacyLowStockHTML(materialRows),
+    };
+  }
+}
+
+/**
+ * Legacy low stock HTML (fallback)
+ */
+function generateLegacyLowStockHTML(materialRows: string): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -81,13 +128,13 @@ export function generateLowStockEmailHTML(materials: Array<{
     <h1 style="color: white; margin: 0; font-size: 28px;">⚠️ Low Stock Alert</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Upozorenje o niskim zalihama</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
       The following materials are running low and need to be reordered:<br>
       <em>Sljedeći materijali su pri kraju i potrebno ih je naručiti:</em>
     </p>
-    
+
     <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
       <thead>
         <tr style="background-color: #f3f4f6;">
@@ -100,7 +147,7 @@ export function generateLowStockEmailHTML(materials: Array<{
         ${materialRows}
       </tbody>
     </table>
-    
+
     <div style="margin-top: 30px; padding: 20px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
       <p style="margin: 0; font-weight: bold; color: #991b1b;">Action Required / Potrebna akcija:</p>
       <p style="margin: 10px 0 0 0; color: #7f1d1d;">
@@ -108,7 +155,7 @@ export function generateLowStockEmailHTML(materials: Array<{
         <em>Molimo kreirajte narudžbenice za ove materijale kako biste izbjegli kašnjenja u proizvodnji.</em>
       </p>
     </div>
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This automated alert is generated by AzVirt DMS.<br>
       Ovo automatsko upozorenje je generirano od strane AzVirt DMS sistema.
@@ -121,8 +168,55 @@ export function generateLowStockEmailHTML(materials: Array<{
 
 /**
  * Generate purchase order email HTML
+ * Now supports custom templates and branding
  */
-export function generatePurchaseOrderEmailHTML(po: {
+export async function generatePurchaseOrderEmailHTML(po: {
+  id: number;
+  materialName: string;
+  quantity: number;
+  unit: string;
+  supplier: string;
+  orderDate: string;
+  expectedDelivery: string | null;
+  notes: string | null;
+}): Promise<{ subject: string; html: string }> {
+  // Use template service for branded emails
+  try {
+    const result = await generateEmailFromTemplate(
+      "purchase_order",
+      {
+        orderId: po.id,
+        materialName: po.materialName,
+        quantity: po.quantity,
+        unit: po.unit,
+        supplier: po.supplier,
+        orderDate: po.orderDate,
+        expectedDelivery: po.expectedDelivery || "TBD",
+        notes: po.notes || "No additional notes",
+      },
+      {
+        headerTitle: "📦 Purchase Order",
+        headerSubtitle: `PO #${po.id}`,
+      },
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error,
+    );
+    // Fall back to legacy HTML generation
+    return {
+      subject: `📦 Purchase Order #${po.id}`,
+      html: generateLegacyPurchaseOrderHTML(po),
+    };
+  }
+}
+
+/**
+ * Legacy purchase order HTML (fallback)
+ */
+function generateLegacyPurchaseOrderHTML(po: {
   id: number;
   materialName: string;
   quantity: number;
@@ -144,18 +238,18 @@ export function generatePurchaseOrderEmailHTML(po: {
     <h1 style="color: white; margin: 0; font-size: 28px;">📦 Purchase Order</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">PO #${po.id}</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
       Dear ${po.supplier},<br>
       <em>Poštovani ${po.supplier},</em>
     </p>
-    
+
     <p>
       We would like to place the following order:<br>
       <em>Želimo da naručimo sljedeće:</em>
     </p>
-    
+
     <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <table style="width: 100%;">
         <tr>
@@ -170,32 +264,40 @@ export function generatePurchaseOrderEmailHTML(po: {
           <td style="padding: 8px 0; font-weight: bold;">Order Date / Datum narudžbe:</td>
           <td style="padding: 8px 0; text-align: right;">${po.orderDate}</td>
         </tr>
-        ${po.expectedDelivery ? `
+        ${
+          po.expectedDelivery
+            ? `
         <tr>
           <td style="padding: 8px 0; font-weight: bold;">Expected Delivery / Očekivana isporuka:</td>
           <td style="padding: 8px 0; text-align: right;">${po.expectedDelivery}</td>
         </tr>
-        ` : ''}
+        `
+            : ""
+        }
       </table>
     </div>
-    
-    ${po.notes ? `
+
+    ${
+      po.notes
+        ? `
     <div style="margin: 20px 0;">
       <p style="font-weight: bold; margin-bottom: 10px;">Additional Notes / Dodatne napomene:</p>
       <p style="background: #fef3c7; padding: 15px; border-radius: 4px; margin: 0;">${po.notes}</p>
     </div>
-    ` : ''}
-    
+    `
+        : ""
+    }
+
     <p style="margin-top: 30px;">
       Please confirm receipt of this order and provide delivery timeline.<br>
       <em>Molimo potvrdite prijem ove narudžbe i dostavite rok isporuke.</em>
     </p>
-    
+
     <p style="margin-top: 20px;">
       Best regards,<br>
       <strong>AzVirt Team</strong>
     </p>
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This purchase order is generated by AzVirt DMS.<br>
       Ova narudžbenica je generirana od strane AzVirt DMS sistema.
@@ -208,19 +310,27 @@ export function generatePurchaseOrderEmailHTML(po: {
 
 /**
  * Generate daily production report email HTML
+ * Now supports custom templates and branding
  */
-export function generateDailyProductionReportHTML(report: {
-  date: string;
-  totalConcreteProduced: number;
-  deliveriesCompleted: number;
-  materialConsumption: Array<{ name: string; quantity: number; unit: string }>;
-  qualityTests: { total: number; passed: number; failed: number };
-}, settings?: {
-  includeProduction?: boolean;
-  includeDeliveries?: boolean;
-  includeMaterials?: boolean;
-  includeQualityControl?: boolean;
-}): string {
+export async function generateDailyProductionReportHTML(
+  report: {
+    date: string;
+    totalConcreteProduced: number;
+    deliveriesCompleted: number;
+    materialConsumption: Array<{
+      name: string;
+      quantity: number;
+      unit: string;
+    }>;
+    qualityTests: { total: number; passed: number; failed: number };
+  },
+  settings?: {
+    includeProduction?: boolean;
+    includeDeliveries?: boolean;
+    includeMaterials?: boolean;
+    includeQualityControl?: boolean;
+  },
+): Promise<{ subject: string; html: string }> {
   // Default to include all sections if no settings provided
   const include = {
     production: settings?.includeProduction ?? true,
@@ -229,23 +339,40 @@ export function generateDailyProductionReportHTML(report: {
     qualityControl: settings?.includeQualityControl ?? true,
   };
 
-  const materialRows = report.materialConsumption.map(m => `
+  // Get branding for colors
+  let primaryColor = "#f97316";
+  try {
+    const branding = await getBrandingSettings();
+    primaryColor = branding.primaryColor;
+  } catch (e) {
+    // Use default color
+  }
+
+  const materialRows = report.materialConsumption
+    .map(
+      (m) => `
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">${m.quantity} ${m.unit}</td>
     </tr>
-  `).join('');
+  `,
+    )
+    .join("");
 
-  const passRate = report.qualityTests.total > 0 
-    ? ((report.qualityTests.passed / report.qualityTests.total) * 100).toFixed(1)
-    : '0';
+  const passRate =
+    report.qualityTests.total > 0
+      ? (
+          (report.qualityTests.passed / report.qualityTests.total) *
+          100
+        ).toFixed(1)
+      : "0";
 
   // Build metrics cards
-  let metricsHTML = '';
+  let metricsHTML = "";
   if (include.production) {
     metricsHTML += `
       <div style="background: #fef3c7; padding: 20px; border-radius: 8px; text-align: center;">
-        <div style="font-size: 32px; font-weight: bold; color: #f97316;">${report.totalConcreteProduced}</div>
+        <div style="font-size: 32px; font-weight: bold; color: ${primaryColor};">${report.totalConcreteProduced}</div>
         <div style="font-size: 14px; color: #78350f; margin-top: 5px;">m³ Concrete<br>Betona</div>
       </div>`;
   }
@@ -265,8 +392,9 @@ export function generateDailyProductionReportHTML(report: {
   }
 
   // Build material consumption section
-  const materialsHTML = include.materials ? `
-    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
+  const materialsHTML = include.materials
+    ? `
+    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px;">
       Material Consumption / Potrošnja materijala
     </h2>
     <table style="width: 100%; border-collapse: collapse;">
@@ -280,11 +408,13 @@ export function generateDailyProductionReportHTML(report: {
         ${materialRows}
       </tbody>
     </table>
-  ` : '';
+  `
+    : "";
 
   // Build quality control section
-  const qcHTML = include.qualityControl ? `
-    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
+  const qcHTML = include.qualityControl
+    ? `
+    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px;">
       Quality Control / Kontrola kvaliteta
     </h2>
     <div style="background: #f9fafb; padding: 20px; border-radius: 8px;">
@@ -301,8 +431,68 @@ export function generateDailyProductionReportHTML(report: {
         <strong style="color: #dc2626;">${report.qualityTests.failed}</strong>
       </div>
     </div>
-  ` : '';
+  `
+    : "";
 
+  // Use template service for branded emails
+  try {
+    const result = await generateEmailFromTemplate(
+      "daily_production_report",
+      {
+        date: report.date,
+        totalConcreteProduced: report.totalConcreteProduced,
+        deliveriesCompleted: report.deliveriesCompleted,
+        qualityTestsTotal: report.qualityTests.total,
+        qualityTestsPassed: report.qualityTests.passed,
+        qualityTestsFailed: report.qualityTests.failed,
+        passRate,
+        materialRows,
+        metricsHtml: metricsHTML,
+        qualityHtml: qcHTML,
+      },
+      {
+        headerTitle: "📊 Daily Production Report",
+        headerSubtitle: report.date,
+      },
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error,
+    );
+    // Fall back to legacy HTML generation
+    return {
+      subject: `📊 Daily Production Report - ${report.date}`,
+      html: generateLegacyDailyReportHTML(
+        report,
+        metricsHTML,
+        materialsHTML,
+        qcHTML,
+      ),
+    };
+  }
+}
+
+/**
+ * Legacy daily production report HTML (fallback)
+ */
+function generateLegacyDailyReportHTML(
+  report: {
+    date: string;
+    totalConcreteProduced: number;
+    deliveriesCompleted: number;
+    materialConsumption: Array<{
+      name: string;
+      quantity: number;
+      unit: string;
+    }>;
+    qualityTests: { total: number; passed: number; failed: number };
+  },
+  metricsHTML: string,
+  materialsHTML: string,
+  qcHTML: string,
+): string {
   return `
 <!DOCTYPE html>
 <html>
@@ -315,17 +505,17 @@ export function generateDailyProductionReportHTML(report: {
     <h1 style="color: white; margin: 0; font-size: 28px;">📊 Daily Production Report</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">${report.date}</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-    
+
     <!-- Key Metrics -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
       ${metricsHTML}
     </div>
-    
+
     ${materialsHTML}
     ${qcHTML}
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This automated report is generated daily by AzVirt DMS.<br>
       Ovaj automatski izvještaj se generiše dnevno od strane AzVirt DMS sistema.
