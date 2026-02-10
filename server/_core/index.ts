@@ -50,6 +50,15 @@ async function startServer() {
     if (url === "/api/clerk/health" || url === "/api/clerk/webhook") {
       return next();
     }
+
+    // Skip Clerk middleware if keys are placeholders to allow local development without valid Clerk setup
+    if (
+      process.env.CLERK_PUBLISHABLE_KEY === "pk_test_placeholder" ||
+      !process.env.CLERK_PUBLISHABLE_KEY
+    ) {
+      return next();
+    }
+
     clerkBaseMiddleware(req, res, next);
   });
 
@@ -67,7 +76,11 @@ async function startServer() {
 
   // In development, setup Vite for HMR and serving client files
   // In production, serve static files from dist/public
-  if (process.env.NODE_ENV === "development") {
+  // Use Vite if we are in development mode or if we're using placeholder keys (local test)
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.CLERK_PUBLISHABLE_KEY === "pk_test_placeholder"
+  ) {
     console.log("Setting up Vite for development...");
     await setupVite(app, server);
   } else {
