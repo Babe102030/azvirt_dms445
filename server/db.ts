@@ -878,3 +878,186 @@ export async function getOverdueTasks(limit: number = 100) {
     return [];
   }
 }
+
+/**
+ * Geolocation / job site helper stubs
+ *
+ * These functions provide lightweight behavior when geolocation-related
+ * tables are present in the schema, and harmless stubs when they are not.
+ * This avoids runtime import errors in modules that import them.
+ */
+
+/**
+ * Create a job site (geofence). Returns an ID when available.
+ */
+export async function createJobSite(input: any) {
+  try {
+    if ((schema as any).jobSites) {
+      const toInsert = {
+        ...input,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const result = await db
+        .insert((schema as any).jobSites)
+        .values(toInsert)
+        .returning({ id: (schema as any).jobSites.id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      // simple stub id for environments without schema
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] createJobSite error:", error);
+    return null;
+  }
+}
+
+/**
+ * Record a location log (e.g., when a user checks in/out). Returns an ID when available.
+ */
+export async function createLocationLog(input: any) {
+  try {
+    if ((schema as any).locationLogs) {
+      const toInsert = {
+        ...input,
+        createdAt: new Date(),
+      };
+      const result = await db
+        .insert((schema as any).locationLogs)
+        .values(toInsert)
+        .returning({ id: (schema as any).locationLogs.id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] createLocationLog error:", error);
+    return null;
+  }
+}
+
+/**
+ * Record a geofence violation. Returns an ID when available.
+ */
+export async function recordGeofenceViolation(input: any) {
+  try {
+    if ((schema as any).geofenceViolations) {
+      const toInsert = {
+        ...input,
+        createdAt: new Date(),
+      };
+      const result = await db
+        .insert((schema as any).geofenceViolations)
+        .values(toInsert)
+        .returning({ id: (schema as any).geofenceViolations.id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] recordGeofenceViolation error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get location history for an employee (most recent first).
+ */
+export async function getLocationHistory(
+  employeeId: number,
+  limit: number = 50,
+) {
+  try {
+    if ((schema as any).locationLogs) {
+      return await db
+        .select()
+        .from((schema as any).locationLogs)
+        .where(eq((schema as any).locationLogs.employeeId, employeeId))
+        .orderBy(desc((schema as any).locationLogs.createdAt))
+        .limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getLocationHistory error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get geofence violations for an employee, optionally filtering by resolved state.
+ */
+export async function getGeofenceViolations(
+  employeeId?: number,
+  resolved?: boolean,
+) {
+  try {
+    if ((schema as any).geofenceViolations) {
+      const conditions: any[] = [];
+      if (typeof employeeId === "number") {
+        conditions.push(
+          eq((schema as any).geofenceViolations.employeeId, employeeId),
+        );
+      }
+      if (typeof resolved === "boolean") {
+        conditions.push(
+          eq((schema as any).geofenceViolations.resolved, resolved),
+        );
+      }
+
+      if (conditions.length > 0) {
+        return await db
+          .select()
+          .from((schema as any).geofenceViolations)
+          .where(and(...conditions))
+          .orderBy(desc((schema as any).geofenceViolations.createdAt));
+      } else {
+        return await db
+          .select()
+          .from((schema as any).geofenceViolations)
+          .orderBy(desc((schema as any).geofenceViolations.createdAt));
+      }
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getGeofenceViolations error:", error);
+    return [];
+  }
+}
+
+/**
+ * Resolve a geofence violation (mark resolved and record resolver).
+ */
+export async function resolveGeofenceViolation(
+  violationId: number,
+  resolvedBy: number,
+  notes?: string,
+) {
+  try {
+    if ((schema as any).geofenceViolations) {
+      await db
+        .update((schema as any).geofenceViolations)
+        .set({
+          resolved: true,
+          resolvedBy,
+          resolvedAt: new Date(),
+          resolutionNotes: notes ?? null,
+        })
+        .where(eq((schema as any).geofenceViolations.id, violationId));
+      return true;
+    } else {
+      console.log(
+        "[DB] resolveGeofenceViolation (stub)",
+        violationId,
+        resolvedBy,
+        notes,
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] resolveGeofenceViolation error:", error);
+    return false;
+  }
+}
