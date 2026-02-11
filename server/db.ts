@@ -581,3 +581,300 @@ export async function getNotificationHistoryByUser(
     return [];
   }
 }
+
+/**
+ * Notification and task helper functions
+ *
+ * These helpers provide lightweight implementations when the related
+ * tables exist in the schema. If a schema/table is not present the
+ * functions fall back to safe stubs so imports do not break during
+ * local development or tests.
+ */
+
+/**
+ * Create a notification record.
+ * Returns the inserted notification id when available.
+ */
+export async function createNotification(notification: any) {
+  try {
+    if ((schema as any).notifications) {
+      const toInsert = {
+        ...notification,
+        sentAt: notification.sentAt ?? new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const result = await db
+        .insert((schema as any).notifications)
+        .values(toInsert)
+        .returning({ id: (schema as any).notifications.id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      console.log("[DB] createNotification (stub)", notification);
+      return Math.floor(Math.random() * 100000);
+    }
+  } catch (error) {
+    console.error("[DB] createNotification error:", error);
+    return null;
+  }
+}
+
+/**
+ * Retrieve notifications for a user.
+ */
+export async function getNotifications(userId: number, limit: number = 20) {
+  try {
+    if ((schema as any).notifications) {
+      // @ts-ignore
+      return await db
+        .select()
+        .from((schema as any).notifications)
+        .where(eq((schema as any).notifications.userId, userId))
+        .orderBy(desc((schema as any).notifications.sentAt))
+        .limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getNotifications error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get unread notifications for a user.
+ */
+export async function getUnreadNotifications(userId: number) {
+  try {
+    if ((schema as any).notifications) {
+      return await db
+        .select()
+        .from((schema as any).notifications)
+        .where(
+          and(
+            eq((schema as any).notifications.userId, userId),
+            eq((schema as any).notifications.status, "unread"),
+          ),
+        )
+        .orderBy(desc((schema as any).notifications.sentAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getUnreadNotifications error:", error);
+    return [];
+  }
+}
+
+/**
+ * Mark a notification as read.
+ */
+export async function markNotificationAsRead(notificationId: number) {
+  try {
+    if ((schema as any).notifications) {
+      await db
+        .update((schema as any).notifications)
+        .set({ status: "read", updatedAt: new Date() })
+        .where(eq((schema as any).notifications.id, notificationId));
+      return true;
+    } else {
+      console.log("[DB] markNotificationAsRead (stub)", notificationId);
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] markNotificationAsRead error:", error);
+    return false;
+  }
+}
+
+/**
+ * Notification preferences helpers: get, create-or-get and update
+ */
+export async function getOrCreateNotificationPreferences(userId: number) {
+  try {
+    if ((schema as any).notificationPreferences) {
+      const existing = await db
+        .select()
+        .from((schema as any).notificationPreferences)
+        .where(eq((schema as any).notificationPreferences.userId, userId));
+      if (existing && existing[0]) return existing[0];
+
+      const defaults = {
+        userId,
+        emailEnabled: true,
+        smsEnabled: false,
+        inAppEnabled: true,
+        overdueReminders: true,
+        completionNotifications: true,
+        assignmentNotifications: true,
+        statusChangeNotifications: true,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        timezone: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const result = await db
+        .insert((schema as any).notificationPreferences)
+        .values(defaults)
+        .returning((schema as any).notificationPreferences);
+
+      return result && result[0] ? result[0] : defaults;
+    } else {
+      // Fallback object for environments without the table
+      return {
+        userId,
+        emailEnabled: true,
+        smsEnabled: false,
+        inAppEnabled: true,
+        overdueReminders: true,
+        completionNotifications: true,
+        assignmentNotifications: true,
+        statusChangeNotifications: true,
+      };
+    }
+  } catch (error) {
+    console.error("[DB] getOrCreateNotificationPreferences error:", error);
+    return {
+      userId,
+      emailEnabled: true,
+      smsEnabled: false,
+      inAppEnabled: true,
+      overdueReminders: true,
+      completionNotifications: true,
+      assignmentNotifications: true,
+      statusChangeNotifications: true,
+    };
+  }
+}
+
+export async function updateNotificationPreferences(
+  userId: number,
+  preferences: any,
+) {
+  try {
+    if ((schema as any).notificationPreferences) {
+      await db
+        .update((schema as any).notificationPreferences)
+        .set({ ...preferences, updatedAt: new Date() })
+        .where(eq((schema as any).notificationPreferences.userId, userId));
+      return true;
+    } else {
+      console.log(
+        "[DB] updateNotificationPreferences (stub)",
+        userId,
+        preferences,
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] updateNotificationPreferences error:", error);
+    return false;
+  }
+}
+
+export async function getNotificationPreferences(userId: number) {
+  try {
+    if ((schema as any).notificationPreferences) {
+      const result = await db
+        .select()
+        .from((schema as any).notificationPreferences)
+        .where(eq((schema as any).notificationPreferences.userId, userId));
+      return result && result[0] ? result[0] : null;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("[DB] getNotificationPreferences error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get notifications from the last `hours` that failed.
+ * Looks at notificationHistory table first, falls back to notifications table.
+ */
+export async function getFailedNotifications(hours: number = 24) {
+  try {
+    const cutoff = new Date();
+    cutoff.setHours(cutoff.getHours() - hours);
+
+    if ((schema as any).notificationHistory) {
+      return await db
+        .select()
+        .from((schema as any).notificationHistory)
+        .where(
+          and(
+            eq((schema as any).notificationHistory.status, "failed"),
+            gte((schema as any).notificationHistory.createdAt, cutoff),
+          ),
+        )
+        .orderBy(desc((schema as any).notificationHistory.createdAt));
+    } else if ((schema as any).notifications) {
+      return await db
+        .select()
+        .from((schema as any).notifications)
+        .where(
+          and(
+            eq((schema as any).notifications.status, "failed"),
+            gte((schema as any).notifications.createdAt, cutoff),
+          ),
+        )
+        .orderBy(desc((schema as any).notifications.createdAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getFailedNotifications error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get pending notifications to be processed by a worker.
+ */
+export async function getPendingNotifications() {
+  try {
+    if ((schema as any).notifications) {
+      return await db
+        .select()
+        .from((schema as any).notifications)
+        .where(
+          inArray((schema as any).notifications.status, ["pending", "queued"]),
+        )
+        .orderBy(desc((schema as any).notifications.createdAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getPendingNotifications error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get overdue tasks (not completed and due on or before now)
+ */
+export async function getOverdueTasks(limit: number = 100) {
+  try {
+    if ((schema as any).tasks) {
+      return await db
+        .select()
+        .from((schema as any).tasks)
+        .where(
+          and(
+            lte((schema as any).tasks.dueDate, new Date()),
+            not(eq((schema as any).tasks.status, "completed")),
+          ),
+        )
+        .orderBy((schema as any).tasks.dueDate)
+        .limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getOverdueTasks error:", error);
+    return [];
+  }
+}
