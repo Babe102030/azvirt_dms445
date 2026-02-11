@@ -1128,3 +1128,366 @@ export async function getEmployeeById(id: number) {
     return null;
   }
 }
+
+// --- Added for purchase orders ---
+
+export async function getSuppliers() {
+  return await db.select().from(schema.suppliers);
+}
+
+export async function getOrCreateSupplier(name: string, email?: string) {
+  const existing = await db
+    .select()
+    .from(schema.suppliers)
+    .where(eq(schema.suppliers.name, name))
+    .limit(1);
+
+  if (existing && existing.length > 0) return existing[0];
+
+  const result = await db
+    .insert(schema.suppliers)
+    .values({
+      name,
+      email: email || "",
+      contactPerson: "",
+      phone: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function createPurchaseOrder(data: {
+  materialId?: number;
+  quantity?: number;
+  supplier?: string;
+  supplierEmail?: string;
+  expectedDelivery?: Date;
+  totalCost?: number;
+  notes?: string;
+  status?: string;
+  orderDate?: Date;
+}) {
+  try {
+    let supplierId: number | null = null;
+    if (data.supplier) {
+      const supplier = await getOrCreateSupplier(
+        data.supplier,
+        data.supplierEmail
+      );
+      if (supplier) {
+        supplierId = supplier.id;
+      }
+    }
+
+    const [po] = await db
+      .insert(schema.purchaseOrders)
+      .values({
+        supplierId,
+        orderDate: data.orderDate || new Date(),
+        expectedDeliveryDate: data.expectedDelivery,
+        status: data.status || "draft",
+        totalCost: data.totalCost ? String(data.totalCost) : null,
+        notes: data.notes,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    if (po && data.materialId && data.quantity) {
+      await db.insert(schema.purchaseOrderItems).values({
+        purchaseOrderId: po.id,
+        materialId: data.materialId,
+        quantity: String(data.quantity),
+        unitPrice:
+          data.totalCost && data.quantity
+            ? String(data.totalCost / data.quantity)
+            : "0",
+      });
+    }
+
+    return po?.id;
+  } catch (error) {
+    console.error("Error creating purchase order:", error);
+    return null;
+  }
+}
+
+export async function getPurchaseOrders() {
+  try {
+    const orders = await db
+      .select({
+        id: schema.purchaseOrders.id,
+        supplierId: schema.purchaseOrders.supplierId,
+        supplierName: schema.suppliers.name,
+        supplierEmail: schema.suppliers.email,
+        orderDate: schema.purchaseOrders.orderDate,
+        expectedDelivery: schema.purchaseOrders.expectedDeliveryDate,
+        actualDelivery: schema.purchaseOrders.actualDeliveryDate,
+        status: schema.purchaseOrders.status,
+        totalCost: schema.purchaseOrders.totalCost,
+        notes: schema.purchaseOrders.notes,
+        materialId: schema.purchaseOrderItems.materialId,
+        materialName: schema.materials.name,
+        quantity: schema.purchaseOrderItems.quantity,
+        unitPrice: schema.purchaseOrderItems.unitPrice,
+      })
+      .from(schema.purchaseOrders)
+      .leftJoin(
+        schema.suppliers,
+        eq(schema.purchaseOrders.supplierId, schema.suppliers.id)
+      )
+      .leftJoin(
+        schema.purchaseOrderItems,
+        eq(schema.purchaseOrders.id, schema.purchaseOrderItems.purchaseOrderId)
+      )
+      .leftJoin(
+        schema.materials,
+        eq(schema.purchaseOrderItems.materialId, schema.materials.id)
+      )
+      .orderBy(desc(schema.purchaseOrders.createdAt));
+
+    return orders.map((o) => ({
+      ...o,
+      totalCost: o.totalCost ? Number(o.totalCost) : 0,
+      quantity: o.quantity ? Number(o.quantity) : 0,
+      unitPrice: o.unitPrice ? Number(o.unitPrice) : 0,
+    }));
+  } catch (error) {
+    console.error("Error getting purchase orders:", error);
+    return [];
+  }
+}
+
+export async function updatePurchaseOrder(
+  id: number,
+  data: {
+    status?: string;
+    actualDeliveryDate?: Date;
+    expectedDeliveryDate?: Date;
+    totalCost?: number;
+    notes?: string;
+  }
+) {
+  try {
+    const updateData: any = { ...data, updatedAt: new Date() };
+    if (data.totalCost !== undefined) {
+      updateData.totalCost = String(data.totalCost);
+    }
+    await db
+      .update(schema.purchaseOrders)
+      .set(updateData)
+      .where(eq(schema.purchaseOrders.id, id));
+  } catch (error) {
+    console.error("Error updating purchase order:", error);
+  }
+}
+
+export async function receivePurchaseOrder(id: number) {
+  try {
+    await updatePurchaseOrder(id, {
+      status: "received",
+      actualDeliveryDate: new Date(),
+    });
+
+    const items = await db
+      .select()
+      .from(schema.purchaseOrderItems)
+      .where(eq(schema.purchaseOrderItems.purchaseOrderId, id));
+
+    for (const item of items) {
+      if (item.materialId) {
+        const material = await db
+          .select()
+          .from(schema.materials)
+          .where(eq(schema.materials.id, item.materialId))
+          .limit(1);
+
+        if (material && material.length > 0) {
+          const currentQty = Number(material[0].quantity || 0);
+          const newQty = currentQty + Number(item.quantity || 0);
+
+          await db
+            .update(schema.materials)
+            .set({
+              quantity: newQty,
+              lastOrderDate: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(schema.materials.id, item.materialId));
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error receiving purchase order:", error);
+  }
+}
+
+// --- Added for suppliers ---
+
+export async function createSupplier(data: {
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
+}) {
+  const result = await db
+    .insert(schema.suppliers)
+    .values({
+      name: data.name,
+      contactPerson: data.contactPerson,
+      email: data.email,
+      phone: data.phone,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+  return result[0];
+}
+
+export async function updateSupplier(
+  id: number,
+  data: {
+    name?: string;
+    contactPerson?: string;
+    email?: string;
+    phone?: string;
+  }
+) {
+  await db
+    .update(schema.suppliers)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.suppliers.id, id));
+}
+
+export async function deleteSupplier(id: number) {
+  await db.delete(schema.suppliers).where(eq(schema.suppliers.id, id));
+}
+
+// --- Added for tasks ---
+
+export async function createTask(data: {
+  title: string;
+  description?: string;
+  priority?: string;
+  dueDate?: Date;
+  projectId?: number;
+  createdBy: number;
+  status?: string;
+}) {
+  const result = await db
+    .insert(schema.tasks)
+    .values({
+      title: data.title,
+      description: data.description,
+      priority: data.priority || "medium",
+      dueDate: data.dueDate,
+      projectId: data.projectId,
+      createdBy: data.createdBy,
+      status: data.status || "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning();
+  return result[0]?.id;
+}
+
+export async function getTasks(userId?: number) {
+  const tasks = await db
+    .select({
+       id: schema.tasks.id,
+       title: schema.tasks.title,
+       description: schema.tasks.description,
+       status: schema.tasks.status,
+       priority: schema.tasks.priority,
+       dueDate: schema.tasks.dueDate,
+       projectId: schema.tasks.projectId,
+       createdBy: schema.tasks.createdBy,
+       createdAt: schema.tasks.createdAt,
+       updatedAt: schema.tasks.updatedAt,
+    })
+    .from(schema.tasks)
+    .orderBy(desc(schema.tasks.createdAt));
+    
+  const tasksWithAssignments = await Promise.all(tasks.map(async (task) => {
+    const assignments = await db
+        .select()
+        .from(schema.taskAssignments)
+        .where(eq(schema.taskAssignments.taskId, task.id));
+        
+    return {
+        ...task,
+        assignedTo: assignments.map(a => a.userId)
+    };
+  }));
+
+  if (userId) {
+      return tasksWithAssignments.filter(t => t.createdBy === userId || t.assignedTo.includes(userId));
+  }
+
+  return tasksWithAssignments;
+}
+
+export async function getTaskById(id: number) {
+  const tasks = await db
+    .select()
+    .from(schema.tasks)
+    .where(eq(schema.tasks.id, id));
+    
+  if (!tasks.length) return null;
+  
+  const assignments = await db
+        .select()
+        .from(schema.taskAssignments)
+        .where(eq(schema.taskAssignments.taskId, id));
+        
+  return {
+      ...tasks[0],
+      assignedTo: assignments.map(a => a.userId)
+  };
+}
+
+export async function updateTask(id: number, data: any) {
+  const { assignedTo, ...updateData } = data;
+  
+  await db
+    .update(schema.tasks)
+    .set({
+      ...updateData,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.tasks.id, id));
+}
+
+export async function deleteTask(id: number) {
+  await db.delete(schema.tasks).where(eq(schema.tasks.id, id));
+}
+
+export async function assignTask(data: {
+  taskId: number;
+  userId: number;
+  assignedAt?: Date;
+}) {
+    const existing = await db
+        .select()
+        .from(schema.taskAssignments)
+        .where(
+            and(
+                eq(schema.taskAssignments.taskId, data.taskId),
+                eq(schema.taskAssignments.userId, data.userId)
+            )
+        );
+        
+    if (existing.length === 0) {
+        await db.insert(schema.taskAssignments).values({
+            taskId: data.taskId,
+            userId: data.userId,
+            assignedAt: data.assignedAt || new Date()
+        });
+    }
+}
