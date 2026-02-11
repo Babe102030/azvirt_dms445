@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS ai_models (\n  id INT PRIMARY KEY AUTO_INCREMENT,\n  name VARCHAR(100) NOT NULL UNIQUE,\n  displayName VARCHAR(255) NOT NULL,\n  type ENUM('text', 'vision', 'code') NOT NULL,\n  size VARCHAR(20),\n  isInstalled BOOLEAN DEFAULT FALSE,\n  lastUsed DATETIME,\n  description TEXT,\n  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP\n)",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS ai_models (\n  id INT PRIMARY KEY AUTO_INCREMENT,\n  name VARCHAR(100) NOT NULL UNIQUE,\n  displayName VARCHAR(255) NOT NULL,\n  type ENUM('text', 'vision', 'code') NOT NULL,\n  size VARCHAR(20),\n  isInstalled BOOLEAN DEFAULT FALSE,\n  lastUsed DATETIME,\n  description TEXT,\n  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP\n)",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 209
-}

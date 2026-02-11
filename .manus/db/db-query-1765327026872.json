@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS `daily_tasks` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `dueDate` timestamp NOT NULL,\n  `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',\n  `status` enum('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending',\n  `assignedTo` int,\n  `category` varchar(100),\n  `tags` json,\n  `attachments` json,\n  `completedAt` timestamp,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS `daily_tasks` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `description` text,\n  `dueDate` timestamp NOT NULL,\n  `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium',\n  `status` enum('pending','in_progress','completed','cancelled') NOT NULL DEFAULT 'pending',\n  `assignedTo` int,\n  `category` varchar(100),\n  `tags` json,\n  `attachments` json,\n  `completedAt` timestamp,\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 176
-}

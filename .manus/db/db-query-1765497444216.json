@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS `notification_preferences` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL UNIQUE,\n  `emailEnabled` boolean NOT NULL DEFAULT true,\n  `smsEnabled` boolean NOT NULL DEFAULT false,\n  `inAppEnabled` boolean NOT NULL DEFAULT true,\n  `overdueReminders` boolean NOT NULL DEFAULT true,\n  `completionNotifications` boolean NOT NULL DEFAULT true,\n  `assignmentNotifications` boolean NOT NULL DEFAULT true,\n  `statusChangeNotifications` boolean NOT NULL DEFAULT true,\n  `quietHoursStart` varchar(5),\n  `quietHoursEnd` varchar(5),\n  `timezone` varchar(50) NOT NULL DEFAULT 'UTC',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS `notification_preferences` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `userId` int NOT NULL UNIQUE,\n  `emailEnabled` boolean NOT NULL DEFAULT true,\n  `smsEnabled` boolean NOT NULL DEFAULT false,\n  `inAppEnabled` boolean NOT NULL DEFAULT true,\n  `overdueReminders` boolean NOT NULL DEFAULT true,\n  `completionNotifications` boolean NOT NULL DEFAULT true,\n  `assignmentNotifications` boolean NOT NULL DEFAULT true,\n  `statusChangeNotifications` boolean NOT NULL DEFAULT true,\n  `quietHoursStart` varchar(5),\n  `quietHoursEnd` varchar(5),\n  `timezone` varchar(50) NOT NULL DEFAULT 'UTC',\n  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 167
-}

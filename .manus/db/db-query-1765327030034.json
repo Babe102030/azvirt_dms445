@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS `task_assignments` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `taskId` int NOT NULL,\n  `assignedTo` int NOT NULL,\n  `assignedBy` int NOT NULL,\n  `responsibility` varchar(255) NOT NULL,\n  `completionPercentage` int NOT NULL DEFAULT 0,\n  `notes` text,\n  `assignedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS `task_assignments` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `taskId` int NOT NULL,\n  `assignedTo` int NOT NULL,\n  `assignedBy` int NOT NULL,\n  `responsibility` varchar(255) NOT NULL,\n  `completionPercentage` int NOT NULL DEFAULT 0,\n  `notes` text,\n  `assignedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 173
-}

@@ -1,9 +1,0 @@
-{
-  "query": "CREATE TABLE IF NOT EXISTS mixing_logs (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  batchNumber VARCHAR(100) NOT NULL UNIQUE,\n  recipeId INT NOT NULL,\n  recipeName VARCHAR(255) NOT NULL,\n  volume INT NOT NULL,\n  volumeM3 DECIMAL(10, 2) NOT NULL,\n  status ENUM('planned', 'in_progress', 'completed', 'rejected') DEFAULT 'planned' NOT NULL,\n  projectId INT,\n  deliveryId INT,\n  startTime TIMESTAMP NULL,\n  endTime TIMESTAMP NULL,\n  producedBy INT,\n  approvedBy INT,\n  notes LONGTEXT,\n  qualityNotes LONGTEXT,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute CREATE TABLE IF NOT EXISTS mixing_logs (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  batchNumber VARCHAR(100) NOT NULL UNIQUE,\n  recipeId INT NOT NULL,\n  recipeName VARCHAR(255) NOT NULL,\n  volume INT NOT NULL,\n  volumeM3 DECIMAL(10, 2) NOT NULL,\n  status ENUM('planned', 'in_progress', 'completed', 'rejected') DEFAULT 'planned' NOT NULL,\n  projectId INT,\n  deliveryId INT,\n  startTime TIMESTAMP NULL,\n  endTime TIMESTAMP NULL,\n  producedBy INT,\n  approvedBy INT,\n  notes LONGTEXT,\n  qualityNotes LONGTEXT,\n  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 1238
-}

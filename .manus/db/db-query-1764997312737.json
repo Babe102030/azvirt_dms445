@@ -1,9 +1,0 @@
-{
-  "query": "ALTER TABLE deliveries \nMODIFY COLUMN status ENUM('scheduled', 'loaded', 'en_route', 'arrived', 'delivered', 'returning', 'completed', 'cancelled') DEFAULT 'scheduled' NOT NULL,\nADD COLUMN IF NOT EXISTS gpsLocation VARCHAR(100),\nADD COLUMN IF NOT EXISTS deliveryPhotos TEXT,\nADD COLUMN IF NOT EXISTS estimatedArrival INT,\nADD COLUMN IF NOT EXISTS actualArrivalTime INT,\nADD COLUMN IF NOT EXISTS actualDeliveryTime INT,\nADD COLUMN IF NOT EXISTS driverNotes TEXT;",
-  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3rf55phMSy1Bqm7.root --database XQpiGbEcueWdnyaoEtKtzk --execute ALTER TABLE deliveries \nMODIFY COLUMN status ENUM('scheduled', 'loaded', 'en_route', 'arrived', 'delivered', 'returning', 'completed', 'cancelled') DEFAULT 'scheduled' NOT NULL,\nADD COLUMN IF NOT EXISTS gpsLocation VARCHAR(100),\nADD COLUMN IF NOT EXISTS deliveryPhotos TEXT,\nADD COLUMN IF NOT EXISTS estimatedArrival INT,\nADD COLUMN IF NOT EXISTS actualArrivalTime INT,\nADD COLUMN IF NOT EXISTS actualDeliveryTime INT,\nADD COLUMN IF NOT EXISTS driverNotes TEXT;",
-  "rows": [],
-  "messages": [],
-  "stdout": "",
-  "stderr": "",
-  "execution_time_ms": 2000
-}
