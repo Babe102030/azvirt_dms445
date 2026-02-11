@@ -475,3 +475,109 @@ export async function updateNotificationTrigger(id: number, data: any) {
 export async function deleteNotificationTrigger(id: number) {
   return true;
 }
+
+/**
+ * Notification history helpers
+ *
+ * The functions below attempt to use the `notificationHistory` schema if it exists.
+ * If the schema/table is not present (for lightweight/test environments) they fall
+ * back to safe stubs so importing modules do not break.
+ */
+
+export type NotificationHistoryInsert = {
+  notificationId: number;
+  userId: number;
+  channel: "email" | "sms" | "in_app" | string;
+  status: "sent" | "failed" | "pending" | string;
+  recipient?: string | null;
+  errorMessage?: string | null;
+};
+
+export async function recordNotificationHistory(
+  data: NotificationHistoryInsert,
+) {
+  try {
+    // If a notificationHistory table exists in the schema, insert there
+    if ((schema as any).notificationHistory) {
+      const insertData: any = {
+        notificationId: data.notificationId,
+        userId: data.userId,
+        channel: data.channel,
+        status: data.status,
+        recipient: data.recipient ?? null,
+        errorMessage: data.errorMessage ?? null,
+        createdAt: new Date(),
+      };
+
+      // Using `any` for schema access to avoid strict type errors when the table is not defined.
+      const result = await db
+        .insert((schema as any).notificationHistory)
+        .values(insertData)
+        .returning({ id: (schema as any).notificationHistory.id });
+
+      // Return inserted id when possible
+      return result && result[0] ? (result[0].id as number) : null;
+    } else {
+      // Fallback / stub behavior
+      console.log("[DB] recordNotificationHistory (stub)", data);
+      return null;
+    }
+  } catch (error) {
+    console.error("[DB] recordNotificationHistory error:", error);
+    return null;
+  }
+}
+
+export async function getNotificationHistory(notificationId: number) {
+  try {
+    if ((schema as any).notificationHistory) {
+      return await db
+        .select()
+        .from((schema as any).notificationHistory)
+        .where(
+          eq(
+            (schema as any).notificationHistory.notificationId,
+            notificationId,
+          ),
+        )
+        .orderBy(desc((schema as any).notificationHistory.createdAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getNotificationHistory error:", error);
+    return [];
+  }
+}
+
+/**
+ * Returns notification history for a given user limited to the last `days`.
+ * If the notificationHistory schema/table is unavailable this returns an empty array.
+ */
+export async function getNotificationHistoryByUser(
+  userId: number,
+  days: number = 30,
+) {
+  try {
+    if ((schema as any).notificationHistory) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - (days || 30));
+
+      return await db
+        .select()
+        .from((schema as any).notificationHistory)
+        .where(
+          and(
+            eq((schema as any).notificationHistory.userId, userId),
+            gte((schema as any).notificationHistory.createdAt, cutoff),
+          ),
+        )
+        .orderBy(desc((schema as any).notificationHistory.createdAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getNotificationHistoryByUser error:", error);
+    return [];
+  }
+}
