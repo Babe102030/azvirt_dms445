@@ -1,0 +1,103 @@
+{
+  // General editor settings
+  "editor": {
+    "tab_size": 2,
+    "hard_tabs": false,
+    "show_whitespaces": "selection",
+    "format_on_save": "on",
+    "preferred_line_ending": "LF",
+    "trim_trailing_whitespace": "all",
+    "font_size": 14,
+    "line_wrap": "none",
+  },
+
+  // Language-specific settings (examples for common web technologies)
+  "language_overrides": {
+    "TypeScript": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "typescript"],
+        },
+      },
+    },
+    "JavaScript": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "typescript"],
+        },
+      },
+    },
+    "Vue": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "vue"],
+        },
+      },
+    },
+    "css": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "css"],
+        },
+      },
+    },
+    "html": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "html"],
+        },
+      },
+    },
+    "json": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "json"],
+        },
+      },
+    },
+    "markdown": {
+      "formatter": {
+        "external": {
+          "command": "prettier",
+          "arguments": ["--parser", "markdown"],
+        },
+      },
+    },
+  },
+
+  // Project-specific settings
+  "project": {
+    "exclude_dirs": [
+      "node_modules",
+      "dist",
+      "build",
+      ".git",
+      ".vscode",
+      ".idea",
+      "npm-debug.log",
+      "yarn-debug.log",
+      "yarn-error.log",
+      "pnpm-debug.log",
+      "coverage",
+      "temp",
+      "tmp",
+      "log",
+      "logs",
+    ],
+  },
+
+  // Additional settings you might find useful
+  "terminal": {
+    "font_size": 13,
+  },
+  "ui": {
+    "cursor_blink": "on",
+    "tab_width": 2,
+  },
+}
