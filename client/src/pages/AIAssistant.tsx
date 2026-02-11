@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
+import { VoiceActivationButton } from "@/components/VoiceActivationButton";
 import { PromptTemplates } from "@/components/PromptTemplates";
 import { ImageUpload } from "@/components/ImageUpload";
 import { ModelSwitcher } from "@/components/ModelSwitcher";
@@ -104,6 +105,15 @@ export default function AIAssistant() {
       message: text,
       model: selectedModel,
       audioUrl,
+      useTools: true,
+    });
+  };
+
+  const handleVoiceCommand = (command: string) => {
+    chatMutation.mutate({
+      conversationId: currentConversationId,
+      message: command,
+      model: selectedModel,
       useTools: true,
     });
   };
@@ -405,6 +415,11 @@ export default function AIAssistant() {
             <VoiceRecorder
               onTranscription={handleVoiceTranscription}
               language="bs"
+            />
+
+            <VoiceActivationButton
+              onCommand={handleVoiceCommand}
+              isProcessing={chatMutation.isPending}
             />
 
             <Button
