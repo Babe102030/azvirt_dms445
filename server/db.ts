@@ -266,6 +266,16 @@ export async function createEmployee(data: InsertEmployee) {
   return result[0].id;
 }
 
+export type InsertWorkHour = typeof schema.workHours.$inferInsert;
+
+export async function createWorkHour(data: InsertWorkHour) {
+  const result = await db
+    .insert(schema.workHours)
+    .values(data)
+    .returning({ id: schema.workHours.id });
+  return result[0].id;
+}
+
 export async function updateQualityTest(
   id: number,
   data: Partial<InsertQualityTest>,
