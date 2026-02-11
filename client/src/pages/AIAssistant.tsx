@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import { Streamdown } from "streamdown";
 
 export default function AIAssistant() {
   const { t } = useLanguage();
+  const [, setLocation] = useLocation();
   const [message, setMessage] = useState("");
   const [currentConversationId, setCurrentConversationId] = useState<
     number | undefined
@@ -110,6 +112,84 @@ export default function AIAssistant() {
   };
 
   const handleVoiceCommand = (command: string) => {
+    const lower = command.toLowerCase();
+
+    // Navigation commands
+    if (
+      lower.startsWith("go to") ||
+      lower.startsWith("open") ||
+      lower.startsWith("navigate")
+    ) {
+      if (lower.includes("manager")) {
+        setLocation("/manager-dashboard");
+        return;
+      }
+      if (lower.includes("dashboard")) {
+        setLocation("/");
+        return;
+      }
+      if (lower.includes("document")) {
+        setLocation("/documents");
+        return;
+      }
+      if (lower.includes("project")) {
+        setLocation("/projects");
+        return;
+      }
+      if (lower.includes("material")) {
+        setLocation("/materials");
+        return;
+      }
+      if (lower.includes("recipe")) {
+        setLocation("/recipes");
+        return;
+      }
+      if (lower.includes("mixing")) {
+        setLocation("/mixing-log");
+        return;
+      }
+      if (lower.includes("analytic")) {
+        setLocation("/production-analytics");
+        return;
+      }
+      if (lower.includes("forecast")) {
+        setLocation("/forecasting");
+        return;
+      }
+      if (lower.includes("purchase")) {
+        setLocation("/purchase-orders");
+        return;
+      }
+      if (lower.includes("driver")) {
+        setLocation("/driver-deliveries");
+        return;
+      }
+      if (lower.includes("delivery") || lower.includes("deliveries")) {
+        setLocation("/deliveries");
+        return;
+      }
+      if (lower.includes("quality")) {
+        setLocation("/quality");
+        return;
+      }
+      if (lower.includes("employee") || lower.includes("staff")) {
+        setLocation("/employees");
+        return;
+      }
+      if (lower.includes("machine") || lower.includes("equipment")) {
+        setLocation("/machines");
+        return;
+      }
+      if (lower.includes("timesheet")) {
+        setLocation("/timesheets");
+        return;
+      }
+      if (lower.includes("setting") || lower.includes("configuration")) {
+        setLocation("/settings");
+        return;
+      }
+    }
+
     chatMutation.mutate({
       conversationId: currentConversationId,
       message: command,
