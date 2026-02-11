@@ -1175,7 +1175,7 @@ export async function createPurchaseOrder(data: {
     if (data.supplier) {
       const supplier = await getOrCreateSupplier(
         data.supplier,
-        data.supplierEmail
+        data.supplierEmail,
       );
       if (supplier) {
         supplierId = supplier.id;
@@ -1237,15 +1237,15 @@ export async function getPurchaseOrders() {
       .from(schema.purchaseOrders)
       .leftJoin(
         schema.suppliers,
-        eq(schema.purchaseOrders.supplierId, schema.suppliers.id)
+        eq(schema.purchaseOrders.supplierId, schema.suppliers.id),
       )
       .leftJoin(
         schema.purchaseOrderItems,
-        eq(schema.purchaseOrders.id, schema.purchaseOrderItems.purchaseOrderId)
+        eq(schema.purchaseOrders.id, schema.purchaseOrderItems.purchaseOrderId),
       )
       .leftJoin(
         schema.materials,
-        eq(schema.purchaseOrderItems.materialId, schema.materials.id)
+        eq(schema.purchaseOrderItems.materialId, schema.materials.id),
       )
       .orderBy(desc(schema.purchaseOrders.createdAt));
 
@@ -1269,7 +1269,7 @@ export async function updatePurchaseOrder(
     expectedDeliveryDate?: Date;
     totalCost?: number;
     notes?: string;
-  }
+  },
 ) {
   try {
     const updateData: any = { ...data, updatedAt: new Date() };
@@ -1354,7 +1354,7 @@ export async function updateSupplier(
     contactPerson?: string;
     email?: string;
     phone?: string;
-  }
+  },
 ) {
   await db
     .update(schema.suppliers)
@@ -1400,34 +1400,38 @@ export async function createTask(data: {
 export async function getTasks(userId?: number) {
   const tasks = await db
     .select({
-       id: schema.tasks.id,
-       title: schema.tasks.title,
-       description: schema.tasks.description,
-       status: schema.tasks.status,
-       priority: schema.tasks.priority,
-       dueDate: schema.tasks.dueDate,
-       projectId: schema.tasks.projectId,
-       createdBy: schema.tasks.createdBy,
-       createdAt: schema.tasks.createdAt,
-       updatedAt: schema.tasks.updatedAt,
+      id: schema.tasks.id,
+      title: schema.tasks.title,
+      description: schema.tasks.description,
+      status: schema.tasks.status,
+      priority: schema.tasks.priority,
+      dueDate: schema.tasks.dueDate,
+      projectId: schema.tasks.projectId,
+      createdBy: schema.tasks.createdBy,
+      createdAt: schema.tasks.createdAt,
+      updatedAt: schema.tasks.updatedAt,
     })
     .from(schema.tasks)
     .orderBy(desc(schema.tasks.createdAt));
-    
-  const tasksWithAssignments = await Promise.all(tasks.map(async (task) => {
-    const assignments = await db
+
+  const tasksWithAssignments = await Promise.all(
+    tasks.map(async (task) => {
+      const assignments = await db
         .select()
         .from(schema.taskAssignments)
         .where(eq(schema.taskAssignments.taskId, task.id));
-        
-    return {
+
+      return {
         ...task,
-        assignedTo: assignments.map(a => a.userId)
-    };
-  }));
+        assignedTo: assignments.map((a) => a.userId),
+      };
+    }),
+  );
 
   if (userId) {
-      return tasksWithAssignments.filter(t => t.createdBy === userId || t.assignedTo.includes(userId));
+    return tasksWithAssignments.filter(
+      (t) => t.createdBy === userId || t.assignedTo.includes(userId),
+    );
   }
 
   return tasksWithAssignments;
@@ -1438,23 +1442,23 @@ export async function getTaskById(id: number) {
     .select()
     .from(schema.tasks)
     .where(eq(schema.tasks.id, id));
-    
+
   if (!tasks.length) return null;
-  
+
   const assignments = await db
-        .select()
-        .from(schema.taskAssignments)
-        .where(eq(schema.taskAssignments.taskId, id));
-        
+    .select()
+    .from(schema.taskAssignments)
+    .where(eq(schema.taskAssignments.taskId, id));
+
   return {
-      ...tasks[0],
-      assignedTo: assignments.map(a => a.userId)
+    ...tasks[0],
+    assignedTo: assignments.map((a) => a.userId),
   };
 }
 
 export async function updateTask(id: number, data: any) {
   const { assignedTo, ...updateData } = data;
-  
+
   await db
     .update(schema.tasks)
     .set({
@@ -1473,21 +1477,79 @@ export async function assignTask(data: {
   userId: number;
   assignedAt?: Date;
 }) {
-    const existing = await db
-        .select()
-        .from(schema.taskAssignments)
-        .where(
-            and(
-                eq(schema.taskAssignments.taskId, data.taskId),
-                eq(schema.taskAssignments.userId, data.userId)
-            )
-        );
-        
-    if (existing.length === 0) {
-        await db.insert(schema.taskAssignments).values({
-            taskId: data.taskId,
-            userId: data.userId,
-            assignedAt: data.assignedAt || new Date()
-        });
-    }
+  const existing = await db
+    .select()
+    .from(schema.taskAssignments)
+    .where(
+      and(
+        eq(schema.taskAssignments.taskId, data.taskId),
+        eq(schema.taskAssignments.userId, data.userId),
+      ),
+    );
+
+  if (existing.length === 0) {
+    await db.insert(schema.taskAssignments).values({
+      taskId: data.taskId,
+      userId: data.userId,
+      assignedAt: data.assignedAt || new Date(),
+    });
+  }
+}
+
+export async function createAiConversation(data: {
+  userId: number;
+  title: string;
+  modelName: string;
+}) {
+  const result = await db
+    .insert(schema.aiConversations)
+    .values({
+      userId: data.userId,
+      title: data.title,
+      modelName: data.modelName,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.aiConversations.id });
+
+  return result[0].id;
+}
+
+export async function getAiMessages(conversationId: number) {
+  return await db
+    .select()
+    .from(schema.aiMessages)
+    .where(eq(schema.aiMessages.conversationId, conversationId))
+    .orderBy(schema.aiMessages.createdAt);
+}
+
+export async function createAiMessage(data: {
+  conversationId: number;
+  role: string;
+  content: string;
+  metadata?: any;
+}) {
+  const result = await db
+    .insert(schema.aiMessages)
+    .values({
+      conversationId: data.conversationId,
+      role: data.role,
+      content: data.content,
+      metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.aiMessages.id });
+
+  return result[0].id;
+}
+
+export async function deleteAiConversation(id: number) {
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(schema.aiMessages)
+      .where(eq(schema.aiMessages.conversationId, id));
+    await tx
+      .delete(schema.aiConversations)
+      .where(eq(schema.aiConversations.id, id));
+  });
 }

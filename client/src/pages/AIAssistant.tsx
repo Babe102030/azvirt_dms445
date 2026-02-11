@@ -5,13 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -34,7 +27,6 @@ import {
   Sparkles,
   Image as ImageIcon,
   Copy,
-  Download,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Streamdown } from "streamdown";
@@ -61,7 +53,7 @@ export default function AIAssistant() {
       { enabled: !!currentConversationId },
     );
 
-  const { data: models = [] } = trpc.ai.listModels.useQuery();
+  const trpcContext = trpc.useContext();
 
   const chatMutation = trpc.ai.chat.useMutation({
     onSuccess: (data) => {
@@ -233,6 +225,7 @@ export default function AIAssistant() {
       imageUrl,
       useTools: true,
     });
+    setShowImageUpload(false);
   };
 
   const handleTextExtracted = (text: string, imageUrl: string) => {
@@ -244,6 +237,7 @@ export default function AIAssistant() {
       imageUrl,
       useTools: true,
     });
+    setShowImageUpload(false);
   };
 
   return (
@@ -260,23 +254,28 @@ export default function AIAssistant() {
         </div>
         <div className="flex-1 overflow-y-auto space-y-2">
           {conversations.map((conv: any) => (
-            <div
+            <Card
               key={conv.id}
-              className={`group p-3 cursor-pointer hover:bg-accent transition-colors rounded-md border ${
+              className={`p-3 cursor-pointer hover:bg-accent transition-colors ${
                 currentConversationId === conv.id
                   ? "bg-accent border-orange-500"
-                  : "border-transparent"
+                  : ""
               }`}
               onClick={() => setCurrentConversationId(conv.id)}
             >
-              <div className="flex items-center justify-between gap-2 overflow-hidden">
-                <p className="text-sm font-medium truncate flex-1">
-                  {conv.title || "New Conversation"}
-                </p>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {conv.title || "New Conversation"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(conv.updatedAt).toLocaleDateString()}
+                  </p>
+                </div>
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                  className="h-6 w-6"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDeleteConversation(conv.id);
@@ -285,15 +284,33 @@ export default function AIAssistant() {
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-4">
-          {!currentConversationId && messages.length === 0 ? (
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4 pb-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Bot className="h-6 w-6 text-orange-500" />
+            <h1 className="text-2xl font-bold">
+              {t("aiAssistant.title") || "AI Assistant"}
+            </h1>
+          </div>
+
+          <ModelSwitcher
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            showModelInfo={true}
+            allowManagement={true}
+          />
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+          {!currentConversationId && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <Bot className="h-16 w-16 text-orange-500 mb-4" />
               <h3 className="text-xl font-semibold mb-2">
@@ -304,46 +321,103 @@ export default function AIAssistant() {
                   "Ask me anything about your materials, deliveries, quality tests, or forecasts. I can help you manage your concrete production business."}
               </p>
             </div>
-          ) : (
-            messages.map((msg: any) => (
+          )}
+
+          {messages.map((msg: any) => (
+            <div key={msg.id} className="space-y-2">
               <div
-                key={msg.id}
                 className={`flex gap-3 ${
                   msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                {msg.role !== "user" && (
-                  <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-5 w-5 text-orange-600" />
+                {msg.role === "assistant" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
+                    <Bot className="h-5 w-5 text-white" />
                   </div>
                 )}
+
                 <Card
-                  className={`p-4 max-w-[80%] ${
-                    msg.role === "user"
-                      ? "bg-orange-500 text-white"
-                      : "bg-muted"
+                  className={`max-w-[70%] p-4 ${
+                    msg.role === "user" ? "bg-orange-500 text-white" : "bg-card"
                   }`}
                 >
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <Streamdown>{msg.content}</Streamdown>
+                  <div className="space-y-2">
+                    {msg.role === "assistant" ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <Streamdown>{msg.content}</Streamdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {msg.content}
+                      </p>
+                    )}
+
+                    {msg.imageUrl && (
+                      <img
+                        src={msg.imageUrl}
+                        alt="Uploaded"
+                        className="mt-2 max-w-xs rounded border"
+                      />
+                    )}
+
+                    {msg.audioUrl && (
+                      <audio controls className="mt-2 w-full">
+                        <source src={msg.audioUrl} type="audio/webm" />
+                      </audio>
+                    )}
+
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+                      <p className="text-xs opacity-70">
+                        {new Date(msg.createdAt).toLocaleTimeString()}
+                      </p>
+                      {msg.role === "assistant" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                          }}
+                          title="Copy message"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </Card>
+
                 {msg.role === "user" && (
-                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                    <User className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
+                    <User className="h-5 w-5 text-white" />
                   </div>
                 )}
               </div>
-            ))
-          )}
+
+              {/* Show thinking process for assistant messages */}
+              {msg.role === "assistant" && msg.thinkingProcess && (
+                <div className="ml-11 max-w-[70%]">
+                  <ThinkingProcess
+                    steps={msg.thinkingProcess}
+                    collapsed={true}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+
           {chatMutation.isPending && (
             <div className="flex gap-3 justify-start">
-              <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                <Bot className="h-5 w-5 text-orange-600" />
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-white" />
               </div>
-              <Card className="p-4 bg-muted flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">AI is thinking...</span>
+              <Card className="p-4">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                  <span className="text-sm text-muted-foreground">
+                    Thinking...
+                  </span>
+                </div>
               </Card>
             </div>
           )}
@@ -352,26 +426,65 @@ export default function AIAssistant() {
 
         {/* Input Area */}
         <div className="space-y-4">
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
+          <div className="flex gap-2 items-end">
+            <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" title="Šabloni upita">
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Šabloni upita</DialogTitle>
+                </DialogHeader>
+                <PromptTemplates onSelectTemplate={handleSelectTemplate} />
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={showImageUpload} onOpenChange={setShowImageUpload}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" title="Upload Image">
+                  <ImageIcon className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Upload Image for Analysis</DialogTitle>
+                </DialogHeader>
+                <ImageUpload
+                  onImageAnalyzed={handleImageAnalyzed}
+                  onTextExtracted={handleTextExtracted}
+                  mode="both"
+                />
+              </DialogContent>
+            </Dialog>
+
+            <div className="flex-1">
               <Input
-                placeholder={
-                  t("aiAssistant.placeholder") || "Type your message..."
-                }
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="pr-10"
+                placeholder={
+                  t("aiAssistant.placeholder") ||
+                  "Ask me anything about your business..."
+                }
+                disabled={chatMutation.isPending}
               />
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                <VoiceActivationButton
-                  onTranscription={handleVoiceTranscription}
-                />
-              </div>
             </div>
+
+            <VoiceRecorder
+              onTranscription={handleVoiceTranscription}
+              language="bs"
+            />
+
+            <VoiceActivationButton
+              onCommand={handleVoiceCommand}
+              isProcessing={chatMutation.isPending}
+            />
+
             <Button
               onClick={handleSendMessage}
-              disabled={chatMutation.isPending || !message.trim()}
+              disabled={!message.trim() || chatMutation.isPending}
               className="bg-orange-500 hover:bg-orange-600"
             >
               {chatMutation.isPending ? (
@@ -380,54 +493,6 @@ export default function AIAssistant() {
                 <Send className="h-4 w-4" />
               )}
             </Button>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ModelSwitcher
-                selectedModel={selectedModel}
-                onModelChange={setSelectedModel}
-                models={models}
-              />
-              <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Sparkles className="h-4 w-4" />
-                    {t("aiAssistant.templates") || "Templates"}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>
-                      {t("aiAssistant.selectTemplate") ||
-                        "Select a Prompt Template"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <PromptTemplates onSelect={handleSelectTemplate} />
-                </DialogContent>
-              </Dialog>
-              <Dialog open={showImageUpload} onOpenChange={setShowImageUpload}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <ImageIcon className="h-4 w-4" />
-                    {t("aiAssistant.analyzeImage") || "Analyze Image"}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>
-                      {t("aiAssistant.uploadImage") ||
-                        "Upload Image for Analysis"}
-                    </DialogTitle>
-                  </DialogHeader>
-                  <ImageUpload
-                    onAnalyzed={handleImageAnalyzed}
-                    onTextExtracted={handleTextExtracted}
-                    onClose={() => setShowImageUpload(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-            </div>
           </div>
         </div>
       </div>
