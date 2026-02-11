@@ -1,13 +1,20 @@
-import { ENV } from './env';
-import { sendEmail } from './email';
+import { ENV } from "./env";
+import { sendEmail } from "./email";
+import { sendSMS } from "./sms";
+import * as db from "../db";
 
 export interface NotificationPayload {
   userId: number;
   taskId: number;
-  type: 'overdue_reminder' | 'completion_confirmation' | 'assignment' | 'status_change' | 'comment';
+  type:
+    | "overdue_reminder"
+    | "completion_confirmation"
+    | "assignment"
+    | "status_change"
+    | "comment";
   title: string;
   message: string;
-  channels: ('email' | 'sms' | 'in_app')[];
+  channels: ("email" | "sms" | "in_app")[];
   scheduledFor?: Date;
 }
 
@@ -22,13 +29,13 @@ export interface NotificationResult {
  */
 export function isWithinQuietHours(
   quietHoursStart?: string,
-  quietHoursEnd?: string
+  quietHoursEnd?: string,
 ): boolean {
   if (!quietHoursStart || !quietHoursEnd) return false;
 
   const now = new Date();
-  const [startHour, startMin] = quietHoursStart.split(':').map(Number);
-  const [endHour, endMin] = quietHoursEnd.split(':').map(Number);
+  const [startHour, startMin] = quietHoursStart.split(":").map(Number);
+  const [endHour, endMin] = quietHoursEnd.split(":").map(Number);
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const startMinutes = startHour * 60 + startMin;
@@ -50,11 +57,11 @@ export async function sendEmailNotification(
   title: string,
   message: string,
   taskId: number,
-  notificationType: string
+  notificationType: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!recipientEmail) {
-      return { success: false, error: 'No recipient email provided' };
+      return { success: false, error: "No recipient email provided" };
     }
 
     const htmlContent = `
@@ -83,43 +90,80 @@ export async function sendEmailNotification(
 
     return { success: true };
   } catch (error) {
-    console.error('[NotificationService] Email send failed:', error);
+    console.error("[NotificationService] Email send failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
 /**
- * Send SMS notification (placeholder for SMS service integration)
+ * Send SMS notification using the Manus SMS Service
  */
 export async function sendSmsNotification(
   phoneNumber: string,
-  message: string
+  message: string,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!phoneNumber) {
-      return { success: false, error: 'No phone number provided' };
+      return { success: false, error: "No phone number provided" };
     }
 
-    // TODO: Integrate with SMS service (Twilio, AWS SNS, etc.)
-    // For now, this is a placeholder that logs the SMS
-    console.log(`[NotificationService] SMS to ${phoneNumber}: ${message}`);
+    const result = await sendSMS({
+      phoneNumber,
+      message,
+    });
 
-    // In production, you would call your SMS service here:
-    // const result = await twilioClient.messages.create({
-    //   body: message,
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   to: phoneNumber,
-    // });
+    if (!result.success) {
+      return { success: false, error: "Failed to send SMS via service" };
+    }
 
     return { success: true };
   } catch (error) {
-    console.error('[NotificationService] SMS send failed:', error);
+    console.error("[NotificationService] SMS send failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+/**
+ * Send In-App notification by persisting to database
+ */
+export async function sendInAppNotification(
+  userId: number,
+  title: string,
+  message: string,
+  type: string = "general",
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!userId) {
+      return { success: false, error: "No userId provided" };
+    }
+
+    const notificationId = await db.createNotification({
+      userId,
+      title,
+      message,
+      type,
+      status: "unread",
+    });
+
+    if (!notificationId) {
+      return {
+        success: false,
+        error: "Failed to create in-app notification in database",
+      };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("[NotificationService] In-app notification failed:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -130,21 +174,21 @@ export async function sendSmsNotification(
 export function formatNotificationMessage(
   type: string,
   taskTitle: string,
-  additionalInfo?: Record<string, string>
+  additionalInfo?: Record<string, string>,
 ): string {
   const baseMessage = `Task: "${taskTitle}"`;
 
   switch (type) {
-    case 'overdue_reminder':
+    case "overdue_reminder":
       return `${baseMessage} is now overdue. Please complete it as soon as possible.`;
-    case 'completion_confirmation':
+    case "completion_confirmation":
       return `${baseMessage} has been marked as completed. Great work!`;
-    case 'assignment':
+    case "assignment":
       return `You have been assigned to: ${baseMessage}`;
-    case 'status_change':
-      return `${baseMessage} status has been updated to: ${additionalInfo?.newStatus || 'unknown'}`;
-    case 'comment':
-      return `New comment on ${baseMessage}: ${additionalInfo?.comment || ''}`;
+    case "status_change":
+      return `${baseMessage} status has been updated to: ${additionalInfo?.newStatus || "unknown"}`;
+    case "comment":
+      return `New comment on ${baseMessage}: ${additionalInfo?.comment || ""}`;
     default:
       return baseMessage;
   }
@@ -179,27 +223,27 @@ export function validateNotificationPayload(payload: NotificationPayload): {
   const errors: string[] = [];
 
   if (!payload.userId || payload.userId <= 0) {
-    errors.push('Invalid userId');
+    errors.push("Invalid userId");
   }
 
   if (!payload.taskId || payload.taskId <= 0) {
-    errors.push('Invalid taskId');
+    errors.push("Invalid taskId");
   }
 
   if (!payload.title || payload.title.trim().length === 0) {
-    errors.push('Title is required');
+    errors.push("Title is required");
   }
 
   if (!payload.message || payload.message.trim().length === 0) {
-    errors.push('Message is required');
+    errors.push("Message is required");
   }
 
   if (!payload.channels || payload.channels.length === 0) {
-    errors.push('At least one notification channel must be specified');
+    errors.push("At least one notification channel must be specified");
   }
 
-  if (payload.channels.some(ch => !['email', 'sms', 'in_app'].includes(ch))) {
-    errors.push('Invalid notification channel');
+  if (payload.channels.some((ch) => !["email", "sms", "in_app"].includes(ch))) {
+    errors.push("Invalid notification channel");
   }
 
   return {
@@ -216,13 +260,13 @@ export function buildNotificationContext(
   taskTitle: string,
   taskDueDate?: Date,
   assignedTo?: string,
-  priority?: string
+  priority?: string,
 ): Record<string, string> {
   return {
     taskTitle,
-    taskDueDate: taskDueDate ? taskDueDate.toLocaleDateString() : 'N/A',
-    assignedTo: assignedTo || 'N/A',
-    priority: priority || 'medium',
+    taskDueDate: taskDueDate ? taskDueDate.toLocaleDateString() : "N/A",
+    assignedTo: assignedTo || "N/A",
+    priority: priority || "medium",
     notificationType: type,
     timestamp: new Date().toLocaleString(),
   };

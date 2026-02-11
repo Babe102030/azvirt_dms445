@@ -9,6 +9,7 @@ import * as db from "../db";
 import {
   sendEmailNotification,
   sendSmsNotification,
+  sendInAppNotification,
 } from "../_core/notificationService";
 
 /**
@@ -235,11 +236,13 @@ export async function executeTrigger(
             );
             if (result.success) sentCount++;
           } else if (channel === "in_app") {
-            // TODO: Implement in-app notifications
-            console.log(
-              `In-app notification for user ${recipient.id}: ${subject}`,
+            const result = await sendInAppNotification(
+              recipient.id,
+              subject,
+              body,
+              trigger.eventType,
             );
-            sentCount++;
+            if (result.success) sentCount++;
           }
         } catch (error) {
           console.error(
