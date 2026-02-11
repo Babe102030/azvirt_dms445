@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
 import * as db from "../db";
+import { getAiConversations } from "../db/ai";
 import { ollamaService } from "../_core/ollama";
 import { geminiService, formatToGeminiMessages } from "../_core/gemini";
 import { ENV } from "../_core/env";
@@ -67,7 +68,7 @@ export const aiAssistantRouter = router({
           });
         } else {
           // Verify user owns this conversation
-          const conversations = await db.getAiConversations(userId);
+          const conversations = await getAiConversations(userId);
           if (!conversations.some((c) => c.id === conversationId)) {
             throw new Error("Conversation not found or access denied");
           }
@@ -251,7 +252,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Get all conversations for current user
    */
   getConversations: protectedProcedure.query(async ({ ctx }) => {
-    return await db.getAiConversations(ctx.user.id);
+    return await getAiConversations(ctx.user.id);
   }),
 
   /**
@@ -261,7 +262,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .input(z.object({ conversationId: z.number() }))
     .query(async ({ input, ctx }) => {
       // Verify conversation belongs to user
-      const conversations = await db.getAiConversations(ctx.user.id);
+      const conversations = await getAiConversations(ctx.user.id);
       const conversation = conversations.find(
         (c) => c.id === input.conversationId,
       );
@@ -300,7 +301,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
     .input(z.object({ conversationId: z.number() }))
     .mutation(async ({ input, ctx }) => {
       // Verify ownership
-      const conversations = await db.getAiConversations(ctx.user.id);
+      const conversations = await getAiConversations(ctx.user.id);
       const conversation = conversations.find(
         (c) => c.id === input.conversationId,
       );
