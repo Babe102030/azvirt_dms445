@@ -18,8 +18,2019 @@ var init_env = __esm({
       ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
       isProduction: process.env.NODE_ENV === "production",
       forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? ""
+      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+      geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+      geminiModel: process.env.GEMINI_MODEL ?? "gemini-1.5-flash"
     };
+  }
+});
+
+// drizzle/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  aggregateInputs: () => aggregateInputs,
+  aiConversations: () => aiConversations,
+  aiMessages: () => aiMessages,
+  batchIngredients: () => batchIngredients,
+  checkInRecords: () => checkInRecords,
+  complianceAuditTrail: () => complianceAuditTrail,
+  concreteBases: () => concreteBases,
+  concreteRecipes: () => concreteRecipes,
+  deliveries: () => deliveries,
+  deliveryStatusHistory: () => deliveryStatusHistory,
+  documents: () => documents,
+  emailBranding: () => emailBranding,
+  emailTemplates: () => emailTemplates,
+  employeeAvailability: () => employeeAvailability,
+  employees: () => employees,
+  machineWorkHours: () => machineWorkHours,
+  machines: () => machines,
+  materialConsumptionHistory: () => materialConsumptionHistory,
+  materials: () => materials,
+  mixingLogs: () => mixingLogs,
+  notifications: () => notifications,
+  projectSites: () => projectSites,
+  projects: () => projects,
+  purchaseOrderItems: () => purchaseOrderItems,
+  purchaseOrders: () => purchaseOrders,
+  qualityTests: () => qualityTests,
+  recipeIngredients: () => recipeIngredients,
+  shiftBreaks: () => shiftBreaks,
+  shiftSwaps: () => shiftSwaps,
+  shiftTemplates: () => shiftTemplates,
+  shifts: () => shifts,
+  suppliers: () => suppliers,
+  taskAssignments: () => taskAssignments,
+  tasks: () => tasks,
+  timesheetApprovals: () => timesheetApprovals,
+  users: () => users
+});
+import {
+  boolean,
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  varchar,
+  doublePrecision
+} from "drizzle-orm/pg-core";
+var users, projects, materials, suppliers, materialConsumptionHistory, purchaseOrders, purchaseOrderItems, concreteRecipes, recipeIngredients, mixingLogs, batchIngredients, deliveries, deliveryStatusHistory, qualityTests, employees, shiftTemplates, shifts, employeeAvailability, shiftSwaps, shiftBreaks, timesheetApprovals, complianceAuditTrail, machines, machineWorkHours, tasks, taskAssignments, aiConversations, aiMessages, notifications, documents, projectSites, checkInRecords, concreteBases, aggregateInputs, emailTemplates, emailBranding;
+var init_schema = __esm({
+  "drizzle/schema.ts"() {
+    "use strict";
+    users = pgTable("users", {
+      id: serial("id").primaryKey(),
+      openId: varchar("openId", { length: 64 }).notNull().unique(),
+      name: text("name"),
+      email: varchar("email", { length: 320 }),
+      loginMethod: varchar("loginMethod", { length: 64 }),
+      role: varchar("role", { length: 20 }).default("user").notNull(),
+      phoneNumber: varchar("phoneNumber", { length: 50 }),
+      smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
+      languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+      lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow()
+    });
+    projects = pgTable("projects", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      location: varchar("location", { length: 500 }),
+      status: varchar("status", { length: 20 }).default("planning").notNull(),
+      startDate: timestamp("startDate"),
+      endDate: timestamp("endDate"),
+      createdBy: integer("createdBy").notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    materials = pgTable("materials", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      category: varchar("category", { length: 20 }).default("other").notNull(),
+      unit: varchar("unit", { length: 50 }).notNull(),
+      quantity: doublePrecision("quantity").notNull().default(0),
+      minStock: doublePrecision("minStock").notNull().default(0),
+      criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
+      supplier: varchar("supplier", { length: 255 }),
+      unitPrice: integer("unitPrice"),
+      lowStockEmailSent: boolean("lowStockEmailSent").default(false),
+      lastEmailSentAt: timestamp("lastEmailSentAt"),
+      supplierEmail: varchar("supplierEmail", { length: 255 }),
+      leadTimeDays: integer("leadTimeDays").default(7),
+      reorderPoint: doublePrecision("reorderPoint"),
+      optimalOrderQuantity: doublePrecision("optimalOrderQuantity"),
+      supplierId: integer("supplierId"),
+      lastOrderDate: timestamp("lastOrderDate"),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    suppliers = pgTable("suppliers", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      contactPerson: varchar("contactPerson", { length: 255 }),
+      email: varchar("email", { length: 255 }),
+      phone: varchar("phone", { length: 50 }),
+      averageLeadTimeDays: integer("averageLeadTimeDays"),
+      onTimeDeliveryRate: doublePrecision("onTimeDeliveryRate"),
+      // Percentage
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    materialConsumptionHistory = pgTable(
+      "material_consumption_history",
+      {
+        id: serial("id").primaryKey(),
+        materialId: integer("materialId").references(() => materials.id).notNull(),
+        date: timestamp("date").notNull().defaultNow(),
+        quantityUsed: doublePrecision("quantityUsed").notNull(),
+        deliveryId: integer("deliveryId").references(() => deliveries.id)
+      }
+    );
+    purchaseOrders = pgTable("purchase_orders", {
+      id: serial("id").primaryKey(),
+      supplierId: integer("supplierId").references(() => suppliers.id).notNull(),
+      orderDate: timestamp("orderDate").notNull().defaultNow(),
+      expectedDeliveryDate: timestamp("expectedDeliveryDate"),
+      actualDeliveryDate: timestamp("actualDeliveryDate"),
+      status: varchar("status", { length: 50 }).default("draft").notNull(),
+      // draft, sent, confirmed, received, cancelled
+      totalCost: doublePrecision("totalCost"),
+      notes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    purchaseOrderItems = pgTable("purchase_order_items", {
+      id: serial("id").primaryKey(),
+      purchaseOrderId: integer("purchaseOrderId").references(() => purchaseOrders.id).notNull(),
+      materialId: integer("materialId").references(() => materials.id).notNull(),
+      quantity: doublePrecision("quantity").notNull(),
+      unitPrice: doublePrecision("unitPrice").notNull()
+    });
+    concreteRecipes = pgTable("concrete_recipes", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      targetStrength: varchar("targetStrength", { length: 50 }),
+      slump: varchar("slump", { length: 50 }),
+      maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
+      yieldVolume: doublePrecision("yieldVolume").default(1),
+      notes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    recipeIngredients = pgTable("recipe_ingredients", {
+      id: serial("id").primaryKey(),
+      recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
+      materialId: integer("materialId").references(() => materials.id).notNull(),
+      quantity: doublePrecision("quantity").notNull(),
+      unit: varchar("unit", { length: 50 }).notNull()
+    });
+    mixingLogs = pgTable("mixing_logs", {
+      id: serial("id").primaryKey(),
+      projectId: integer("projectId").references(() => projects.id),
+      deliveryId: integer("deliveryId"),
+      // Circular dependency potential, handled by logic
+      recipeId: integer("recipeId").references(() => concreteRecipes.id),
+      recipeName: varchar("recipeName", { length: 255 }),
+      batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
+      volume: doublePrecision("volume").notNull(),
+      unit: varchar("unit", { length: 50 }).default("m3").notNull(),
+      status: varchar("status", { length: 20 }).default("planned").notNull(),
+      // planned, in_progress, completed, rejected
+      startTime: timestamp("startTime"),
+      endTime: timestamp("endTime"),
+      operatorId: integer("operatorId").references(() => users.id),
+      approvedBy: integer("approvedBy").references(() => users.id),
+      qualityNotes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    batchIngredients = pgTable("batch_ingredients", {
+      id: serial("id").primaryKey(),
+      batchId: integer("batchId").references(() => mixingLogs.id).notNull(),
+      materialId: integer("materialId").references(() => materials.id).notNull(),
+      plannedQuantity: doublePrecision("plannedQuantity").notNull(),
+      actualQuantity: doublePrecision("actualQuantity"),
+      unit: varchar("unit", { length: 50 }).notNull(),
+      inventoryDeducted: boolean("inventoryDeducted").default(false).notNull()
+    });
+    deliveries = pgTable("deliveries", {
+      id: serial("id").primaryKey(),
+      projectId: integer("projectId").references(() => projects.id),
+      projectName: varchar("projectName", { length: 255 }),
+      recipeId: integer("recipeId").references(() => concreteRecipes.id),
+      concreteType: varchar("concreteType", { length: 100 }),
+      volume: doublePrecision("volume"),
+      batchId: integer("batchId").references(() => mixingLogs.id),
+      ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
+      truckNumber: varchar("truckNumber", { length: 50 }),
+      vehicleNumber: varchar("vehicleNumber", { length: 50 }),
+      driverId: integer("driverId").references(() => users.id),
+      driverName: varchar("driverName", { length: 255 }),
+      status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+      // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
+      scheduledTime: timestamp("scheduledTime").notNull(),
+      startTime: timestamp("startTime"),
+      arrivalTime: timestamp("arrivalTime"),
+      deliveryTime: timestamp("deliveryTime"),
+      completionTime: timestamp("completionTime"),
+      estimatedArrival: integer("estimatedArrival"),
+      actualArrivalTime: integer("actualArrivalTime"),
+      actualDeliveryTime: integer("actualDeliveryTime"),
+      gpsLocation: varchar("gpsLocation", { length: 100 }),
+      // lat,lng
+      photos: text("photos"),
+      // JSON array of strings
+      deliveryPhotos: text("deliveryPhotos"),
+      // JSON array of strings (backwards compat)
+      notes: text("notes"),
+      driverNotes: text("driverNotes"),
+      customerName: varchar("customerName", { length: 255 }),
+      customerPhone: varchar("customerPhone", { length: 50 }),
+      smsNotificationSent: boolean("smsNotificationSent").default(false),
+      createdBy: integer("createdBy").references(() => users.id),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    deliveryStatusHistory = pgTable("delivery_status_history", {
+      id: serial("id").primaryKey(),
+      deliveryId: integer("deliveryId").references(() => deliveries.id).notNull(),
+      status: varchar("status", { length: 50 }).notNull(),
+      timestamp: timestamp("timestamp").notNull().defaultNow(),
+      gpsLocation: varchar("gpsLocation", { length: 100 }),
+      // lat,lng
+      notes: text("notes"),
+      createdBy: integer("createdBy").references(() => users.id)
+    });
+    qualityTests = pgTable("quality_tests", {
+      id: serial("id").primaryKey(),
+      deliveryId: integer("deliveryId").references(() => deliveries.id),
+      projectId: integer("projectId").references(() => projects.id),
+      testName: varchar("testName", { length: 255 }),
+      testType: varchar("testType", { length: 50 }).notNull(),
+      // slump, strength, air_content, temperature, other
+      result: varchar("result", { length: 100 }),
+      resultValue: varchar("resultValue", { length: 100 }),
+      // legacy
+      unit: varchar("unit", { length: 50 }),
+      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      // pass, fail, pending
+      testedByUserId: integer("testedByUserId").references(() => users.id),
+      testedBy: varchar("testedBy", { length: 255 }),
+      // can be string name or user ID
+      testedAt: timestamp("testedAt").notNull().defaultNow(),
+      photos: text("photos"),
+      // JSON array
+      photoUrls: text("photoUrls"),
+      // JSON array (backwards compat)
+      notes: text("notes"),
+      inspectorSignature: text("inspectorSignature"),
+      // base64
+      supervisorSignature: text("supervisorSignature"),
+      // base64
+      gpsLocation: varchar("gpsLocation", { length: 100 }),
+      testLocation: varchar("testLocation", { length: 100 }),
+      standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
+      complianceStandard: varchar("complianceStandard", { length: 100 }),
+      syncStatus: varchar("syncStatus", { length: 20 }).default("synced"),
+      // synced, pending, failed
+      offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    employees = pgTable("employees", {
+      id: serial("id").primaryKey(),
+      userId: integer("userId").references(() => users.id).unique(),
+      employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
+      firstName: varchar("firstName", { length: 100 }).notNull(),
+      lastName: varchar("lastName", { length: 100 }).notNull(),
+      jobTitle: varchar("jobTitle", { length: 100 }),
+      department: varchar("department", { length: 100 }),
+      hireDate: timestamp("hireDate"),
+      hourlyRate: integer("hourlyRate"),
+      active: boolean("active").default(true).notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    shiftTemplates = pgTable("shift_templates", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 100 }).notNull(),
+      startTime: varchar("startTime", { length: 5 }).notNull(),
+      // HH:mm
+      endTime: varchar("endTime", { length: 5 }).notNull(),
+      // HH:mm
+      durationHours: doublePrecision("durationHours"),
+      color: varchar("color", { length: 20 }),
+      isActive: boolean("isActive").default(true).notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    shifts = pgTable("shifts", {
+      id: serial("id").primaryKey(),
+      employeeId: integer("employeeId").references(() => users.id).notNull(),
+      // Linked to User for easier auth checks
+      templateId: integer("templateId").references(() => shiftTemplates.id),
+      startTime: timestamp("startTime").notNull(),
+      endTime: timestamp("endTime"),
+      status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+      // scheduled, in_progress, completed, cancelled, no_show
+      createdBy: integer("createdBy").references(() => users.id),
+      notes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    employeeAvailability = pgTable("employee_availability", {
+      id: serial("id").primaryKey(),
+      employeeId: integer("employeeId").references(() => users.id).notNull(),
+      dayOfWeek: integer("dayOfWeek").notNull(),
+      // 0-6 (Sunday-Saturday)
+      startTime: varchar("startTime", { length: 5 }).notNull(),
+      endTime: varchar("endTime", { length: 5 }).notNull(),
+      isAvailable: boolean("isAvailable").default(true).notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    shiftSwaps = pgTable("shift_swaps", {
+      id: serial("id").primaryKey(),
+      shiftId: integer("shiftId").references(() => shifts.id).notNull(),
+      fromEmployeeId: integer("fromEmployeeId").references(() => users.id).notNull(),
+      toEmployeeId: integer("toEmployeeId").references(() => users.id),
+      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      // pending, approved, rejected, cancelled
+      requestedAt: timestamp("requestedAt").notNull().defaultNow(),
+      respondedAt: timestamp("respondedAt"),
+      notes: text("notes")
+    });
+    shiftBreaks = pgTable("shift_breaks", {
+      id: serial("id").primaryKey(),
+      shiftId: integer("shiftId").references(() => shifts.id).notNull(),
+      startTime: timestamp("startTime").notNull(),
+      endTime: timestamp("endTime"),
+      type: varchar("type", { length: 50 }).default("unpaid").notNull(),
+      // paid, unpaid
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    timesheetApprovals = pgTable("timesheet_approvals", {
+      id: serial("id").primaryKey(),
+      shiftId: integer("shiftId").references(() => shifts.id).notNull(),
+      approverId: integer("approverId").references(() => users.id),
+      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      // pending, approved, rejected
+      approvedAt: timestamp("approvedAt"),
+      comments: text("comments"),
+      rejectionReason: text("rejectionReason"),
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    complianceAuditTrail = pgTable("compliance_audit_trail", {
+      id: serial("id").primaryKey(),
+      employeeId: integer("employeeId").references(() => users.id).notNull(),
+      action: varchar("action", { length: 100 }).notNull(),
+      entityType: varchar("entityType", { length: 50 }).notNull(),
+      // shift, timesheet, etc.
+      entityId: integer("entityId").notNull(),
+      oldValue: text("oldValue"),
+      newValue: text("newValue"),
+      reason: text("reason"),
+      performedBy: integer("performedBy").references(() => users.id).notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    machines = pgTable("machines", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      type: varchar("type", { length: 100 }),
+      serialNumber: varchar("serialNumber", { length: 100 }),
+      status: varchar("status", { length: 20 }).default("active"),
+      lastMaintenanceAt: timestamp("lastMaintenanceAt"),
+      totalWorkingHours: doublePrecision("totalWorkingHours").default(0),
+      concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    machineWorkHours = pgTable("machine_work_hours", {
+      id: serial("id").primaryKey(),
+      machineId: integer("machineId").references(() => machines.id).notNull(),
+      hours: doublePrecision("hours").notNull(),
+      date: timestamp("date").notNull(),
+      operatorId: integer("operatorId").references(() => users.id)
+    });
+    tasks = pgTable("tasks", {
+      id: serial("id").primaryKey(),
+      title: varchar("title", { length: 255 }).notNull(),
+      description: text("description"),
+      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      // pending, in_progress, completed, cancelled
+      priority: varchar("priority", { length: 20 }).default("medium"),
+      // low, medium, high, critical
+      dueDate: timestamp("dueDate"),
+      projectId: integer("projectId").references(() => projects.id),
+      createdBy: integer("createdBy").references(() => users.id).notNull(),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    taskAssignments = pgTable("task_assignments", {
+      id: serial("id").primaryKey(),
+      taskId: integer("taskId").references(() => tasks.id).notNull(),
+      userId: integer("userId").references(() => users.id).notNull(),
+      assignedAt: timestamp("assignedAt").notNull().defaultNow()
+    });
+    aiConversations = pgTable("ai_conversations", {
+      id: serial("id").primaryKey(),
+      userId: integer("userId").references(() => users.id).notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      modelName: varchar("modelName", { length: 100 }),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    aiMessages = pgTable("ai_messages", {
+      id: serial("id").primaryKey(),
+      conversationId: integer("conversationId").references(() => aiConversations.id).notNull(),
+      role: varchar("role", { length: 20 }).notNull(),
+      // user, assistant, system
+      content: text("content").notNull(),
+      metadata: text("metadata"),
+      // JSON
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    notifications = pgTable("notifications", {
+      id: serial("id").primaryKey(),
+      userId: integer("userId").references(() => users.id).notNull(),
+      title: varchar("title", { length: 255 }).notNull(),
+      message: text("message").notNull(),
+      type: varchar("type", { length: 50 }),
+      status: varchar("status", { length: 20 }).default("unread"),
+      // unread, read, archived
+      sentAt: timestamp("sentAt").notNull().defaultNow()
+    });
+    documents = pgTable("documents", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      type: varchar("type", { length: 50 }),
+      url: text("url").notNull(),
+      projectId: integer("projectId").references(() => projects.id),
+      uploadedBy: integer("uploadedBy").references(() => users.id),
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    projectSites = pgTable("projectSites", {
+      id: serial("id").primaryKey(),
+      projectId: integer("projectId").notNull().references(() => projects.id, { onDelete: "cascade" }),
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      latitude: doublePrecision("latitude").notNull(),
+      longitude: doublePrecision("longitude").notNull(),
+      radiusMeters: integer("radiusMeters").notNull().default(50),
+      address: varchar("address", { length: 500 }),
+      city: varchar("city", { length: 100 }),
+      state: varchar("state", { length: 100 }),
+      zipCode: varchar("zipCode", { length: 20 }),
+      country: varchar("country", { length: 100 }),
+      isActive: boolean("isActive").notNull().default(true),
+      createdBy: integer("createdBy").references(() => users.id),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    checkInRecords = pgTable("checkInRecords", {
+      id: serial("id").primaryKey(),
+      shiftId: integer("shiftId").notNull().references(() => shifts.id, { onDelete: "cascade" }),
+      employeeId: integer("employeeId").notNull().references(() => employees.id, { onDelete: "cascade" }),
+      projectSiteId: integer("projectSiteId").notNull().references(() => projectSites.id, { onDelete: "restrict" }),
+      latitude: doublePrecision("latitude").notNull(),
+      longitude: doublePrecision("longitude").notNull(),
+      accuracy: doublePrecision("accuracy").notNull(),
+      distanceFromSiteMeters: doublePrecision("distanceFromSiteMeters"),
+      isWithinGeofence: boolean("isWithinGeofence").notNull(),
+      checkInType: varchar("checkInType", { length: 20 }).notNull().default("check_in"),
+      ipAddress: varchar("ipAddress", { length: 45 }),
+      userAgent: text("userAgent"),
+      notes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    concreteBases = pgTable("concrete_bases", {
+      id: serial("id").primaryKey(),
+      name: varchar("name", { length: 255 }).notNull(),
+      location: text("location"),
+      capacity: integer("capacity"),
+      // m3 per hour
+      status: varchar("status", { length: 20 }).default("active").notNull(),
+      // active, maintenance, inactive
+      managerName: varchar("managerName", { length: 255 }),
+      phoneNumber: varchar("phoneNumber", { length: 50 }),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    aggregateInputs = pgTable("aggregate_inputs", {
+      id: serial("id").primaryKey(),
+      concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id, { onDelete: "cascade" }).notNull(),
+      date: timestamp("date").notNull().defaultNow(),
+      materialType: varchar("materialType", { length: 50 }).notNull(),
+      // cement, sand, gravel, etc.
+      materialName: varchar("materialName", { length: 255 }).notNull(),
+      quantity: doublePrecision("quantity").notNull(),
+      unit: varchar("unit", { length: 20 }).notNull(),
+      supplier: varchar("supplier", { length: 255 }),
+      batchNumber: varchar("batchNumber", { length: 100 }),
+      receivedBy: varchar("receivedBy", { length: 255 }),
+      notes: text("notes"),
+      createdAt: timestamp("createdAt").notNull().defaultNow()
+    });
+    emailTemplates = pgTable("email_templates", {
+      id: serial("id").primaryKey(),
+      type: varchar("type", { length: 50 }).notNull().unique(),
+      // daily_production_report, low_stock_alert, purchase_order, generic_notification
+      name: varchar("name", { length: 255 }).notNull(),
+      description: text("description"),
+      subject: varchar("subject", { length: 500 }).notNull(),
+      bodyHtml: text("bodyHtml").notNull(),
+      bodyText: text("bodyText"),
+      // Plain text fallback
+      isCustom: boolean("isCustom").default(false).notNull(),
+      // true if user customized
+      isActive: boolean("isActive").default(true).notNull(),
+      variables: text("variables"),
+      // JSON array of available variables
+      createdBy: integer("createdBy").references(() => users.id),
+      createdAt: timestamp("createdAt").notNull().defaultNow(),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+    emailBranding = pgTable("email_branding", {
+      id: serial("id").primaryKey(),
+      logoUrl: text("logoUrl"),
+      primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
+      secondaryColor: varchar("secondaryColor", { length: 20 }).default("#ea580c").notNull(),
+      companyName: varchar("companyName", { length: 255 }).default("AzVirt").notNull(),
+      footerText: text("footerText"),
+      headerStyle: varchar("headerStyle", { length: 50 }).default("gradient").notNull(),
+      // gradient, solid, minimal
+      fontFamily: varchar("fontFamily", { length: 100 }).default("Arial, sans-serif").notNull(),
+      updatedBy: integer("updatedBy").references(() => users.id),
+      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+    });
+  }
+});
+
+// server/db.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import {
+  eq,
+  and,
+  gte,
+  lte,
+  desc,
+  sql as drizzleSql,
+  or,
+  inArray,
+  not
+} from "drizzle-orm";
+async function getDb() {
+  return db;
+}
+async function upsertUser(user2) {
+  if (!user2.openId) throw new Error("User openId is required for upsert");
+  const role = user2.role || (user2.openId === ENV.ownerOpenId ? "admin" : "user");
+  await db.insert(users).values({
+    openId: user2.openId,
+    name: user2.name,
+    email: user2.email,
+    loginMethod: user2.loginMethod,
+    role,
+    phoneNumber: user2.phoneNumber,
+    smsNotificationsEnabled: user2.smsNotificationsEnabled ?? false,
+    languagePreference: user2.languagePreference ?? "en",
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date(),
+    lastSignedIn: /* @__PURE__ */ new Date()
+  }).onConflictDoUpdate({
+    target: users.openId,
+    set: {
+      name: user2.name,
+      email: user2.email,
+      loginMethod: user2.loginMethod,
+      lastSignedIn: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }
+  });
+}
+async function getUserByOpenId(openId) {
+  const result = await db.select().from(users).where(eq(users.openId, openId));
+  return result[0] || null;
+}
+async function createProject(project) {
+  const result = await db.insert(projects).values({
+    name: project.name,
+    description: project.description,
+    location: project.location,
+    status: project.status || "planning",
+    startDate: project.startDate,
+    endDate: project.endDate,
+    createdBy: project.createdBy,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: projects.id });
+  return result[0]?.id;
+}
+async function getProjects() {
+  return await db.select().from(projects).orderBy(desc(projects.createdAt));
+}
+async function updateProject(id, updates) {
+  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+  if (updates.name !== void 0) updateData.name = updates.name;
+  if (updates.description !== void 0)
+    updateData.description = updates.description;
+  if (updates.location !== void 0) updateData.location = updates.location;
+  if (updates.status !== void 0) updateData.status = updates.status;
+  if (updates.startDate !== void 0) updateData.startDate = updates.startDate;
+  if (updates.endDate !== void 0) updateData.endDate = updates.endDate;
+  await db.update(projects).set(updateData).where(eq(projects.id, id));
+  return true;
+}
+async function createMaterial(material) {
+  const result = await db.insert(materials).values({
+    name: material.name,
+    category: material.category || "other",
+    unit: material.unit,
+    quantity: material.quantity ?? 0,
+    minStock: material.minStock ?? 0,
+    criticalThreshold: material.criticalThreshold ?? 0,
+    supplier: material.supplier,
+    unitPrice: material.unitPrice,
+    lowStockEmailSent: material.lowStockEmailSent ?? false,
+    supplierEmail: material.supplierEmail,
+    leadTimeDays: material.leadTimeDays,
+    reorderPoint: material.reorderPoint,
+    optimalOrderQuantity: material.optimalOrderQuantity,
+    supplierId: material.supplierId,
+    lastOrderDate: material.lastOrderDate,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: materials.id });
+  return result[0]?.id;
+}
+async function getMaterials() {
+  return await db.select().from(materials).orderBy(materials.name);
+}
+async function updateMaterial(id, updates) {
+  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+  if (updates.name !== void 0) updateData.name = updates.name;
+  if (updates.category !== void 0) updateData.category = updates.category;
+  if (updates.unit !== void 0) updateData.unit = updates.unit;
+  if (updates.quantity !== void 0) updateData.quantity = updates.quantity;
+  if (updates.minStock !== void 0) updateData.minStock = updates.minStock;
+  if (updates.criticalThreshold !== void 0)
+    updateData.criticalThreshold = updates.criticalThreshold;
+  if (updates.supplier !== void 0) updateData.supplier = updates.supplier;
+  if (updates.unitPrice !== void 0) updateData.unitPrice = updates.unitPrice;
+  if (updates.lowStockEmailSent !== void 0)
+    updateData.lowStockEmailSent = updates.lowStockEmailSent;
+  if (updates.supplierEmail !== void 0)
+    updateData.supplierEmail = updates.supplierEmail;
+  await db.update(materials).set(updateData).where(eq(materials.id, id));
+  return true;
+}
+async function deleteMaterial(id) {
+  await db.delete(materials).where(eq(materials.id, id));
+  return true;
+}
+async function createDocument(doc) {
+  const result = await db.insert(documents).values({
+    ...doc,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: documents.id });
+  return result[0];
+}
+async function getDocuments(filters) {
+  let query = db.select().from(documents);
+  const conditions = [];
+  if (filters?.projectId)
+    conditions.push(eq(documents.projectId, filters.projectId));
+  if (filters?.type) conditions.push(eq(documents.type, filters.type));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(documents.createdAt));
+  }
+  return await query.orderBy(desc(documents.createdAt));
+}
+async function deleteDocument(id) {
+  await db.delete(documents).where(eq(documents.id, id));
+  return true;
+}
+async function createDelivery(delivery) {
+  const result = await db.insert(deliveries).values({
+    ...delivery,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: deliveries.id });
+  return result[0]?.id;
+}
+async function getDeliveries(filters) {
+  let query = db.select().from(deliveries);
+  const conditions = [];
+  if (filters?.projectId)
+    conditions.push(eq(deliveries.projectId, filters.projectId));
+  if (filters?.status)
+    conditions.push(eq(deliveries.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(deliveries.scheduledTime));
+  }
+  return await query.orderBy(desc(deliveries.scheduledTime));
+}
+async function updateDelivery(id, data) {
+  await db.update(deliveries).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, id));
+  return true;
+}
+async function updateDeliveryStatusWithGPS(deliveryId, status, gpsLocation, driverNotes, userId) {
+  const validStatuses = [
+    "scheduled",
+    "loaded",
+    "en_route",
+    "arrived",
+    "delivered",
+    "returning",
+    "completed",
+    "cancelled"
+  ];
+  if (!validStatuses.includes(status)) {
+    throw new Error(
+      `Invalid status: ${status}. Must be one of: ${validStatuses.join(", ")}`
+    );
+  }
+  const now = Date.now();
+  const updateData = {
+    status,
+    updatedAt: /* @__PURE__ */ new Date()
+  };
+  if (gpsLocation) {
+    updateData.gpsLocation = gpsLocation;
+  }
+  if (driverNotes) {
+    updateData.driverNotes = driverNotes;
+  }
+  if (status === "loaded") {
+    updateData.startTime = /* @__PURE__ */ new Date();
+  }
+  if (status === "arrived") {
+    updateData.arrivalTime = /* @__PURE__ */ new Date();
+    updateData.actualArrivalTime = now;
+  }
+  if (status === "delivered") {
+    updateData.deliveryTime = /* @__PURE__ */ new Date();
+    updateData.actualDeliveryTime = now;
+    await deductDeliveryMaterials(deliveryId);
+  }
+  if (status === "completed") {
+    updateData.completionTime = /* @__PURE__ */ new Date();
+  }
+  await db.update(deliveries).set(updateData).where(eq(deliveries.id, deliveryId));
+  await db.insert(deliveryStatusHistory).values({
+    deliveryId,
+    status,
+    timestamp: /* @__PURE__ */ new Date(),
+    gpsLocation: gpsLocation || null,
+    notes: driverNotes || null,
+    createdBy: userId || null
+  });
+  return { success: true, status, timestamp: now };
+}
+async function deductDeliveryMaterials(deliveryId) {
+  try {
+    const delivery = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
+    if (!delivery || delivery.length === 0) return false;
+    const { recipeId, volume, projectId } = delivery[0];
+    if (!recipeId || !volume) return false;
+    const ingredients = await db.select().from(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId));
+    for (const ingredient of ingredients) {
+      const quantityToDeduct = ingredient.quantity * (volume || 0);
+      await recordConsumptionWithHistory({
+        materialId: ingredient.materialId,
+        quantity: quantityToDeduct,
+        deliveryId,
+        projectId: projectId || void 0,
+        date: /* @__PURE__ */ new Date()
+      });
+    }
+    return true;
+  } catch (error) {
+    console.error("Error deducting delivery materials:", error);
+    return false;
+  }
+}
+async function getActiveDeliveries() {
+  const activeStatuses = ["loaded", "en_route", "arrived", "delivered"];
+  return await db.select().from(deliveries).where(inArray(deliveries.status, activeStatuses)).orderBy(deliveries.scheduledTime);
+}
+async function getDeliveryHistory(deliveryId) {
+  return await db.select().from(deliveryStatusHistory).where(eq(deliveryStatusHistory.deliveryId, deliveryId)).orderBy(deliveryStatusHistory.timestamp);
+}
+async function calculateDeliveryETA(deliveryId, currentGPS) {
+  const delivery = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
+  if (!delivery || delivery.length === 0) {
+    return null;
+  }
+  const deliveryData = delivery[0];
+  if (["arrived", "delivered", "completed"].includes(deliveryData.status)) {
+    return null;
+  }
+  const averageSpeedKmh = 40;
+  const estimatedDistanceKm = 20;
+  const estimatedTimeHours = estimatedDistanceKm / averageSpeedKmh;
+  const estimatedTimeMs = estimatedTimeHours * 60 * 60 * 1e3;
+  const eta = Date.now() + estimatedTimeMs;
+  await db.update(deliveries).set({ estimatedArrival: eta, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, deliveryId));
+  return eta;
+}
+async function createQualityTest(test) {
+  const result = await db.insert(qualityTests).values({
+    ...test,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: qualityTests.id });
+  return result[0]?.id;
+}
+async function getQualityTests(filters) {
+  let query = db.select({
+    id: qualityTests.id,
+    deliveryId: qualityTests.deliveryId,
+    projectId: qualityTests.projectId,
+    testType: qualityTests.testType,
+    result: qualityTests.result,
+    resultValue: qualityTests.resultValue,
+    unit: qualityTests.unit,
+    status: qualityTests.status,
+    testedByUserId: qualityTests.testedByUserId,
+    testedBy: qualityTests.testedBy,
+    testedAt: qualityTests.testedAt,
+    photos: qualityTests.photos,
+    photoUrls: qualityTests.photoUrls,
+    notes: qualityTests.notes,
+    inspectorSignature: qualityTests.inspectorSignature,
+    supervisorSignature: qualityTests.supervisorSignature,
+    gpsLocation: qualityTests.gpsLocation,
+    testLocation: qualityTests.testLocation,
+    standardUsed: qualityTests.standardUsed,
+    complianceStandard: qualityTests.complianceStandard,
+    syncStatus: qualityTests.syncStatus,
+    offlineSyncStatus: qualityTests.offlineSyncStatus,
+    createdAt: qualityTests.createdAt,
+    updatedAt: qualityTests.updatedAt
+  }).from(qualityTests);
+  const conditions = [];
+  if (filters?.deliveryId)
+    conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
+  if (filters?.projectId)
+    conditions.push(eq(qualityTests.projectId, filters.projectId));
+  if (filters?.status)
+    conditions.push(eq(qualityTests.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(qualityTests.testedAt));
+  }
+  return await query.orderBy(desc(qualityTests.testedAt));
+}
+async function updateQualityTest(id, data) {
+  await db.update(qualityTests).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(qualityTests.id, id));
+  return true;
+}
+async function getFailedQualityTests(days = 30) {
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return await db.select().from(qualityTests).where(
+    and(
+      eq(qualityTests.status, "fail"),
+      gte(qualityTests.testedAt, cutoff)
+    )
+  ).orderBy(desc(qualityTests.testedAt));
+}
+async function getQualityTestTrends(days = 30) {
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const tests = await db.select({
+    id: qualityTests.id,
+    status: qualityTests.status,
+    testType: qualityTests.testType,
+    testedAt: qualityTests.testedAt
+  }).from(qualityTests).where(gte(qualityTests.testedAt, cutoff));
+  const totalTests = tests.length;
+  if (totalTests === 0)
+    return {
+      passRate: 0,
+      failRate: 0,
+      pendingRate: 0,
+      totalTests: 0,
+      byType: []
+    };
+  const passed = tests.filter((t2) => t2.status === "pass").length;
+  const failed = tests.filter((t2) => t2.status === "fail").length;
+  const pending = tests.filter((t2) => t2.status === "pending").length;
+  return {
+    passRate: passed / totalTests * 100,
+    failRate: failed / totalTests * 100,
+    pendingRate: pending / totalTests * 100,
+    totalTests,
+    byType: []
+    // Could aggregate further if needed
+  };
+}
+async function getQualityTestWithDetails(testId) {
+  const test = await db.select().from(qualityTests).where(eq(qualityTests.id, testId)).limit(1);
+  if (!test || test.length === 0) return null;
+  const testData = test[0];
+  let projectData = null;
+  let deliveryData = null;
+  if (testData.projectId) {
+    const project = await db.select().from(projects).where(eq(projects.id, testData.projectId)).limit(1);
+    projectData = project[0] || null;
+  }
+  if (testData.deliveryId) {
+    const delivery = await db.select().from(deliveries).where(eq(deliveries.id, testData.deliveryId)).limit(1);
+    deliveryData = delivery[0] || null;
+  }
+  return {
+    test: testData,
+    project: projectData,
+    delivery: deliveryData
+  };
+}
+async function createEmployee(employee) {
+  const result = await db.insert(employees).values({
+    ...employee,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: employees.id });
+  return result[0]?.id;
+}
+async function getEmployees(filters) {
+  let query = db.select().from(employees);
+  const conditions = [];
+  if (filters?.department)
+    conditions.push(eq(employees.department, filters.department));
+  if (filters?.active !== void 0)
+    conditions.push(eq(employees.active, filters.active));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(employees.lastName);
+  }
+  return await query.orderBy(employees.lastName);
+}
+async function getEmployeeById(id) {
+  const result = await db.select().from(employees).where(eq(employees.id, id));
+  return result[0] || null;
+}
+async function updateEmployee(id, data) {
+  await db.update(employees).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(employees.id, id));
+  return true;
+}
+async function deleteEmployee(id) {
+  await db.update(employees).set({ active: false }).where(eq(employees.id, id));
+  return true;
+}
+async function createWorkHour(shift) {
+  const result = await db.insert(shifts).values({
+    ...shift,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shifts.id });
+  return result[0]?.id;
+}
+async function getWorkHours(filters) {
+  let query = db.select().from(shifts);
+  const conditions = [];
+  if (filters?.employeeId)
+    conditions.push(eq(shifts.employeeId, filters.employeeId));
+  if (filters?.status)
+    conditions.push(eq(shifts.status, filters.status));
+  if (conditions.length > 0) {
+    return await query.where(and(...conditions)).orderBy(desc(shifts.startTime));
+  }
+  return await query.orderBy(desc(shifts.startTime));
+}
+async function updateWorkHour(id, data) {
+  await db.update(shifts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
+  return true;
+}
+async function createConcreteBase(base) {
+  const result = await db.insert(concreteBases).values({
+    ...base,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: concreteBases.id });
+  return result[0]?.id;
+}
+async function getConcreteBases() {
+  return await db.select().from(concreteBases);
+}
+async function updateConcreteBase(id, data) {
+  await db.update(concreteBases).set({
+    ...data,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(concreteBases.id, id));
+  return true;
+}
+async function createAggregateInput(input) {
+  const result = await db.insert(aggregateInputs).values({
+    ...input,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: aggregateInputs.id });
+  return result[0]?.id;
+}
+async function getAggregateInputs(concreteBaseId, materialType) {
+  let conditions = [];
+  if (concreteBaseId) {
+    conditions.push(eq(aggregateInputs.concreteBaseId, concreteBaseId));
+  }
+  if (materialType) {
+    conditions.push(eq(aggregateInputs.materialType, materialType));
+  }
+  if (conditions.length > 0) {
+    return await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date));
+  }
+  return await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
+}
+async function createMachine(machine) {
+  const result = await db.insert(machines).values({
+    ...machine,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: machines.id });
+  return result[0]?.id;
+}
+async function getMachines(filters) {
+  let query = db.select().from(machines);
+  if (filters?.status) {
+    return await query.where(eq(machines.status, filters.status)).orderBy(machines.name);
+  }
+  return await query.orderBy(machines.name);
+}
+async function updateMachine(id, data) {
+  await db.update(machines).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(machines.id, id));
+  return true;
+}
+async function deleteMachine(id) {
+  await db.delete(machines).where(eq(machines.id, id));
+  return true;
+}
+async function createMachineMaintenance(maintenance) {
+  return Date.now();
+}
+async function getMachineMaintenance(filters) {
+  return [];
+}
+async function createMachineWorkHour(workHour) {
+  const result = await db.insert(machineWorkHours).values(workHour).returning({ id: machineWorkHours.id });
+  if (workHour.machineId && workHour.hours) {
+    await db.update(machines).set({
+      totalWorkingHours: drizzleSql`${machines.totalWorkingHours} + ${workHour.hours}`,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(machines.id, workHour.machineId));
+  }
+  return result[0]?.id;
+}
+async function getMachineWorkHours(filters) {
+  let query = db.select().from(machineWorkHours);
+  if (filters?.machineId) {
+    return await query.where(eq(machineWorkHours.machineId, filters.machineId)).orderBy(desc(machineWorkHours.date));
+  }
+  return await query.orderBy(desc(machineWorkHours.date));
+}
+async function getLowStockMaterials() {
+  return await db.select().from(materials).where(lte(materials.quantity, materials.minStock)).orderBy(materials.name);
+}
+async function getCriticalStockMaterials() {
+  return await db.select().from(materials).where(lte(materials.quantity, materials.criticalThreshold)).orderBy(materials.name);
+}
+async function getAdminUsersWithSMS() {
+  return await db.select().from(users).where(
+    and(
+      eq(users.role, "admin"),
+      eq(users.smsNotificationsEnabled, true)
+    )
+  );
+}
+async function updateUserSMSSettings(userId, phoneNumber, enabled) {
+  await db.update(users).set({
+    phoneNumber,
+    smsNotificationsEnabled: enabled,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(users.id, userId));
+  return true;
+}
+async function recordConsumptionWithHistory(consumption) {
+  const { materialId, quantity, date, deliveryId, projectId } = consumption;
+  const material = await db.select().from(materials).where(eq(materials.id, materialId));
+  if (material[0]) {
+    const newQuantity = Math.max(0, material[0].quantity - quantity);
+    await db.update(materials).set({
+      quantity: newQuantity,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(materials.id, materialId));
+    try {
+      await db.insert(materialConsumptionHistory).values({
+        materialId,
+        quantityUsed: quantity,
+        date: date || /* @__PURE__ */ new Date(),
+        deliveryId: deliveryId || null
+      });
+    } catch (error) {
+      console.log("Consumption history not logged:", error);
+    }
+  }
+  return true;
+}
+async function getConsumptionHistory(materialId, days = 30) {
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  try {
+    let query = db.select().from(materialConsumptionHistory).where(gte(materialConsumptionHistory.date, cutoff)).orderBy(desc(materialConsumptionHistory.date));
+    if (materialId) {
+      query = db.select().from(materialConsumptionHistory).where(
+        and(
+          eq(materialConsumptionHistory.materialId, materialId),
+          gte(materialConsumptionHistory.date, cutoff)
+        )
+      ).orderBy(desc(materialConsumptionHistory.date));
+    }
+    return await query;
+  } catch (error) {
+    return [];
+  }
+}
+async function calculateConsumptionRate(materialId, days = 30) {
+  const history = await getConsumptionHistory(materialId, days);
+  if (history.length === 0) {
+    return {
+      dailyAverage: 0,
+      weeklyAverage: 0,
+      monthlyAverage: 0,
+      trendFactor: 1,
+      confidence: "low"
+    };
+  }
+  const totalUsed = history.reduce(
+    (sum, record) => sum + record.quantityUsed,
+    0
+  );
+  const dailyAverage = totalUsed / days;
+  const weeklyDays = Math.min(days, 84);
+  const weeklyHistory = history.slice(0, Math.floor(weeklyDays / 7));
+  const weeklyTotal = weeklyHistory.reduce(
+    (sum, record) => sum + record.quantityUsed,
+    0
+  );
+  const weeklyAverage = weeklyTotal / Math.max(1, weeklyHistory.length);
+  const monthlyAverage = dailyAverage * 30;
+  const halfPoint = Math.floor(history.length / 2);
+  const recentUsage = history.slice(0, halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
+  const olderUsage = history.slice(halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
+  const recentAvg = recentUsage / Math.max(1, halfPoint);
+  const olderAvg = olderUsage / Math.max(1, history.length - halfPoint);
+  const trendFactor = olderAvg > 0 ? recentAvg / olderAvg : 1;
+  let confidence = "low";
+  if (history.length >= 60) confidence = "high";
+  else if (history.length >= 30) confidence = "medium";
+  return {
+    dailyAverage,
+    weeklyAverage,
+    monthlyAverage,
+    trendFactor,
+    confidence,
+    dataPoints: history.length
+  };
+}
+async function predictStockoutDate(materialId) {
+  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
+  if (!material || material.length === 0) return null;
+  const currentStock = material[0].quantity;
+  if (currentStock <= 0) return /* @__PURE__ */ new Date();
+  const consumptionData = await calculateConsumptionRate(materialId, 60);
+  if (consumptionData.dailyAverage <= 0) {
+    return null;
+  }
+  const adjustedDailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+  const daysUntilStockout = currentStock / adjustedDailyRate;
+  const stockoutDate = /* @__PURE__ */ new Date();
+  stockoutDate.setDate(stockoutDate.getDate() + Math.floor(daysUntilStockout));
+  return stockoutDate;
+}
+async function calculateReorderPoint(materialId) {
+  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
+  if (!material || material.length === 0) return 0;
+  const leadTimeDays = material[0].leadTimeDays || 7;
+  const consumptionData = await calculateConsumptionRate(materialId, 30);
+  const dailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+  const safetyFactor = 1.5;
+  const safetyStock = dailyRate * leadTimeDays * safetyFactor;
+  const reorderPoint = dailyRate * leadTimeDays + safetyStock;
+  await db.update(materials).set({ reorderPoint, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
+  return reorderPoint;
+}
+async function calculateOptimalOrderQuantity(materialId, orderCost = 100, holdingCostPercentage = 0.25) {
+  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
+  if (!material || material.length === 0) return 0;
+  const consumptionData = await calculateConsumptionRate(materialId, 90);
+  const annualDemand = consumptionData.dailyAverage * 365;
+  const unitPrice = material[0].unitPrice || 10;
+  const holdingCost = unitPrice * holdingCostPercentage;
+  if (holdingCost <= 0 || annualDemand <= 0) {
+    return annualDemand * 0.25;
+  }
+  const eoq = Math.sqrt(2 * annualDemand * orderCost / holdingCost);
+  await db.update(materials).set({ optimalOrderQuantity: eoq, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
+  return eoq;
+}
+async function generateForecastPredictions() {
+  const materials2 = await db.select().from(materials);
+  const predictions = [];
+  for (const material of materials2) {
+    const consumptionRate = await calculateConsumptionRate(material.id, 60);
+    const stockoutDate = await predictStockoutDate(material.id);
+    const reorderPoint = await calculateReorderPoint(material.id);
+    const optimalQty = await calculateOptimalOrderQuantity(material.id);
+    const daysUntilStockout = stockoutDate ? Math.floor(
+      (stockoutDate.getTime() - Date.now()) / (1e3 * 60 * 60 * 24)
+    ) : null;
+    const needsReorder = material.quantity <= reorderPoint;
+    const urgency = daysUntilStockout !== null && daysUntilStockout < 7 ? "critical" : daysUntilStockout !== null && daysUntilStockout < 14 ? "high" : needsReorder ? "medium" : "low";
+    predictions.push({
+      materialId: material.id,
+      materialName: material.name,
+      currentStock: material.quantity,
+      unit: material.unit,
+      dailyConsumptionRate: consumptionRate.dailyAverage,
+      trendFactor: consumptionRate.trendFactor,
+      predictedStockoutDate: stockoutDate,
+      daysUntilStockout,
+      reorderPoint,
+      recommendedOrderQuantity: optimalQty,
+      needsReorder,
+      urgency,
+      confidence: consumptionRate.confidence
+    });
+  }
+  return predictions.sort((a, b) => {
+    const urgencyOrder = {
+      critical: 0,
+      high: 1,
+      medium: 2,
+      low: 3
+    };
+    return (urgencyOrder[a.urgency] || 0) - (urgencyOrder[b.urgency] || 0);
+  });
+}
+async function getForecastPredictions() {
+  return await generateForecastPredictions();
+}
+async function get30DayForecast(materialId) {
+  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
+  if (!material || material.length === 0) return [];
+  const consumptionData = await calculateConsumptionRate(materialId, 60);
+  const adjustedRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+  const reorderPoint = await calculateReorderPoint(materialId);
+  const criticalThreshold = material[0].criticalThreshold || reorderPoint * 0.5;
+  const projection = [];
+  const startDate = /* @__PURE__ */ new Date();
+  let currentStock = material[0].quantity;
+  for (let i = 0; i < 30; i++) {
+    const projectedDate = new Date(startDate);
+    projectedDate.setDate(startDate.getDate() + i);
+    projection.push({
+      date: projectedDate.toISOString(),
+      expectedStock: Math.max(0, currentStock),
+      reorderPoint,
+      criticalThreshold,
+      isBelowReorder: currentStock <= reorderPoint,
+      isBelowCritical: currentStock <= criticalThreshold
+    });
+    currentStock -= adjustedRate;
+  }
+  return projection;
+}
+async function getReorderNeeds() {
+  const predictions = await generateForecastPredictions();
+  return predictions.filter((p) => p.needsReorder);
+}
+async function getSuppliers() {
+  return await db.select().from(suppliers).orderBy(suppliers.name);
+}
+async function createSupplier(data) {
+  const result = await db.insert(suppliers).values({
+    ...data,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning();
+  return result[0];
+}
+async function updateSupplier(id, data) {
+  await db.update(suppliers).set({
+    ...data,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(suppliers.id, id));
+}
+async function deleteSupplier(id) {
+  await db.delete(suppliers).where(eq(suppliers.id, id));
+}
+async function getOrCreateSupplier(name, email) {
+  const existing = await db.select().from(suppliers).where(eq(suppliers.name, name)).limit(1);
+  if (existing && existing.length > 0) return existing[0];
+  const result = await db.insert(suppliers).values({
+    name,
+    email,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning();
+  return result[0];
+}
+async function createPurchaseOrder(data) {
+  try {
+    let supplierId = 1;
+    if (data.supplier) {
+      const supplier = await getOrCreateSupplier(
+        data.supplier,
+        data.supplierEmail
+      );
+      supplierId = supplier.id;
+    }
+    const [po] = await db.insert(purchaseOrders).values({
+      supplierId,
+      orderDate: data.orderDate || /* @__PURE__ */ new Date(),
+      expectedDeliveryDate: data.expectedDelivery,
+      status: data.status || "draft",
+      totalCost: data.totalCost,
+      notes: data.notes,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).returning();
+    if (data.materialId && data.quantity) {
+      await db.insert(purchaseOrderItems).values({
+        purchaseOrderId: po.id,
+        materialId: data.materialId,
+        quantity: data.quantity,
+        unitPrice: data.totalCost ? data.totalCost / data.quantity : 0
+      });
+    }
+    return po.id;
+  } catch (error) {
+    console.error("Error creating purchase order:", error);
+    return null;
+  }
+}
+async function getPurchaseOrders(filters) {
+  try {
+    let query = db.select({
+      id: purchaseOrders.id,
+      supplierId: purchaseOrders.supplierId,
+      supplierName: suppliers.name,
+      supplierEmail: suppliers.email,
+      orderDate: purchaseOrders.orderDate,
+      expectedDelivery: purchaseOrders.expectedDeliveryDate,
+      actualDelivery: purchaseOrders.actualDeliveryDate,
+      status: purchaseOrders.status,
+      totalCost: purchaseOrders.totalCost,
+      notes: purchaseOrders.notes,
+      createdAt: purchaseOrders.createdAt,
+      // Aggregated material info for single-item POs (common case)
+      materialId: purchaseOrderItems.materialId,
+      materialName: materials.name,
+      quantity: purchaseOrderItems.quantity
+    }).from(purchaseOrders).leftJoin(
+      suppliers,
+      eq(purchaseOrders.supplierId, suppliers.id)
+    ).leftJoin(
+      purchaseOrderItems,
+      eq(purchaseOrderItems.purchaseOrderId, purchaseOrders.id)
+    ).leftJoin(
+      materials,
+      eq(purchaseOrderItems.materialId, materials.id)
+    );
+    const conditions = [];
+    if (filters?.supplierId) {
+      conditions.push(eq(purchaseOrders.supplierId, filters.supplierId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(purchaseOrders.status, filters.status));
+    }
+    if (filters?.materialId) {
+      conditions.push(
+        eq(purchaseOrderItems.materialId, filters.materialId)
+      );
+    }
+    if (conditions.length > 0) {
+      return await query.where(and(...conditions)).orderBy(desc(purchaseOrders.orderDate));
+    }
+    return await query.orderBy(desc(purchaseOrders.orderDate));
+  } catch (error) {
+    console.error("Error getting purchase orders:", error);
+    return [];
+  }
+}
+async function updatePurchaseOrder(id, data) {
+  try {
+    const updatePayload = { ...data, updatedAt: /* @__PURE__ */ new Date() };
+    if (data.expectedDelivery) {
+      updatePayload.expectedDeliveryDate = data.expectedDelivery;
+      delete updatePayload.expectedDelivery;
+    }
+    if (data.actualDelivery) {
+      updatePayload.actualDeliveryDate = data.actualDelivery;
+      delete updatePayload.actualDelivery;
+    }
+    await db.update(purchaseOrders).set(updatePayload).where(eq(purchaseOrders.id, id));
+    return true;
+  } catch (error) {
+    console.error("Error updating purchase order:", error);
+    return false;
+  }
+}
+async function receivePurchaseOrder(id) {
+  try {
+    const po = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id)).limit(1);
+    if (!po || po.length === 0) return false;
+    const items = await db.select().from(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+    for (const item of items) {
+      const material = await db.select().from(materials).where(eq(materials.id, item.materialId)).limit(1);
+      if (material[0]) {
+        await db.update(materials).set({
+          quantity: material[0].quantity + item.quantity,
+          lastOrderDate: /* @__PURE__ */ new Date(),
+          updatedAt: /* @__PURE__ */ new Date()
+        }).where(eq(materials.id, item.materialId));
+      }
+    }
+    await db.update(purchaseOrders).set({
+      status: "received",
+      actualDeliveryDate: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(purchaseOrders.id, id));
+    return true;
+  } catch (error) {
+    console.error("Error receiving purchase order:", error);
+    return false;
+  }
+}
+async function getSupplierPerformance(supplierId) {
+  try {
+    const orders = await db.select().from(purchaseOrders).where(
+      and(
+        eq(purchaseOrders.supplierId, supplierId),
+        eq(purchaseOrders.status, "received")
+      )
+    );
+    if (orders.length === 0) {
+      return {
+        totalOrders: 0,
+        onTimeDeliveryRate: 0,
+        averageLeadTimeDays: 0
+      };
+    }
+    let onTimeCount = 0;
+    let totalLeadTime = 0;
+    for (const order of orders) {
+      if (order.actualDeliveryDate && order.expectedDeliveryDate) {
+        const actual = new Date(order.actualDeliveryDate).getTime();
+        const expected = new Date(order.expectedDeliveryDate).getTime();
+        if (actual <= expected) {
+          onTimeCount++;
+        }
+        const leadTime = Math.floor(
+          (actual - new Date(order.orderDate).getTime()) / (1e3 * 60 * 60 * 24)
+        );
+        totalLeadTime += leadTime;
+      }
+    }
+    return {
+      totalOrders: orders.length,
+      onTimeDeliveryRate: onTimeCount / orders.length * 100,
+      averageLeadTimeDays: Math.floor(totalLeadTime / orders.length)
+    };
+  } catch (error) {
+    console.error("Error calculating supplier performance:", error);
+    return {
+      totalOrders: 0,
+      onTimeDeliveryRate: 0,
+      averageLeadTimeDays: 0
+    };
+  }
+}
+async function getReportSettings(userId) {
+  return null;
+}
+async function getEmailTemplates() {
+  const templates = await db.select().from(emailTemplates).orderBy(emailTemplates.type);
+  return templates;
+}
+async function getEmailTemplateByType(type) {
+  const templates = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type)).limit(1);
+  return templates[0] || null;
+}
+async function upsertEmailTemplate(data) {
+  const existing = await getEmailTemplateByType(data.type);
+  if (existing) {
+    await db.update(emailTemplates).set({
+      name: data.name,
+      description: data.description,
+      subject: data.subject,
+      bodyHtml: data.bodyHtml,
+      bodyText: data.bodyText,
+      isCustom: data.isCustom ?? true,
+      isActive: data.isActive ?? true,
+      variables: data.variables ? JSON.stringify(data.variables) : void 0,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(emailTemplates.type, data.type));
+    return existing.id;
+  } else {
+    const result = await db.insert(emailTemplates).values({
+      type: data.type,
+      name: data.name,
+      description: data.description,
+      subject: data.subject,
+      bodyHtml: data.bodyHtml,
+      bodyText: data.bodyText,
+      isCustom: data.isCustom ?? false,
+      isActive: data.isActive ?? true,
+      variables: data.variables ? JSON.stringify(data.variables) : null,
+      createdBy: data.createdBy,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).returning({ id: emailTemplates.id });
+    return result[0]?.id ?? 0;
+  }
+}
+async function getEmailBranding() {
+  const branding = await db.select().from(emailBranding).limit(1);
+  return branding[0] || null;
+}
+async function upsertEmailBranding(data) {
+  const existing = await getEmailBranding();
+  if (existing) {
+    await db.update(emailBranding).set({
+      ...data.logoUrl !== void 0 && { logoUrl: data.logoUrl },
+      ...data.primaryColor && { primaryColor: data.primaryColor },
+      ...data.secondaryColor && { secondaryColor: data.secondaryColor },
+      ...data.companyName && { companyName: data.companyName },
+      ...data.footerText !== void 0 && { footerText: data.footerText },
+      ...data.headerStyle && { headerStyle: data.headerStyle },
+      ...data.fontFamily && { fontFamily: data.fontFamily },
+      ...data.updatedBy && { updatedBy: data.updatedBy },
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(emailBranding.id, existing.id));
+    return existing.id;
+  } else {
+    const result = await db.insert(emailBranding).values({
+      logoUrl: data.logoUrl,
+      primaryColor: data.primaryColor || "#f97316",
+      secondaryColor: data.secondaryColor || "#ea580c",
+      companyName: data.companyName || "AzVirt",
+      footerText: data.footerText,
+      headerStyle: data.headerStyle || "gradient",
+      fontFamily: data.fontFamily || "Arial, sans-serif",
+      updatedBy: data.updatedBy,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).returning({ id: emailBranding.id });
+    return result[0]?.id ?? 0;
+  }
+}
+async function createConversation(userId, title, modelName) {
+  const result = await db.insert(aiConversations).values({
+    userId,
+    title,
+    modelName,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: aiConversations.id });
+  return result[0]?.id;
+}
+async function getConversations(userId) {
+  return await db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(desc(aiConversations.updatedAt));
+}
+async function addMessage(conversationId, role, content, metadata) {
+  const result = await db.insert(aiMessages).values({
+    conversationId,
+    role,
+    content,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: aiMessages.id });
+  await db.update(aiConversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiConversations.id, conversationId));
+  return result[0]?.id;
+}
+async function getMessages(conversationId) {
+  return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
+}
+async function createAiConversation(data) {
+  return createConversation(data.userId, data.title, data.modelName);
+}
+async function getAiConversations(userId) {
+  return getConversations(userId);
+}
+async function deleteAiConversation(conversationId) {
+  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
+  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
+  return true;
+}
+async function createAiMessage(data) {
+  return addMessage(
+    data.conversationId,
+    data.role,
+    data.content,
+    data.metadata
+  );
+}
+async function getAiMessages(conversationId) {
+  return getMessages(conversationId);
+}
+async function getOverdueTasks(userId) {
+  return await db.select().from(tasks).where(
+    and(
+      eq(tasks.createdBy, userId),
+      lte(tasks.dueDate, /* @__PURE__ */ new Date()),
+      not(eq(tasks.status, "completed"))
+    )
+  ).orderBy(tasks.dueDate);
+}
+async function createNotification(notification) {
+  const result = await db.insert(notifications).values({
+    ...notification,
+    sentAt: /* @__PURE__ */ new Date()
+  }).returning({ id: notifications.id });
+  return result[0]?.id;
+}
+async function getNotifications(userId, limit = 20) {
+  return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.sentAt)).limit(limit);
+}
+async function getUnreadNotifications(userId) {
+  return await db.select().from(notifications).where(
+    and(
+      eq(notifications.userId, userId),
+      eq(notifications.status, "unread")
+    )
+  ).orderBy(desc(notifications.sentAt));
+}
+async function markNotificationAsRead(notificationId) {
+  await db.update(notifications).set({ status: "read" }).where(eq(notifications.id, notificationId));
+  return true;
+}
+async function getOrCreateNotificationPreferences(userId) {
+  return {};
+}
+async function updateNotificationPreferences(userId, preferences) {
+  return true;
+}
+async function getNotificationPreferences(userId) {
+  return null;
+}
+async function getNotificationHistoryByUser(userId, days) {
+  return [];
+}
+async function getNotificationTemplates(limit, offset) {
+  return [];
+}
+async function getNotificationTemplate(id) {
+  return null;
+}
+async function createNotificationTemplate(data) {
+  return { insertId: 0 };
+}
+async function updateNotificationTemplate(id, data) {
+  return true;
+}
+async function deleteNotificationTemplate(id) {
+  return true;
+}
+async function getNotificationTriggers(limit, offset) {
+  return [];
+}
+async function getNotificationTrigger(id) {
+  return null;
+}
+async function getTriggersByEventType(eventType) {
+  return [];
+}
+async function createNotificationTrigger(data) {
+  return { insertId: 0 };
+}
+async function updateNotificationTrigger(id, data) {
+  return true;
+}
+async function deleteNotificationTrigger(id) {
+  return true;
+}
+async function recordTriggerExecution(data) {
+  return true;
+}
+async function updateUserLanguagePreference(userId, language) {
+  await db.update(users).set({ languagePreference: language, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
+  return true;
+}
+async function createShift(shift) {
+  const result = await db.insert(shifts).values({
+    ...shift,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shifts.id });
+  return result[0]?.id;
+}
+async function getAllShifts() {
+  return await db.select({
+    id: shifts.id,
+    employeeId: shifts.employeeId,
+    templateId: shifts.templateId,
+    startTime: shifts.startTime,
+    endTime: shifts.endTime,
+    status: shifts.status,
+    notes: shifts.notes,
+    employeeName: users.name
+  }).from(shifts).leftJoin(users, eq(shifts.employeeId, users.id)).orderBy(desc(shifts.startTime));
+}
+async function getShiftsByEmployee(employeeId, startDate, endDate) {
+  return await db.select().from(shifts).where(
+    and(
+      eq(shifts.employeeId, employeeId),
+      gte(shifts.startTime, startDate),
+      lte(shifts.startTime, endDate)
+    )
+  ).orderBy(shifts.startTime);
+}
+async function updateShift(id, updates) {
+  const [existing] = await db.select().from(shifts).where(eq(shifts.id, id));
+  if (existing && updates.status === "completed" && existing.startTime && updates.endTime) {
+    const start = new Date(existing.startTime);
+    const end = new Date(updates.endTime);
+    const diffMs = end.getTime() - start.getTime();
+    const hoursWorked = diffMs / (1e3 * 60 * 60);
+    if (hoursWorked > 8) {
+      const overtimeHours = hoursWorked - 8;
+      await logComplianceAudit({
+        employeeId: existing.employeeId,
+        action: "overtime_detected",
+        entityType: "shift",
+        entityId: id,
+        newValue: `Overtime: ${overtimeHours.toFixed(2)} hours`,
+        performedBy: existing.employeeId
+      });
+    }
+  }
+  await db.update(shifts).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
+  return true;
+}
+async function getShiftById(id) {
+  const result = await db.select().from(shifts).where(eq(shifts.id, id));
+  return result[0] || null;
+}
+async function deleteShift(id) {
+  await db.delete(shifts).where(eq(shifts.id, id));
+  return true;
+}
+async function createShiftTemplate(template) {
+  const result = await db.insert(shiftTemplates).values({
+    ...template,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shiftTemplates.id });
+  return result[0]?.id;
+}
+async function getShiftTemplates() {
+  const templates = await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true)).orderBy(shiftTemplates.name);
+  if (templates.length === 0) {
+    const defaults = [
+      {
+        name: "Morning Shift (7-19)",
+        startTime: "07:00",
+        endTime: "19:00",
+        durationHours: 12,
+        color: "#FF6C0E"
+      },
+      {
+        name: "Daily Shift (7-17)",
+        startTime: "07:00",
+        endTime: "17:00",
+        durationHours: 10,
+        color: "#FFA500"
+      }
+    ];
+    for (const template of defaults) {
+      await db.insert(shiftTemplates).values({
+        ...template,
+        isActive: true,
+        createdAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      });
+    }
+    return await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true)).orderBy(shiftTemplates.name);
+  }
+  return templates;
+}
+async function setEmployeeAvailability(availability) {
+  const existing = await db.select().from(employeeAvailability).where(
+    and(
+      eq(employeeAvailability.employeeId, availability.employeeId),
+      eq(employeeAvailability.dayOfWeek, availability.dayOfWeek)
+    )
+  );
+  if (existing.length > 0) {
+    await db.update(employeeAvailability).set({
+      ...availability,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq(employeeAvailability.id, existing[0].id));
+    return existing[0].id;
+  }
+  const result = await db.insert(employeeAvailability).values({
+    ...availability,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: employeeAvailability.id });
+  return result[0]?.id;
+}
+async function getEmployeeAvailability(employeeId) {
+  return await db.select().from(employeeAvailability).where(eq(employeeAvailability.employeeId, employeeId)).orderBy(employeeAvailability.dayOfWeek);
+}
+async function logComplianceAudit(audit) {
+  const result = await db.insert(complianceAuditTrail).values({
+    ...audit,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: complianceAuditTrail.id });
+  return result[0]?.id;
+}
+async function getComplianceAudits(employeeId, startDate, endDate) {
+  return await db.select().from(complianceAuditTrail).where(
+    and(
+      eq(complianceAuditTrail.employeeId, employeeId),
+      gte(complianceAuditTrail.createdAt, startDate),
+      lte(complianceAuditTrail.createdAt, endDate)
+    )
+  ).orderBy(desc(complianceAuditTrail.createdAt));
+}
+async function recordBreak(breakRecord) {
+  const result = await db.insert(shiftBreaks).values({
+    ...breakRecord,
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shiftBreaks.id });
+  return result[0]?.id;
+}
+async function getBreakRules(jurisdiction) {
+  return [
+    { type: "meal", durationMinutes: 30, afterHours: 5, paid: false },
+    { type: "rest", durationMinutes: 15, afterHours: 4, paid: true }
+  ];
+}
+async function cacheOfflineEntry(cache) {
+  return true;
+}
+async function getPendingOfflineEntries(employeeId) {
+  return [];
+}
+async function updateOfflineSyncStatus(id, status, syncedAt) {
+  return true;
+}
+async function createJobSite(input) {
+  return Date.now();
+}
+async function getJobSites(projectId) {
+  if (projectId) {
+    return await db.select().from(projects).where(eq(projects.id, projectId));
+  }
+  return await db.select().from(projects);
+}
+async function checkShiftConflicts(employeeId, shiftDate) {
+  const startOfDay = new Date(shiftDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(shiftDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  return await db.select().from(shifts).where(
+    and(
+      eq(shifts.employeeId, employeeId),
+      gte(shifts.startTime, startOfDay),
+      lte(shifts.startTime, endOfDay),
+      not(eq(shifts.status, "cancelled"))
+    )
+  );
+}
+async function assignEmployeeToShift(employeeId, startTime, endTime, shiftDate, createdBy) {
+  const conflicts = await checkShiftConflicts(employeeId, shiftDate);
+  if (conflicts.length > 0) {
+    throw new Error("Employee already has a shift on this date");
+  }
+  const result = await db.insert(shifts).values({
+    employeeId,
+    startTime,
+    endTime,
+    status: "scheduled",
+    createdBy,
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shifts.id });
+  return result[0]?.id;
+}
+async function getAllEmployeesForShifts() {
+  return await db.select({
+    id: users.id,
+    name: users.name,
+    role: users.role
+  }).from(users).where(eq(users.role, "employee"));
+}
+async function createLocationLog(input) {
+  return Date.now();
+}
+async function createShiftSwap(swap) {
+  const result = await db.insert(shiftSwaps).values({
+    ...swap,
+    status: "pending",
+    requestedAt: /* @__PURE__ */ new Date()
+  }).returning({ id: shiftSwaps.id });
+  return result[0]?.id;
+}
+async function getPendingShiftSwaps() {
+  return await db.select({
+    swap: shiftSwaps,
+    shift: shifts,
+    fromEmployee: users,
+    toEmployee: users
+  }).from(shiftSwaps).innerJoin(shifts, eq(shiftSwaps.shiftId, shifts.id)).innerJoin(
+    users,
+    eq(shiftSwaps.fromEmployeeId, users.id)
+  ).leftJoin(users, eq(shiftSwaps.toEmployeeId, users.id)).where(eq(shiftSwaps.status, "pending"));
+}
+async function updateShiftSwapStatus(id, status, notes) {
+  const [swap] = await db.select().from(shiftSwaps).where(eq(shiftSwaps.id, id));
+  if (!swap) throw new Error("Shift swap request not found");
+  await db.transaction(async (tx) => {
+    await tx.update(shiftSwaps).set({
+      status,
+      notes,
+      respondedAt: /* @__PURE__ */ new Date()
+    }).where(eq(shiftSwaps.id, id));
+    if (status === "approved" && swap.toEmployeeId) {
+      await tx.update(shifts).set({
+        employeeId: swap.toEmployeeId,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(shifts.id, swap.shiftId));
+    }
+  });
+  return true;
+}
+async function recordGeofenceViolation(input) {
+  return Date.now();
+}
+async function getLocationHistory(employeeId, limit) {
+  return [];
+}
+async function getGeofenceViolations(employeeId, resolved) {
+  return [];
+}
+async function resolveGeofenceViolation(violationId, resolvedBy, notes) {
+  return true;
+}
+async function requestTimesheetApproval(approval) {
+  const result = await db.insert(timesheetApprovals).values({
+    ...approval,
+    status: "pending",
+    createdAt: /* @__PURE__ */ new Date()
+  }).returning({ id: timesheetApprovals.id });
+  return result[0]?.id;
+}
+async function approveTimesheet(approvalId, approvedBy, comments) {
+  await db.update(timesheetApprovals).set({
+    status: "approved",
+    approverId: approvedBy,
+    approvedAt: /* @__PURE__ */ new Date(),
+    comments
+  }).where(eq(timesheetApprovals.id, approvalId));
+  return true;
+}
+async function rejectTimesheet(approvalId, rejectedBy, comments) {
+  await db.update(timesheetApprovals).set({
+    status: "rejected",
+    approverId: rejectedBy,
+    rejectionReason: comments
+  }).where(eq(timesheetApprovals.id, approvalId));
+  return true;
+}
+async function getPendingTimesheetApprovals(managerId) {
+  return await db.select({
+    approval: timesheetApprovals,
+    shift: shifts,
+    employee: users
+  }).from(timesheetApprovals).innerJoin(
+    shifts,
+    eq(timesheetApprovals.shiftId, shifts.id)
+  ).innerJoin(users, eq(shifts.employeeId, users.id)).where(eq(timesheetApprovals.status, "pending"));
+}
+async function getTimesheetApprovalHistory(employeeId) {
+  return await db.select({
+    approval: timesheetApprovals,
+    shift: shifts
+  }).from(timesheetApprovals).innerJoin(
+    shifts,
+    eq(timesheetApprovals.shiftId, shifts.id)
+  ).where(eq(shifts.employeeId, employeeId)).orderBy(desc(timesheetApprovals.createdAt));
+}
+var connectionString, sql, db;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_env();
+    init_schema();
+    connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      throw new Error("DATABASE_URL is required");
+    }
+    sql = postgres(connectionString);
+    db = drizzle(sql, { schema: schema_exports });
   }
 });
 
@@ -116,6 +2127,425 @@ var init_notification = __esm({
   }
 });
 
+// server/services/emailTemplateService.ts
+async function getBrandingSettings() {
+  const branding = await getEmailBranding();
+  if (!branding) {
+    return DEFAULT_BRANDING;
+  }
+  return {
+    logoUrl: branding.logoUrl,
+    primaryColor: branding.primaryColor,
+    secondaryColor: branding.secondaryColor,
+    companyName: branding.companyName,
+    footerText: branding.footerText,
+    headerStyle: branding.headerStyle || "gradient",
+    fontFamily: branding.fontFamily
+  };
+}
+function generateHeader(branding, title, subtitle) {
+  const { logoUrl, primaryColor, secondaryColor, companyName, headerStyle, fontFamily } = branding;
+  let backgroundStyle = "";
+  switch (headerStyle) {
+    case "gradient":
+      backgroundStyle = `background: linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%);`;
+      break;
+    case "solid":
+      backgroundStyle = `background-color: ${primaryColor};`;
+      break;
+    case "minimal":
+      backgroundStyle = `background-color: #ffffff; border-bottom: 4px solid ${primaryColor};`;
+      break;
+  }
+  const textColor = headerStyle === "minimal" ? primaryColor : "white";
+  const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="${companyName}" style="max-height: 50px; width: auto; margin-right: 15px; ${headerStyle === "minimal" ? "" : "filter: brightness(0) invert(1);"}"/>` : "";
+  return `
+    <div style="${backgroundStyle} padding: 30px; text-align: center; border-radius: 8px 8px 0 0; font-family: ${fontFamily};">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+        ${logoHtml}
+        <div>
+          <h1 style="color: ${textColor}; margin: 0; font-size: 28px;">${title}</h1>
+          ${subtitle ? `<p style="color: ${headerStyle === "minimal" ? "#666" : "rgba(255,255,255,0.9)"}; margin: 10px 0 0 0; font-size: 16px;">${subtitle}</p>` : ""}
+        </div>
+      </div>
+    </div>
+  `;
+}
+function generateFooter(branding) {
+  const { primaryColor, companyName, footerText, fontFamily } = branding;
+  const defaultFooter = `This automated message is generated by ${companyName} DMS.`;
+  const footer = footerText || defaultFooter;
+  return `
+    <div style="background-color: ${primaryColor}10; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb; font-family: ${fontFamily};">
+      <p style="font-size: 12px; color: #6b7280; margin: 0;">${footer}</p>
+      <p style="font-size: 11px; color: #9ca3af; margin: 10px 0 0 0;">\xA9 ${(/* @__PURE__ */ new Date()).getFullYear()} ${companyName}. All rights reserved.</p>
+    </div>
+  `;
+}
+function wrapWithBaseTemplate(branding, header, content, footer) {
+  const { fontFamily } = branding;
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email from ${branding.companyName}</title>
+</head>
+<body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 700px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
+  <div style="background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    ${header}
+    <div style="padding: 30px;">
+      ${content}
+    </div>
+    ${footer}
+  </div>
+</body>
+</html>
+  `;
+}
+function replaceVariables(template, variables) {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`{{${key}}}`, "g");
+    result = result.replace(regex, value?.toString() ?? "");
+  }
+  return result;
+}
+function getDefaultTemplateContent(type) {
+  switch (type) {
+    case "daily_production_report":
+      return {
+        name: "Daily Production Report",
+        description: "Sent daily with production metrics, deliveries, and quality control data",
+        subject: "\u{1F4CA} Daily Production Report - {{date}}",
+        bodyHtml: `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
+            {{metricsHtml}}
+          </div>
+
+          <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid {{primaryColor}}; padding-bottom: 10px;">
+            Material Consumption / Potro\u0161nja materijala
+          </h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Material</th>
+                <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e5e7eb;">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{materialRows}}
+            </tbody>
+          </table>
+
+          {{qualityHtml}}
+        `
+      };
+    case "low_stock_alert":
+      return {
+        name: "Low Stock Alert",
+        description: "Sent when materials fall below minimum stock levels",
+        subject: "\u26A0\uFE0F Low Stock Alert - {{materialCount}} materials need attention",
+        bodyHtml: `
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            The following materials are running low and need to be reordered:<br>
+            <em>Sljede\u0107i materijali su pri kraju i potrebno ih je naru\u010Diti:</em>
+          </p>
+
+          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+              <tr style="background-color: #f3f4f6;">
+                <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e5e7eb;">Material / Materijal</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Current Stock / Trenutna zaliha</th>
+                <th style="padding: 12px; text-align: center; border-bottom: 2px solid #e5e7eb;">Reorder Level / Nivo narud\u017Ebe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{materialRows}}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 30px; padding: 20px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
+            <p style="margin: 0; font-weight: bold; color: #991b1b;">Action Required / Potrebna akcija:</p>
+            <p style="margin: 10px 0 0 0; color: #7f1d1d;">
+              Please create purchase orders for these materials to avoid production delays.<br>
+              <em>Molimo kreirajte narud\u017Ebenice za ove materijale kako biste izbjegli ka\u0161njenja u proizvodnji.</em>
+            </p>
+          </div>
+        `
+      };
+    case "purchase_order":
+      return {
+        name: "Purchase Order",
+        description: "Sent to suppliers when creating new purchase orders",
+        subject: "\u{1F4E6} Purchase Order #{{orderId}} - {{companyName}}",
+        bodyHtml: `
+          <p style="font-size: 16px; margin-bottom: 20px;">
+            Dear {{supplier}},<br>
+            <em>Po\u0161tovani {{supplier}},</em>
+          </p>
+
+          <p>
+            We would like to place the following order:<br>
+            <em>\u017Delimo da naru\u010Dimo sljede\u0107e:</em>
+          </p>
+
+          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <table style="width: 100%;">
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Material / Materijal:</td>
+                <td style="padding: 8px 0; text-align: right;">{{materialName}}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Quantity / Koli\u010Dina:</td>
+                <td style="padding: 8px 0; text-align: right; font-size: 20px; color: {{primaryColor}};">{{quantity}} {{unit}}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Order Date / Datum narud\u017Ebe:</td>
+                <td style="padding: 8px 0; text-align: right;">{{orderDate}}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: bold;">Expected Delivery / O\u010Dekivana isporuka:</td>
+                <td style="padding: 8px 0; text-align: right;">{{expectedDelivery}}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="margin: 20px 0;">
+            <p style="font-weight: bold; margin-bottom: 10px;">Additional Notes / Dodatne napomene:</p>
+            <p style="background: #fef3c7; padding: 15px; border-radius: 4px; margin: 0;">{{notes}}</p>
+          </div>
+
+          <p style="margin-top: 30px;">
+            Please confirm receipt of this order and provide delivery timeline.<br>
+            <em>Molimo potvrdite prijem ove narud\u017Ebe i dostavite rok isporuke.</em>
+          </p>
+
+          <p style="margin-top: 20px;">
+            Best regards,<br>
+            <strong>{{companyName}} Team</strong>
+          </p>
+        `
+      };
+    case "generic_notification":
+      return {
+        name: "Generic Notification",
+        description: "General purpose notification template",
+        subject: "{{title}} - {{companyName}}",
+        bodyHtml: `
+          <h2 style="color: #111827; font-size: 24px; margin-bottom: 20px;">{{title}}</h2>
+
+          <div style="font-size: 16px; line-height: 1.8;">
+            {{message}}
+          </div>
+
+          <div style="margin-top: 30px; text-align: center;">
+            <a href="{{actionUrl}}" style="display: inline-block; background-color: {{primaryColor}}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              {{actionText}}
+            </a>
+          </div>
+
+          <p style="font-size: 12px; color: #6b7280; margin-top: 30px; text-align: center;">
+            Sent at: {{timestamp}}
+          </p>
+        `
+      };
+  }
+}
+async function generateEmailFromTemplate(type, variables, options) {
+  const branding = await getBrandingSettings();
+  const customTemplate = await getEmailTemplateByType(type);
+  const defaultTemplate = getDefaultTemplateContent(type);
+  const template = customTemplate && customTemplate.isActive && customTemplate.isCustom ? {
+    subject: customTemplate.subject,
+    bodyHtml: customTemplate.bodyHtml,
+    name: customTemplate.name
+  } : defaultTemplate;
+  const allVariables = {
+    ...variables,
+    primaryColor: branding.primaryColor,
+    secondaryColor: branding.secondaryColor,
+    companyName: branding.companyName
+  };
+  const subject = replaceVariables(template.subject, allVariables);
+  const bodyContent = replaceVariables(template.bodyHtml, allVariables);
+  const headerTitle = options?.headerTitle || template.name;
+  const headerSubtitle = options?.headerSubtitle;
+  const header = generateHeader(branding, headerTitle, headerSubtitle);
+  const footer = generateFooter(branding);
+  const html = wrapWithBaseTemplate(branding, header, bodyContent, footer);
+  return { subject, html };
+}
+async function generateEmailPreview(type, customSubject, customBodyHtml) {
+  const branding = await getBrandingSettings();
+  const sampleData = {
+    daily_production_report: {
+      date: (/* @__PURE__ */ new Date()).toLocaleDateString(),
+      totalConcreteProduced: 250,
+      deliveriesCompleted: 12,
+      qualityTestsTotal: 15,
+      qualityTestsPassed: 14,
+      qualityTestsFailed: 1,
+      passRate: "93.3",
+      materialRows: `
+        <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">Cement Portland</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">45 tons</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">Sand</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">120 m\xB3</td></tr>
+        <tr><td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">Gravel</td><td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">85 m\xB3</td></tr>
+      `,
+      metricsHtml: `
+        <div style="background: #fef3c7; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 32px; font-weight: bold; color: ${branding.primaryColor};">250</div>
+          <div style="font-size: 14px; color: #78350f; margin-top: 5px;">m\xB3 Concrete</div>
+        </div>
+        <div style="background: #dbeafe; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 32px; font-weight: bold; color: #2563eb;">12</div>
+          <div style="font-size: 14px; color: #1e3a8a; margin-top: 5px;">Deliveries</div>
+        </div>
+        <div style="background: #dcfce7; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 32px; font-weight: bold; color: #16a34a;">93.3%</div>
+          <div style="font-size: 14px; color: #14532d; margin-top: 5px;">QC Pass Rate</div>
+        </div>
+      `,
+      qualityHtml: `
+        <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid ${branding.primaryColor}; padding-bottom: 10px;">Quality Control</h2>
+        <div style="background: #f9fafb; padding: 20px; border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span>Total Tests:</span><strong>15</strong></div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: #16a34a;">\u2713 Passed:</span><strong style="color: #16a34a;">14</strong></div>
+          <div style="display: flex; justify-content: space-between;"><span style="color: #dc2626;">\u2717 Failed:</span><strong style="color: #dc2626;">1</strong></div>
+        </div>
+      `
+    },
+    low_stock_alert: {
+      materialCount: 3,
+      urgentCount: 1,
+      warningCount: 2,
+      materialRows: `
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">Cement Portland</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;"><span style="color: #dc2626; font-weight: bold;">15 tons</span></td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">50 tons</td>
+        </tr>
+        <tr>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">Admixture A</td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;"><span style="color: #f59e0b; font-weight: bold;">25 L</span></td>
+          <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">30 L</td>
+        </tr>
+      `
+    },
+    purchase_order: {
+      orderId: 1234,
+      materialName: "Portland Cement Type I",
+      quantity: 100,
+      unit: "tons",
+      supplier: "Holcim d.o.o.",
+      orderDate: (/* @__PURE__ */ new Date()).toLocaleDateString(),
+      expectedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3).toLocaleDateString(),
+      notes: "Please deliver to main warehouse gate. Contact +387 61 123 456 upon arrival.",
+      totalCost: "12,500.00 KM"
+    },
+    generic_notification: {
+      title: "System Update Notification",
+      message: "A new update has been deployed to the AzVirt DMS system. Please review the changelog for details about new features and improvements.",
+      actionUrl: "https://app.azvirt.com/changelog",
+      actionText: "View Changelog",
+      timestamp: (/* @__PURE__ */ new Date()).toLocaleString()
+    }
+  };
+  const defaultTemplate = getDefaultTemplateContent(type);
+  const variables = {
+    ...sampleData[type],
+    primaryColor: branding.primaryColor,
+    secondaryColor: branding.secondaryColor,
+    companyName: branding.companyName
+  };
+  const subject = replaceVariables(customSubject || defaultTemplate.subject, variables);
+  const bodyContent = replaceVariables(customBodyHtml || defaultTemplate.bodyHtml, variables);
+  const header = generateHeader(branding, defaultTemplate.name);
+  const footer = generateFooter(branding);
+  const html = wrapWithBaseTemplate(branding, header, bodyContent, footer);
+  return { subject, html };
+}
+async function initializeDefaultTemplates() {
+  const templateTypes = [
+    "daily_production_report",
+    "low_stock_alert",
+    "purchase_order",
+    "generic_notification"
+  ];
+  for (const type of templateTypes) {
+    const existing = await getEmailTemplateByType(type);
+    if (!existing) {
+      const defaultContent = getDefaultTemplateContent(type);
+      await upsertEmailTemplate({
+        type,
+        name: defaultContent.name,
+        description: defaultContent.description,
+        subject: defaultContent.subject,
+        bodyHtml: defaultContent.bodyHtml,
+        isCustom: false,
+        isActive: true,
+        variables: TEMPLATE_VARIABLES[type]
+      });
+      console.log(`[EmailTemplates] Initialized default template: ${type}`);
+    }
+  }
+}
+var DEFAULT_BRANDING, TEMPLATE_VARIABLES;
+var init_emailTemplateService = __esm({
+  "server/services/emailTemplateService.ts"() {
+    "use strict";
+    init_db();
+    DEFAULT_BRANDING = {
+      logoUrl: null,
+      primaryColor: "#f97316",
+      secondaryColor: "#ea580c",
+      companyName: "AzVirt",
+      footerText: null,
+      headerStyle: "gradient",
+      fontFamily: "Arial, sans-serif"
+    };
+    TEMPLATE_VARIABLES = {
+      daily_production_report: [
+        "{{date}}",
+        "{{totalConcreteProduced}}",
+        "{{deliveriesCompleted}}",
+        "{{qualityTestsTotal}}",
+        "{{qualityTestsPassed}}",
+        "{{qualityTestsFailed}}",
+        "{{passRate}}",
+        "{{materialRows}}",
+        "{{metricsHtml}}",
+        "{{qualityHtml}}"
+      ],
+      low_stock_alert: [
+        "{{materialCount}}",
+        "{{materialRows}}",
+        "{{urgentCount}}",
+        "{{warningCount}}"
+      ],
+      purchase_order: [
+        "{{orderId}}",
+        "{{materialName}}",
+        "{{quantity}}",
+        "{{unit}}",
+        "{{supplier}}",
+        "{{orderDate}}",
+        "{{expectedDelivery}}",
+        "{{notes}}",
+        "{{totalCost}}"
+      ],
+      generic_notification: [
+        "{{title}}",
+        "{{message}}",
+        "{{actionUrl}}",
+        "{{actionText}}",
+        "{{timestamp}}"
+      ]
+    };
+  }
+});
+
 // server/_core/email.ts
 var email_exports = {};
 __export(email_exports, {
@@ -157,8 +2587,9 @@ async function sendEmail(options) {
     return false;
   }
 }
-function generateLowStockEmailHTML(materials2) {
-  const materialRows = materials2.map((m) => `
+async function generateLowStockEmailHTML(materials2) {
+  const materialRows = materials2.map(
+    (m) => `
     <tr>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">
@@ -166,7 +2597,37 @@ function generateLowStockEmailHTML(materials2) {
       </td>
       <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${m.reorderLevel} ${m.unit}</td>
     </tr>
-  `).join("");
+  `
+  ).join("");
+  try {
+    const result = await generateEmailFromTemplate(
+      "low_stock_alert",
+      {
+        materialCount: materials2.length,
+        materialRows,
+        urgentCount: materials2.filter((m) => m.quantity < m.reorderLevel * 0.5).length,
+        warningCount: materials2.filter(
+          (m) => m.quantity >= m.reorderLevel * 0.5
+        ).length
+      },
+      {
+        headerTitle: "\u26A0\uFE0F Low Stock Alert",
+        headerSubtitle: "Upozorenje o niskim zalihama"
+      }
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error
+    );
+    return {
+      subject: `\u26A0\uFE0F Low Stock Alert - ${materials2.length} materials need attention`,
+      html: generateLegacyLowStockHTML(materialRows)
+    };
+  }
+}
+function generateLegacyLowStockHTML(materialRows) {
   return `
 <!DOCTYPE html>
 <html>
@@ -179,13 +2640,13 @@ function generateLowStockEmailHTML(materials2) {
     <h1 style="color: white; margin: 0; font-size: 28px;">\u26A0\uFE0F Low Stock Alert</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Upozorenje o niskim zalihama</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
       The following materials are running low and need to be reordered:<br>
       <em>Sljede\u0107i materijali su pri kraju i potrebno ih je naru\u010Diti:</em>
     </p>
-    
+
     <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
       <thead>
         <tr style="background-color: #f3f4f6;">
@@ -198,7 +2659,7 @@ function generateLowStockEmailHTML(materials2) {
         ${materialRows}
       </tbody>
     </table>
-    
+
     <div style="margin-top: 30px; padding: 20px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
       <p style="margin: 0; font-weight: bold; color: #991b1b;">Action Required / Potrebna akcija:</p>
       <p style="margin: 10px 0 0 0; color: #7f1d1d;">
@@ -206,7 +2667,7 @@ function generateLowStockEmailHTML(materials2) {
         <em>Molimo kreirajte narud\u017Ebenice za ove materijale kako biste izbjegli ka\u0161njenja u proizvodnji.</em>
       </p>
     </div>
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This automated alert is generated by AzVirt DMS.<br>
       Ovo automatsko upozorenje je generirano od strane AzVirt DMS sistema.
@@ -216,7 +2677,38 @@ function generateLowStockEmailHTML(materials2) {
 </html>
   `;
 }
-function generatePurchaseOrderEmailHTML(po) {
+async function generatePurchaseOrderEmailHTML(po) {
+  try {
+    const result = await generateEmailFromTemplate(
+      "purchase_order",
+      {
+        orderId: po.id,
+        materialName: po.materialName,
+        quantity: po.quantity,
+        unit: po.unit,
+        supplier: po.supplier,
+        orderDate: po.orderDate,
+        expectedDelivery: po.expectedDelivery || "TBD",
+        notes: po.notes || "No additional notes"
+      },
+      {
+        headerTitle: "\u{1F4E6} Purchase Order",
+        headerSubtitle: `PO #${po.id}`
+      }
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error
+    );
+    return {
+      subject: `\u{1F4E6} Purchase Order #${po.id}`,
+      html: generateLegacyPurchaseOrderHTML(po)
+    };
+  }
+}
+function generateLegacyPurchaseOrderHTML(po) {
   return `
 <!DOCTYPE html>
 <html>
@@ -229,18 +2721,18 @@ function generatePurchaseOrderEmailHTML(po) {
     <h1 style="color: white; margin: 0; font-size: 28px;">\u{1F4E6} Purchase Order</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">PO #${po.id}</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
     <p style="font-size: 16px; margin-bottom: 20px;">
       Dear ${po.supplier},<br>
       <em>Po\u0161tovani ${po.supplier},</em>
     </p>
-    
+
     <p>
       We would like to place the following order:<br>
       <em>\u017Delimo da naru\u010Dimo sljede\u0107e:</em>
     </p>
-    
+
     <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <table style="width: 100%;">
         <tr>
@@ -263,24 +2755,24 @@ function generatePurchaseOrderEmailHTML(po) {
         ` : ""}
       </table>
     </div>
-    
+
     ${po.notes ? `
     <div style="margin: 20px 0;">
       <p style="font-weight: bold; margin-bottom: 10px;">Additional Notes / Dodatne napomene:</p>
       <p style="background: #fef3c7; padding: 15px; border-radius: 4px; margin: 0;">${po.notes}</p>
     </div>
     ` : ""}
-    
+
     <p style="margin-top: 30px;">
       Please confirm receipt of this order and provide delivery timeline.<br>
       <em>Molimo potvrdite prijem ove narud\u017Ebe i dostavite rok isporuke.</em>
     </p>
-    
+
     <p style="margin-top: 20px;">
       Best regards,<br>
       <strong>AzVirt Team</strong>
     </p>
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This purchase order is generated by AzVirt DMS.<br>
       Ova narud\u017Ebenica je generirana od strane AzVirt DMS sistema.
@@ -290,25 +2782,33 @@ function generatePurchaseOrderEmailHTML(po) {
 </html>
   `;
 }
-function generateDailyProductionReportHTML(report, settings) {
+async function generateDailyProductionReportHTML(report, settings) {
   const include = {
     production: settings?.includeProduction ?? true,
     deliveries: settings?.includeDeliveries ?? true,
     materials: settings?.includeMaterials ?? true,
     qualityControl: settings?.includeQualityControl ?? true
   };
-  const materialRows = report.materialConsumption.map((m) => `
+  let primaryColor = "#f97316";
+  try {
+    const branding = await getBrandingSettings();
+    primaryColor = branding.primaryColor;
+  } catch (e) {
+  }
+  const materialRows = report.materialConsumption.map(
+    (m) => `
     <tr>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${m.name}</td>
       <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: bold;">${m.quantity} ${m.unit}</td>
     </tr>
-  `).join("");
+  `
+  ).join("");
   const passRate = report.qualityTests.total > 0 ? (report.qualityTests.passed / report.qualityTests.total * 100).toFixed(1) : "0";
   let metricsHTML = "";
   if (include.production) {
     metricsHTML += `
       <div style="background: #fef3c7; padding: 20px; border-radius: 8px; text-align: center;">
-        <div style="font-size: 32px; font-weight: bold; color: #f97316;">${report.totalConcreteProduced}</div>
+        <div style="font-size: 32px; font-weight: bold; color: ${primaryColor};">${report.totalConcreteProduced}</div>
         <div style="font-size: 14px; color: #78350f; margin-top: 5px;">m\xB3 Concrete<br>Betona</div>
       </div>`;
   }
@@ -327,7 +2827,7 @@ function generateDailyProductionReportHTML(report, settings) {
       </div>`;
   }
   const materialsHTML = include.materials ? `
-    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
+    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px;">
       Material Consumption / Potro\u0161nja materijala
     </h2>
     <table style="width: 100%; border-collapse: collapse;">
@@ -343,7 +2843,7 @@ function generateDailyProductionReportHTML(report, settings) {
     </table>
   ` : "";
   const qcHTML = include.qualityControl ? `
-    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #f97316; padding-bottom: 10px;">
+    <h2 style="color: #111827; font-size: 20px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid ${primaryColor}; padding-bottom: 10px;">
       Quality Control / Kontrola kvaliteta
     </h2>
     <div style="background: #f9fafb; padding: 20px; border-radius: 8px;">
@@ -361,6 +2861,44 @@ function generateDailyProductionReportHTML(report, settings) {
       </div>
     </div>
   ` : "";
+  try {
+    const result = await generateEmailFromTemplate(
+      "daily_production_report",
+      {
+        date: report.date,
+        totalConcreteProduced: report.totalConcreteProduced,
+        deliveriesCompleted: report.deliveriesCompleted,
+        qualityTestsTotal: report.qualityTests.total,
+        qualityTestsPassed: report.qualityTests.passed,
+        qualityTestsFailed: report.qualityTests.failed,
+        passRate,
+        materialRows,
+        metricsHtml: metricsHTML,
+        qualityHtml: qcHTML
+      },
+      {
+        headerTitle: "\u{1F4CA} Daily Production Report",
+        headerSubtitle: report.date
+      }
+    );
+    return result;
+  } catch (error) {
+    console.warn(
+      "[EMAIL] Failed to use template service, falling back to default:",
+      error
+    );
+    return {
+      subject: `\u{1F4CA} Daily Production Report - ${report.date}`,
+      html: generateLegacyDailyReportHTML(
+        report,
+        metricsHTML,
+        materialsHTML,
+        qcHTML
+      )
+    };
+  }
+}
+function generateLegacyDailyReportHTML(report, metricsHTML, materialsHTML, qcHTML) {
   return `
 <!DOCTYPE html>
 <html>
@@ -373,17 +2911,17 @@ function generateDailyProductionReportHTML(report, settings) {
     <h1 style="color: white; margin: 0; font-size: 28px;">\u{1F4CA} Daily Production Report</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 18px;">${report.date}</p>
   </div>
-  
+
   <div style="background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
-    
+
     <!-- Key Metrics -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
       ${metricsHTML}
     </div>
-    
+
     ${materialsHTML}
     ${qcHTML}
-    
+
     <p style="font-size: 14px; color: #6b7280; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
       This automated report is generated daily by AzVirt DMS.<br>
       Ovaj automatski izvje\u0161taj se generi\u0161e dnevno od strane AzVirt DMS sistema.
@@ -396,6 +2934,7 @@ function generateDailyProductionReportHTML(report, settings) {
 var init_email = __esm({
   "server/_core/email.ts"() {
     "use strict";
+    init_emailTemplateService();
   }
 });
 
@@ -500,866 +3039,8 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 
 // server/_core/clerk.ts
+init_db();
 import { requireAuth, clerkMiddleware, clerkClient } from "@clerk/express";
-
-// server/db.ts
-init_env();
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-
-// drizzle/schema.ts
-var schema_exports = {};
-__export(schema_exports, {
-  aiConversations: () => aiConversations,
-  aiMessages: () => aiMessages,
-  batchIngredients: () => batchIngredients,
-  concreteRecipes: () => concreteRecipes,
-  deliveries: () => deliveries,
-  documents: () => documents,
-  employees: () => employees,
-  machineWorkHours: () => machineWorkHours,
-  machines: () => machines,
-  materials: () => materials,
-  mixingLogs: () => mixingLogs,
-  notifications: () => notifications,
-  projects: () => projects,
-  qualityTests: () => qualityTests,
-  recipeIngredients: () => recipeIngredients,
-  shifts: () => shifts,
-  taskAssignments: () => taskAssignments,
-  tasks: () => tasks,
-  timesheetApprovals: () => timesheetApprovals,
-  users: () => users
-});
-import { boolean, integer, pgTable, serial, text, timestamp, varchar, doublePrecision } from "drizzle-orm/pg-core";
-var users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: varchar("role", { length: 20 }).default("user").notNull(),
-  phoneNumber: varchar("phoneNumber", { length: 50 }),
-  smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
-  languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
-  lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow()
-});
-var projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  location: varchar("location", { length: 500 }),
-  status: varchar("status", { length: 20 }).default("planning").notNull(),
-  startDate: timestamp("startDate"),
-  endDate: timestamp("endDate"),
-  createdBy: integer("createdBy").notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var materials = pgTable("materials", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  category: varchar("category", { length: 20 }).default("other").notNull(),
-  unit: varchar("unit", { length: 50 }).notNull(),
-  quantity: doublePrecision("quantity").notNull().default(0),
-  minStock: doublePrecision("minStock").notNull().default(0),
-  criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
-  supplier: varchar("supplier", { length: 255 }),
-  unitPrice: integer("unitPrice"),
-  lowStockEmailSent: boolean("lowStockEmailSent").default(false),
-  lastEmailSentAt: timestamp("lastEmailSentAt"),
-  supplierEmail: varchar("supplierEmail", { length: 255 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var concreteRecipes = pgTable("concrete_recipes", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  description: text("description"),
-  targetStrength: varchar("targetStrength", { length: 50 }),
-  slump: varchar("slump", { length: 50 }),
-  maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
-  yieldVolume: doublePrecision("yieldVolume").default(1),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var recipeIngredients = pgTable("recipe_ingredients", {
-  id: serial("id").primaryKey(),
-  recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
-  materialId: integer("materialId").references(() => materials.id).notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unit: varchar("unit", { length: 50 }).notNull()
-});
-var mixingLogs = pgTable("mixing_logs", {
-  id: serial("id").primaryKey(),
-  projectId: integer("projectId").references(() => projects.id),
-  deliveryId: integer("deliveryId"),
-  // Circular dependency potential, handled by logic
-  recipeId: integer("recipeId").references(() => concreteRecipes.id),
-  recipeName: varchar("recipeName", { length: 255 }),
-  batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
-  volume: doublePrecision("volume").notNull(),
-  unit: varchar("unit", { length: 50 }).default("m3").notNull(),
-  status: varchar("status", { length: 20 }).default("planned").notNull(),
-  // planned, in_progress, completed, rejected
-  startTime: timestamp("startTime"),
-  endTime: timestamp("endTime"),
-  operatorId: integer("operatorId").references(() => users.id),
-  approvedBy: integer("approvedBy").references(() => users.id),
-  qualityNotes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var batchIngredients = pgTable("batch_ingredients", {
-  id: serial("id").primaryKey(),
-  batchId: integer("batchId").references(() => mixingLogs.id).notNull(),
-  materialId: integer("materialId").references(() => materials.id).notNull(),
-  plannedQuantity: doublePrecision("plannedQuantity").notNull(),
-  actualQuantity: doublePrecision("actualQuantity"),
-  unit: varchar("unit", { length: 50 }).notNull(),
-  inventoryDeducted: boolean("inventoryDeducted").default(false).notNull()
-});
-var deliveries = pgTable("deliveries", {
-  id: serial("id").primaryKey(),
-  projectId: integer("projectId").references(() => projects.id),
-  projectName: varchar("projectName", { length: 255 }),
-  recipeId: integer("recipeId").references(() => concreteRecipes.id),
-  concreteType: varchar("concreteType", { length: 100 }),
-  volume: doublePrecision("volume"),
-  batchId: integer("batchId").references(() => mixingLogs.id),
-  ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
-  truckNumber: varchar("truckNumber", { length: 50 }),
-  vehicleNumber: varchar("vehicleNumber", { length: 50 }),
-  driverId: integer("driverId").references(() => users.id),
-  driverName: varchar("driverName", { length: 255 }),
-  status: varchar("status", { length: 20 }).default("scheduled").notNull(),
-  // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
-  scheduledTime: timestamp("scheduledTime").notNull(),
-  startTime: timestamp("startTime"),
-  arrivalTime: timestamp("arrivalTime"),
-  deliveryTime: timestamp("deliveryTime"),
-  completionTime: timestamp("completionTime"),
-  estimatedArrival: integer("estimatedArrival"),
-  actualArrivalTime: integer("actualArrivalTime"),
-  actualDeliveryTime: integer("actualDeliveryTime"),
-  gpsLocation: varchar("gpsLocation", { length: 100 }),
-  // lat,lng
-  photos: text("photos"),
-  // JSON array of strings
-  deliveryPhotos: text("deliveryPhotos"),
-  // JSON array of strings (backwards compat)
-  notes: text("notes"),
-  driverNotes: text("driverNotes"),
-  customerName: varchar("customerName", { length: 255 }),
-  customerPhone: varchar("customerPhone", { length: 50 }),
-  smsNotificationSent: boolean("smsNotificationSent").default(false),
-  createdBy: integer("createdBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var qualityTests = pgTable("quality_tests", {
-  id: serial("id").primaryKey(),
-  deliveryId: integer("deliveryId").references(() => deliveries.id),
-  projectId: integer("projectId").references(() => projects.id),
-  testName: varchar("testName", { length: 255 }),
-  testType: varchar("testType", { length: 50 }).notNull(),
-  // slump, strength, air_content, temperature, other
-  result: varchar("result", { length: 100 }),
-  resultValue: varchar("resultValue", { length: 100 }),
-  // legacy
-  unit: varchar("unit", { length: 50 }),
-  status: varchar("status", { length: 20 }).default("pending").notNull(),
-  // pass, fail, pending
-  testedByUserId: integer("testedByUserId").references(() => users.id),
-  testedBy: varchar("testedBy", { length: 255 }),
-  // can be string name or user ID
-  testedAt: timestamp("testedAt").notNull().defaultNow(),
-  photos: text("photos"),
-  // JSON array
-  photoUrls: text("photoUrls"),
-  // JSON array (backwards compat)
-  notes: text("notes"),
-  inspectorSignature: text("inspectorSignature"),
-  // base64
-  supervisorSignature: text("supervisorSignature"),
-  // base64
-  gpsLocation: varchar("gpsLocation", { length: 100 }),
-  testLocation: varchar("testLocation", { length: 100 }),
-  standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
-  complianceStandard: varchar("complianceStandard", { length: 100 }),
-  syncStatus: varchar("syncStatus", { length: 20 }).default("synced"),
-  // synced, pending, failed
-  offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var employees = pgTable("employees", {
-  id: serial("id").primaryKey(),
-  userId: integer("userId").references(() => users.id).unique(),
-  employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
-  firstName: varchar("firstName", { length: 100 }).notNull(),
-  lastName: varchar("lastName", { length: 100 }).notNull(),
-  jobTitle: varchar("jobTitle", { length: 100 }),
-  department: varchar("department", { length: 100 }),
-  hireDate: timestamp("hireDate"),
-  hourlyRate: integer("hourlyRate"),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var shifts = pgTable("shifts", {
-  id: serial("id").primaryKey(),
-  employeeId: integer("employeeId").references(() => users.id).notNull(),
-  // Linked to User for easier auth checks
-  startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime"),
-  status: varchar("status", { length: 20 }).default("scheduled").notNull(),
-  // scheduled, in_progress, completed, cancelled, no_show
-  createdBy: integer("createdBy").references(() => users.id),
-  notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var timesheetApprovals = pgTable("timesheet_approvals", {
-  id: serial("id").primaryKey(),
-  shiftId: integer("shiftId").references(() => shifts.id).notNull(),
-  approverId: integer("approverId").references(() => users.id),
-  status: varchar("status", { length: 20 }).default("pending").notNull(),
-  // pending, approved, rejected
-  approvedAt: timestamp("approvedAt"),
-  comments: text("comments"),
-  rejectionReason: text("rejectionReason"),
-  createdAt: timestamp("createdAt").notNull().defaultNow()
-});
-var machines = pgTable("machines", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 100 }),
-  serialNumber: varchar("serialNumber", { length: 100 }),
-  status: varchar("status", { length: 20 }).default("active"),
-  lastMaintenanceAt: timestamp("lastMaintenanceAt"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var machineWorkHours = pgTable("machine_work_hours", {
-  id: serial("id").primaryKey(),
-  machineId: integer("machineId").references(() => machines.id).notNull(),
-  hours: doublePrecision("hours").notNull(),
-  date: timestamp("date").notNull(),
-  operatorId: integer("operatorId").references(() => users.id)
-});
-var tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description"),
-  status: varchar("status", { length: 20 }).default("pending").notNull(),
-  // pending, in_progress, completed, cancelled
-  priority: varchar("priority", { length: 20 }).default("medium"),
-  // low, medium, high, critical
-  dueDate: timestamp("dueDate"),
-  projectId: integer("projectId").references(() => projects.id),
-  createdBy: integer("createdBy").references(() => users.id).notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var taskAssignments = pgTable("task_assignments", {
-  id: serial("id").primaryKey(),
-  taskId: integer("taskId").references(() => tasks.id).notNull(),
-  userId: integer("userId").references(() => users.id).notNull(),
-  assignedAt: timestamp("assignedAt").notNull().defaultNow()
-});
-var aiConversations = pgTable("ai_conversations", {
-  id: serial("id").primaryKey(),
-  userId: integer("userId").references(() => users.id).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  modelName: varchar("modelName", { length: 100 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow()
-});
-var aiMessages = pgTable("ai_messages", {
-  id: serial("id").primaryKey(),
-  conversationId: integer("conversationId").references(() => aiConversations.id).notNull(),
-  role: varchar("role", { length: 20 }).notNull(),
-  // user, assistant, system
-  content: text("content").notNull(),
-  metadata: text("metadata"),
-  // JSON
-  createdAt: timestamp("createdAt").notNull().defaultNow()
-});
-var notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
-  userId: integer("userId").references(() => users.id).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  message: text("message").notNull(),
-  type: varchar("type", { length: 50 }),
-  status: varchar("status", { length: 20 }).default("unread"),
-  // unread, read, archived
-  sentAt: timestamp("sentAt").notNull().defaultNow()
-});
-var documents = pgTable("documents", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 50 }),
-  url: text("url").notNull(),
-  projectId: integer("projectId").references(() => projects.id),
-  uploadedBy: integer("uploadedBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow()
-});
-
-// server/db.ts
-import { eq, and, gte, lte, desc, or, inArray, not } from "drizzle-orm";
-var connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is required");
-}
-var sql = postgres(connectionString);
-var db = drizzle(sql, { schema: schema_exports });
-async function getDb2() {
-  return db;
-}
-async function upsertUser(user2) {
-  if (!user2.openId) throw new Error("User openId is required for upsert");
-  const role = user2.role || (user2.openId === ENV.ownerOpenId ? "admin" : "user");
-  await db.insert(users).values({
-    openId: user2.openId,
-    name: user2.name,
-    email: user2.email,
-    loginMethod: user2.loginMethod,
-    role,
-    phoneNumber: user2.phoneNumber,
-    smsNotificationsEnabled: user2.smsNotificationsEnabled ?? false,
-    languagePreference: user2.languagePreference ?? "en",
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date(),
-    lastSignedIn: /* @__PURE__ */ new Date()
-  }).onConflictDoUpdate({
-    target: users.openId,
-    set: {
-      name: user2.name,
-      email: user2.email,
-      loginMethod: user2.loginMethod,
-      lastSignedIn: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }
-  });
-}
-async function getUserByOpenId(openId) {
-  const result = await db.select().from(users).where(eq(users.openId, openId));
-  return result[0] || null;
-}
-async function createProject(project) {
-  const result = await db.insert(projects).values({
-    name: project.name,
-    description: project.description,
-    location: project.location,
-    status: project.status || "planning",
-    startDate: project.startDate,
-    endDate: project.endDate,
-    createdBy: project.createdBy,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: projects.id });
-  return result[0]?.id;
-}
-async function getProjects() {
-  return await db.select().from(projects).orderBy(desc(projects.createdAt));
-}
-async function updateProject(id, updates) {
-  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
-  if (updates.name !== void 0) updateData.name = updates.name;
-  if (updates.description !== void 0) updateData.description = updates.description;
-  if (updates.location !== void 0) updateData.location = updates.location;
-  if (updates.status !== void 0) updateData.status = updates.status;
-  if (updates.startDate !== void 0) updateData.startDate = updates.startDate;
-  if (updates.endDate !== void 0) updateData.endDate = updates.endDate;
-  await db.update(projects).set(updateData).where(eq(projects.id, id));
-  return true;
-}
-async function createMaterial(material) {
-  const result = await db.insert(materials).values({
-    name: material.name,
-    category: material.category || "other",
-    unit: material.unit,
-    quantity: material.quantity ?? 0,
-    minStock: material.minStock ?? 0,
-    criticalThreshold: material.criticalThreshold ?? 0,
-    supplier: material.supplier,
-    unitPrice: material.unitPrice,
-    lowStockEmailSent: material.lowStockEmailSent ?? false,
-    supplierEmail: material.supplierEmail,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: materials.id });
-  return result[0]?.id;
-}
-async function getMaterials() {
-  return await db.select().from(materials).orderBy(materials.name);
-}
-async function updateMaterial(id, updates) {
-  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
-  if (updates.name !== void 0) updateData.name = updates.name;
-  if (updates.category !== void 0) updateData.category = updates.category;
-  if (updates.unit !== void 0) updateData.unit = updates.unit;
-  if (updates.quantity !== void 0) updateData.quantity = updates.quantity;
-  if (updates.minStock !== void 0) updateData.minStock = updates.minStock;
-  if (updates.criticalThreshold !== void 0) updateData.criticalThreshold = updates.criticalThreshold;
-  if (updates.supplier !== void 0) updateData.supplier = updates.supplier;
-  if (updates.unitPrice !== void 0) updateData.unitPrice = updates.unitPrice;
-  if (updates.lowStockEmailSent !== void 0) updateData.lowStockEmailSent = updates.lowStockEmailSent;
-  if (updates.supplierEmail !== void 0) updateData.supplierEmail = updates.supplierEmail;
-  await db.update(materials).set(updateData).where(eq(materials.id, id));
-  return true;
-}
-async function deleteMaterial(id) {
-  await db.delete(materials).where(eq(materials.id, id));
-  return true;
-}
-async function createDocument(doc) {
-  const result = await db.insert(documents).values({
-    ...doc,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: documents.id });
-  return result[0];
-}
-async function getDocuments(filters) {
-  let query = db.select().from(documents);
-  const conditions = [];
-  if (filters?.projectId) conditions.push(eq(documents.projectId, filters.projectId));
-  if (filters?.type) conditions.push(eq(documents.type, filters.type));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(documents.createdAt));
-  }
-  return await query.orderBy(desc(documents.createdAt));
-}
-async function deleteDocument(id) {
-  await db.delete(documents).where(eq(documents.id, id));
-  return true;
-}
-async function createDelivery(delivery) {
-  const result = await db.insert(deliveries).values({
-    ...delivery,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: deliveries.id });
-  return result[0]?.id;
-}
-async function getDeliveries(filters) {
-  let query = db.select().from(deliveries);
-  const conditions = [];
-  if (filters?.projectId) conditions.push(eq(deliveries.projectId, filters.projectId));
-  if (filters?.status) conditions.push(eq(deliveries.status, filters.status));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(deliveries.scheduledTime));
-  }
-  return await query.orderBy(desc(deliveries.scheduledTime));
-}
-async function updateDelivery(id, data) {
-  await db.update(deliveries).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, id));
-  return true;
-}
-async function createQualityTest(test) {
-  const result = await db.insert(qualityTests).values({
-    ...test,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: qualityTests.id });
-  return result[0]?.id;
-}
-async function getQualityTests(filters) {
-  let query = db.select().from(qualityTests);
-  const conditions = [];
-  if (filters?.deliveryId) conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
-  if (filters?.projectId) conditions.push(eq(qualityTests.projectId, filters.projectId));
-  if (filters?.status) conditions.push(eq(qualityTests.status, filters.status));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(qualityTests.testedAt));
-  }
-  return await query.orderBy(desc(qualityTests.testedAt));
-}
-async function updateQualityTest(id, data) {
-  await db.update(qualityTests).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(qualityTests.id, id));
-  return true;
-}
-async function getFailedQualityTests(days = 30) {
-  const cutoff = /* @__PURE__ */ new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return await db.select().from(qualityTests).where(and(eq(qualityTests.status, "fail"), gte(qualityTests.testedAt, cutoff))).orderBy(desc(qualityTests.testedAt));
-}
-async function getQualityTestTrends(days = 30) {
-  const cutoff = /* @__PURE__ */ new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const tests = await db.select().from(qualityTests).where(gte(qualityTests.testedAt, cutoff));
-  const totalTests = tests.length;
-  if (totalTests === 0) return { passRate: 0, failRate: 0, pendingRate: 0, totalTests: 0, byType: [] };
-  const passed = tests.filter((t2) => t2.status === "pass").length;
-  const failed = tests.filter((t2) => t2.status === "fail").length;
-  const pending = tests.filter((t2) => t2.status === "pending").length;
-  return {
-    passRate: passed / totalTests * 100,
-    failRate: failed / totalTests * 100,
-    pendingRate: pending / totalTests * 100,
-    totalTests,
-    byType: []
-    // Could aggregate further if needed
-  };
-}
-async function createEmployee(employee) {
-  const result = await db.insert(employees).values({
-    ...employee,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: employees.id });
-  return result[0]?.id;
-}
-async function getEmployees(filters) {
-  let query = db.select().from(employees);
-  const conditions = [];
-  if (filters?.department) conditions.push(eq(employees.department, filters.department));
-  if (filters?.active !== void 0) conditions.push(eq(employees.active, filters.active));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(employees.lastName);
-  }
-  return await query.orderBy(employees.lastName);
-}
-async function getEmployeeById(id) {
-  const result = await db.select().from(employees).where(eq(employees.id, id));
-  return result[0] || null;
-}
-async function updateEmployee(id, data) {
-  await db.update(employees).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(employees.id, id));
-  return true;
-}
-async function deleteEmployee(id) {
-  await db.update(employees).set({ active: false }).where(eq(employees.id, id));
-  return true;
-}
-async function createWorkHour(shift) {
-  const result = await db.insert(shifts).values({
-    ...shift,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shifts.id });
-  return result[0]?.id;
-}
-async function getWorkHours(filters) {
-  let query = db.select().from(shifts);
-  const conditions = [];
-  if (filters?.employeeId) conditions.push(eq(shifts.employeeId, filters.employeeId));
-  if (filters?.status) conditions.push(eq(shifts.status, filters.status));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(shifts.startTime));
-  }
-  return await query.orderBy(desc(shifts.startTime));
-}
-async function updateWorkHour(id, data) {
-  await db.update(shifts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
-  return true;
-}
-async function createConcreteBase(base) {
-  return Date.now();
-}
-async function getConcreteBases() {
-  return [];
-}
-async function updateConcreteBase(id, data) {
-  return true;
-}
-async function createMachine(machine) {
-  const result = await db.insert(machines).values({
-    ...machine,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: machines.id });
-  return result[0]?.id;
-}
-async function getMachines(filters) {
-  let query = db.select().from(machines);
-  if (filters?.status) {
-    return await query.where(eq(machines.status, filters.status)).orderBy(machines.name);
-  }
-  return await query.orderBy(machines.name);
-}
-async function updateMachine(id, data) {
-  await db.update(machines).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(machines.id, id));
-  return true;
-}
-async function deleteMachine(id) {
-  await db.delete(machines).where(eq(machines.id, id));
-  return true;
-}
-async function createMachineMaintenance(maintenance) {
-  return Date.now();
-}
-async function getMachineMaintenance(filters) {
-  return [];
-}
-async function createMachineWorkHour(workHour) {
-  const result = await db.insert(machineWorkHours).values(workHour).returning({ id: machineWorkHours.id });
-  return result[0]?.id;
-}
-async function getMachineWorkHours(filters) {
-  let query = db.select().from(machineWorkHours);
-  if (filters?.machineId) {
-    return await query.where(eq(machineWorkHours.machineId, filters.machineId)).orderBy(desc(machineWorkHours.date));
-  }
-  return await query.orderBy(desc(machineWorkHours.date));
-}
-async function createAggregateInput(input) {
-  return Date.now();
-}
-async function getAggregateInputs(filters) {
-  return [];
-}
-async function getLowStockMaterials() {
-  return await db.select().from(materials).where(lte(materials.quantity, materials.minStock)).orderBy(materials.name);
-}
-async function getCriticalStockMaterials() {
-  return await db.select().from(materials).where(lte(materials.quantity, materials.criticalThreshold)).orderBy(materials.name);
-}
-async function getAdminUsersWithSMS() {
-  return await db.select().from(users).where(and(eq(users.role, "admin"), eq(users.smsNotificationsEnabled, true)));
-}
-async function updateUserSMSSettings(userId, phoneNumber, enabled) {
-  await db.update(users).set({ phoneNumber, smsNotificationsEnabled: enabled, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
-  return true;
-}
-async function recordConsumption(consumption) {
-  const materialId = consumption.materialId;
-  const quantity = consumption.quantity;
-  const material = await db.select().from(materials).where(eq(materials.id, materialId));
-  if (material[0]) {
-    await db.update(materials).set({
-      quantity: Math.max(0, material[0].quantity - quantity),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(materials.id, materialId));
-  }
-  return true;
-}
-async function getConsumptionHistory(materialId, days = 30) {
-  return [];
-}
-async function generateForecastPredictions() {
-  return [];
-}
-async function getForecastPredictions() {
-  return [];
-}
-async function createPurchaseOrder(order) {
-  return Date.now();
-}
-async function getPurchaseOrders(filters) {
-  return [];
-}
-async function updatePurchaseOrder(id, data) {
-  return true;
-}
-async function getReportSettings(userId) {
-  return null;
-}
-async function getEmailBranding() {
-  return null;
-}
-async function upsertEmailBranding(data) {
-  return 0;
-}
-async function createConversation(userId, title, modelName) {
-  const result = await db.insert(aiConversations).values({
-    userId,
-    title,
-    modelName,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: aiConversations.id });
-  return result[0]?.id;
-}
-async function getConversations(userId) {
-  return await db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(desc(aiConversations.updatedAt));
-}
-async function addMessage(conversationId, role, content, metadata) {
-  const result = await db.insert(aiMessages).values({
-    conversationId,
-    role,
-    content,
-    metadata: metadata ? JSON.stringify(metadata) : null,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: aiMessages.id });
-  await db.update(aiConversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiConversations.id, conversationId));
-  return result[0]?.id;
-}
-async function getMessages(conversationId) {
-  return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
-}
-async function createAiConversation(data) {
-  return createConversation(data.userId, data.title, data.modelName);
-}
-async function getAiConversations(userId) {
-  return getConversations(userId);
-}
-async function deleteAiConversation(conversationId) {
-  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
-  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
-  return true;
-}
-async function createAiMessage(data) {
-  return addMessage(data.conversationId, data.role, data.content, data.metadata);
-}
-async function getAiMessages(conversationId) {
-  return getMessages(conversationId);
-}
-async function getOverdueTasks(userId) {
-  return await db.select().from(tasks).where(and(
-    eq(tasks.createdBy, userId),
-    lte(tasks.dueDate, /* @__PURE__ */ new Date()),
-    not(eq(tasks.status, "completed"))
-  )).orderBy(tasks.dueDate);
-}
-async function getNotifications(userId, limit = 20) {
-  return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.sentAt)).limit(limit);
-}
-async function getUnreadNotifications(userId) {
-  return await db.select().from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.status, "unread"))).orderBy(desc(notifications.sentAt));
-}
-async function markNotificationAsRead(notificationId) {
-  await db.update(notifications).set({ status: "read" }).where(eq(notifications.id, notificationId));
-  return true;
-}
-async function getOrCreateNotificationPreferences(userId) {
-  return {};
-}
-async function updateNotificationPreferences(userId, preferences) {
-  return true;
-}
-async function getNotificationPreferences(userId) {
-  return null;
-}
-async function getNotificationHistoryByUser(userId, days) {
-  return [];
-}
-async function getNotificationTemplates(limit, offset) {
-  return [];
-}
-async function getNotificationTemplate(id) {
-  return null;
-}
-async function createNotificationTemplate(data) {
-  return { insertId: 0 };
-}
-async function updateNotificationTemplate(id, data) {
-  return true;
-}
-async function deleteNotificationTemplate(id) {
-  return true;
-}
-async function getNotificationTriggers(limit, offset) {
-  return [];
-}
-async function getNotificationTrigger(id) {
-  return null;
-}
-async function getTriggersByEventType(eventType) {
-  return [];
-}
-async function createNotificationTrigger(data) {
-  return { insertId: 0 };
-}
-async function updateNotificationTrigger(id, data) {
-  return true;
-}
-async function deleteNotificationTrigger(id) {
-  return true;
-}
-async function recordTriggerExecution(data) {
-  return true;
-}
-async function updateUserLanguagePreference(userId, language) {
-  await db.update(users).set({ languagePreference: language, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
-  return true;
-}
-async function createShift(shift) {
-  const result = await db.insert(shifts).values({
-    ...shift,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shifts.id });
-  return result[0]?.id;
-}
-async function getAllShifts() {
-  return await db.select().from(shifts).orderBy(desc(shifts.startTime));
-}
-async function getShiftsByEmployee(employeeId, startDate, endDate) {
-  return await db.select().from(shifts).where(and(
-    eq(shifts.employeeId, employeeId),
-    gte(shifts.startTime, startDate),
-    lte(shifts.startTime, endDate)
-  )).orderBy(shifts.startTime);
-}
-async function updateShift(id, updates) {
-  await db.update(shifts).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
-  return true;
-}
-async function getShiftById(id) {
-  const result = await db.select().from(shifts).where(eq(shifts.id, id));
-  return result[0] || null;
-}
-async function createShiftTemplate(template) {
-  return Date.now();
-}
-async function getShiftTemplates() {
-  return [];
-}
-async function setEmployeeAvailability(availability) {
-  return true;
-}
-async function getEmployeeAvailability(employeeId) {
-  return [];
-}
-async function logComplianceAudit(audit) {
-  return true;
-}
-async function getComplianceAudits(employeeId, startDate, endDate) {
-  return [];
-}
-async function recordBreak(breakRecord) {
-  return true;
-}
-async function getBreakRules(jurisdiction) {
-  return [];
-}
-async function cacheOfflineEntry(cache) {
-  return true;
-}
-async function getPendingOfflineEntries(employeeId) {
-  return [];
-}
-async function updateOfflineSyncStatus(id, status, syncedAt) {
-  return true;
-}
-async function createJobSite(input) {
-  return Date.now();
-}
-async function getJobSites(projectId) {
-  return [];
-}
-async function createLocationLog(input) {
-  return Date.now();
-}
-async function recordGeofenceViolation(input) {
-  return Date.now();
-}
-async function getLocationHistory(employeeId, limit) {
-  return [];
-}
-async function getGeofenceViolations(employeeId, resolved) {
-  return [];
-}
-async function resolveGeofenceViolation(violationId, resolvedBy, notes) {
-  return true;
-}
-
-// server/_core/clerk.ts
 var clerk = clerkClient;
 var clerkAuthMiddleware = requireAuth();
 var clerkBaseMiddleware = clerkMiddleware();
@@ -1514,7 +3195,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
-import { z as z15 } from "zod";
+import { z as z17 } from "zod";
 
 // server/storage.ts
 init_env();
@@ -1569,10 +3250,13 @@ async function storagePut(relKey, data, contentType = "application/octet-stream"
 }
 
 // server/routers.ts
+init_db();
+init_emailTemplateService();
 import { nanoid } from "nanoid";
 
 // server/routers/aiAssistant.ts
 import { z as z2 } from "zod";
+init_db();
 
 // server/_core/ollama.ts
 import axios from "axios";
@@ -1763,7 +3447,96 @@ var OllamaService = class {
 };
 var ollamaService = new OllamaService();
 
+// server/_core/gemini.ts
+init_env();
+import axios2 from "axios";
+var GEMINI_API_KEY = ENV.geminiApiKey;
+var GEMINI_MODEL = ENV.geminiModel || "gemini-1.5-flash";
+var GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+var GeminiService = class {
+  client;
+  constructor() {
+    this.client = axios2.create({
+      baseURL: GEMINI_BASE_URL,
+      timeout: 6e4,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  }
+  /**
+   * Send a prompt to Gemini
+   */
+  async chat(messages, options) {
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
+    const modelName = options?.model || GEMINI_MODEL;
+    const requestBody = {
+      contents: messages,
+      generationConfig: {
+        temperature: options?.temperature ?? 0.7,
+        topP: options?.topP ?? 0.95,
+        topK: options?.topK ?? 40,
+        maxOutputTokens: options?.maxOutputTokens ?? 2048,
+        stopSequences: options?.stopSequences
+      }
+    };
+    const response = await this.client.post(
+      `/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
+      requestBody
+    );
+    return response.data;
+  }
+  /**
+   * Analyze image with Gemini
+   */
+  async analyzeImage(imageBase64, mimeType, prompt) {
+    const messages = [
+      {
+        role: "user",
+        parts: [
+          { text: prompt },
+          {
+            inline_data: {
+              mime_type: mimeType,
+              data: imageBase64
+            }
+          }
+        ]
+      }
+    ];
+    const response = await this.chat(messages);
+    return response.candidates[0].content.parts[0].text;
+  }
+  /**
+   * Simplified interface for text generation
+   */
+  async generateText(prompt) {
+    const messages = [
+      {
+        role: "user",
+        parts: [{ text: prompt }]
+      }
+    ];
+    const response = await this.chat(messages);
+    return response.candidates[0].content.parts[0].text;
+  }
+};
+var geminiService = new GeminiService();
+function formatToGeminiMessages(messages) {
+  return messages.map((msg) => ({
+    role: msg.role === "assistant" ? "model" : "user",
+    parts: [{ text: msg.content }]
+  }));
+}
+
+// server/routers/aiAssistant.ts
+init_env();
+
 // server/_core/aiTools.ts
+init_db();
+init_schema();
 import { like as like2, eq as eq2, and as and2, desc as desc2 } from "drizzle-orm";
 var searchMaterialsTool = {
   name: "search_materials",
@@ -1783,7 +3556,7 @@ var searchMaterialsTool = {
     required: []
   },
   execute: async (params, userId) => {
-    const db2 = await getDb2();
+    const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     let query = db2.select().from(materials);
     if (params.query) {
@@ -1825,7 +3598,7 @@ var getProjectsTool = {
     required: []
   },
   execute: async (params, userId) => {
-    const db2 = await getDb2();
+    const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     let query = db2.select().from(projects);
     const conditions = [];
@@ -1891,7 +3664,7 @@ var createMaterialTool = {
     required: ["name", "unit"]
   },
   execute: async (params, userId) => {
-    const db2 = await getDb2();
+    const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     const { name, category, unit, quantity, minStock, supplier, unitPrice } = params;
     const result = await db2.insert(materials).values({
@@ -1933,7 +3706,7 @@ var updateMaterialQuantityTool = {
     required: ["materialId"]
   },
   execute: async (params, userId) => {
-    const db2 = await getDb2();
+    const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     const { materialId, quantity, adjustment } = params;
     if (quantity !== void 0) {
@@ -1998,7 +3771,7 @@ var createProjectTool = {
     required: ["name"]
   },
   execute: async (params, userId) => {
-    const db2 = await getDb2();
+    const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     const { name, description, location, status, startDate, endDate } = params;
     const result = await db2.insert(projects).values({
@@ -2507,6 +4280,202 @@ function getTemplateById(id) {
   return PROMPT_TEMPLATES.find((t2) => t2.id === id);
 }
 
+// server/_core/ocr.ts
+import axios3 from "axios";
+var DEFAULT_VISION_MODEL = process.env.OLLAMA_VISION_MODEL || "granite3.2-vision:2b";
+async function extractTextFromImage(imageUrl, options) {
+  try {
+    const model = options?.model || DEFAULT_VISION_MODEL;
+    const language = options?.language || "en";
+    const imageResponse = await axios3.get(imageUrl, {
+      responseType: "arraybuffer"
+    });
+    const imageBuffer = Buffer.from(imageResponse.data);
+    const imageBase64 = imageBuffer.toString("base64");
+    const prompt = `Extract all text from this image. Return ONLY the extracted text without any additional commentary or formatting. If the text is in ${language === "bs" ? "Bosnian/Serbian/Croatian" : "English"}, preserve the original language and special characters.`;
+    const response = await ollamaService.analyzeImage(
+      model,
+      imageBase64,
+      prompt
+    );
+    return {
+      text: response.trim(),
+      confidence: 0.95
+      // Placeholder confidence
+    };
+  } catch (error) {
+    console.error("OCR extraction error:", error);
+    throw new Error(`Failed to extract text from image: ${error.message}`);
+  }
+}
+async function extractTextFromPDF(pdfUrl, options) {
+  try {
+    const model = options?.model || DEFAULT_VISION_MODEL;
+    const maxPages = options?.maxPages || 10;
+    console.warn(
+      "PDF extraction requires additional setup. Consider using pdf-parse or similar library."
+    );
+    return {
+      text: "PDF extraction not fully implemented. Please convert PDF pages to images first.",
+      pageCount: 0
+    };
+  } catch (error) {
+    console.error("PDF extraction error:", error);
+    throw new Error(`Failed to extract text from PDF: ${error.message}`);
+  }
+}
+async function analyzeImageWithVision(imageUrl, prompt, options) {
+  try {
+    const model = options?.model || DEFAULT_VISION_MODEL;
+    const imageResponse = await axios3.get(imageUrl, {
+      responseType: "arraybuffer"
+    });
+    const imageBuffer = Buffer.from(imageResponse.data);
+    const imageBase64 = imageBuffer.toString("base64");
+    const response = await ollamaService.analyzeImage(
+      model,
+      imageBase64,
+      prompt
+    );
+    return response;
+  } catch (error) {
+    console.error("Image analysis error:", error);
+    throw new Error(`Failed to analyze image: ${error.message}`);
+  }
+}
+async function extractStructuredData(imageUrl, dataType, options) {
+  try {
+    const model = options?.model || DEFAULT_VISION_MODEL;
+    const imageResponse = await axios3.get(imageUrl, {
+      responseType: "arraybuffer"
+    });
+    const imageBuffer = Buffer.from(imageResponse.data);
+    const imageBase64 = imageBuffer.toString("base64");
+    let prompt = "";
+    switch (dataType) {
+      case "invoice":
+        prompt = `Extract all information from this invoice and return it as JSON with the following fields:
+        {
+          "invoiceNumber": "...",
+          "date": "...",
+          "vendor": "...",
+          "total": "...",
+          "items": [{"description": "...", "quantity": "...", "price": "..."}]
+        }
+        Return ONLY valid JSON, no additional text.`;
+        break;
+      case "receipt":
+        prompt = `Extract all information from this receipt and return it as JSON with the following fields:
+        {
+          "date": "...",
+          "merchant": "...",
+          "total": "...",
+          "items": [{"name": "...", "price": "..."}]
+        }
+        Return ONLY valid JSON, no additional text.`;
+        break;
+      case "form":
+        prompt = `Extract all form fields and their values from this image and return as JSON object where keys are field names and values are the filled values. Return ONLY valid JSON, no additional text.`;
+        break;
+      case "table":
+        prompt = `Extract the table data from this image and return it as JSON array of objects, where each object represents a row with keys as column headers. Return ONLY valid JSON, no additional text.`;
+        break;
+    }
+    const response = await ollamaService.analyzeImage(
+      model,
+      imageBase64,
+      prompt
+    );
+    try {
+      let cleanedResponse = response.trim();
+      if (cleanedResponse.startsWith("```json")) {
+        cleanedResponse = cleanedResponse.slice(7);
+      }
+      if (cleanedResponse.startsWith("```")) {
+        cleanedResponse = cleanedResponse.slice(3);
+      }
+      if (cleanedResponse.endsWith("```")) {
+        cleanedResponse = cleanedResponse.slice(0, -3);
+      }
+      cleanedResponse = cleanedResponse.trim();
+      const parsedData = JSON.parse(cleanedResponse);
+      return parsedData;
+    } catch (parseError) {
+      console.warn(
+        "Failed to parse structured data as JSON, returning raw text"
+      );
+      return { rawText: response };
+    }
+  } catch (error) {
+    console.error("Structured data extraction error:", error);
+    throw new Error(`Failed to extract structured data: ${error.message}`);
+  }
+}
+async function analyzeQualityControlImage(imageUrl, options) {
+  try {
+    const model = options?.model || DEFAULT_VISION_MODEL;
+    const analysisType = options?.analysisType || "general";
+    const imageResponse = await axios3.get(imageUrl, {
+      responseType: "arraybuffer"
+    });
+    const imageBuffer = Buffer.from(imageResponse.data);
+    const imageBase64 = imageBuffer.toString("base64");
+    let prompt = "";
+    switch (analysisType) {
+      case "defect-detection":
+        prompt = `Analyze this concrete sample image for defects. List any visible issues such as cracks, voids, discoloration, or surface irregularities. Provide recommendations for quality improvement.`;
+        break;
+      case "sample-analysis":
+        prompt = `Analyze this concrete sample image. Describe the texture, consistency, color, and any notable characteristics. Assess the quality based on visual inspection.`;
+        break;
+      case "general":
+        prompt = `Perform a quality control analysis of this image. Identify any issues, defects, or areas of concern. Provide specific recommendations for improvement.`;
+        break;
+    }
+    const response = await ollamaService.analyzeImage(
+      model,
+      imageBase64,
+      prompt
+    );
+    const lines = response.split("\n").filter((line) => line.trim());
+    const issues = [];
+    const recommendations = [];
+    lines.forEach((line) => {
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.includes("issue") || lowerLine.includes("defect") || lowerLine.includes("problem")) {
+        issues.push(line.trim());
+      }
+      if (lowerLine.includes("recommend") || lowerLine.includes("suggest") || lowerLine.includes("should")) {
+        recommendations.push(line.trim());
+      }
+    });
+    return {
+      analysis: response,
+      issues: issues.length > 0 ? issues : ["No significant issues detected"],
+      recommendations: recommendations.length > 0 ? recommendations : ["Sample appears to meet quality standards"]
+    };
+  } catch (error) {
+    console.error("QC image analysis error:", error);
+    throw new Error(
+      `Failed to analyze quality control image: ${error.message}`
+    );
+  }
+}
+async function getAvailableVisionModels() {
+  try {
+    const models = await ollamaService.listModels();
+    const visionKeywords = ["vision", "llava", "granite", "ocr", "bakllava"];
+    return models.filter(
+      (m) => visionKeywords.some(
+        (keyword) => m.name.toLowerCase().includes(keyword)
+      )
+    ).map((m) => m.name);
+  } catch (error) {
+    console.error("Failed to get vision models:", error);
+    return [];
+  }
+}
+
 // server/routers/aiAssistant.ts
 var aiAssistantRouter = router({
   /**
@@ -2524,9 +4493,14 @@ var aiAssistantRouter = router({
   ).mutation(async ({ input, ctx }) => {
     try {
       const userId = ctx.user.id;
-      const availableModels = await ollamaService.listModels();
-      if (!availableModels.some((m) => m.name === input.model)) {
-        throw new Error(`Model "${input.model}" is not available. Please pull it first or use an available model.`);
+      const isGemini = input.model.startsWith("gemini-");
+      if (!isGemini) {
+        const availableModels = await ollamaService.listModels();
+        if (!availableModels.some((m) => m.name === input.model)) {
+          throw new Error(
+            `Model "${input.model}" is not available. Please pull it first or use an available model.`
+          );
+        }
       }
       let conversationId = input.conversationId;
       if (!conversationId) {
@@ -2594,27 +4568,43 @@ GUIDELINES:
 
 Be helpful, accurate, and professional. Use tools to fetch real data and perform requested operations.`
       };
-      const response = await ollamaService.chat(
-        input.model,
-        [systemMessage, ...messages],
-        {
-          stream: false,
-          temperature: 0.7
+      let responseContent = "";
+      if (isGemini) {
+        const geminiMessages = formatToGeminiMessages([
+          systemMessage,
+          ...messages
+        ]);
+        const response = await geminiService.chat(geminiMessages, {
+          model: input.model
+        });
+        if (!response.candidates?.[0]?.content?.parts?.[0]?.text) {
+          throw new Error("Invalid response from Gemini API");
         }
-      );
-      if (!response || !response.message || !response.message.content) {
-        throw new Error("Invalid response from AI model");
+        responseContent = response.candidates[0].content.parts[0].text;
+      } else {
+        const response = await ollamaService.chat(
+          input.model,
+          [systemMessage, ...messages],
+          {
+            stream: false,
+            temperature: 0.7
+          }
+        );
+        if (!response || !response.message || !response.message.content) {
+          throw new Error("Invalid response from AI model");
+        }
+        responseContent = response.message.content;
       }
       const assistantMessageId = await createAiMessage({
         conversationId: finalConversationId,
         role: "assistant",
-        content: response.message.content,
+        content: responseContent,
         model: input.model
       });
       return {
         conversationId: finalConversationId,
         messageId: assistantMessageId,
-        content: response.message.content,
+        content: responseContent,
         model: input.model
       };
     } catch (error) {
@@ -2680,7 +4670,9 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    */
   getMessages: protectedProcedure.input(z2.object({ conversationId: z2.number() })).query(async ({ input, ctx }) => {
     const conversations = await getAiConversations(ctx.user.id);
-    const conversation = conversations.find((c) => c.id === input.conversationId);
+    const conversation = conversations.find(
+      (c) => c.id === input.conversationId
+    );
     if (!conversation) {
       throw new Error("Conversation not found");
     }
@@ -2707,7 +4699,9 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    */
   deleteConversation: protectedProcedure.input(z2.object({ conversationId: z2.number() })).mutation(async ({ input, ctx }) => {
     const conversations = await getAiConversations(ctx.user.id);
-    const conversation = conversations.find((c) => c.id === input.conversationId);
+    const conversation = conversations.find(
+      (c) => c.id === input.conversationId
+    );
     if (!conversation) {
       throw new Error("Conversation not found");
     }
@@ -2720,13 +4714,35 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   listModels: protectedProcedure.query(async () => {
     try {
       const models = await ollamaService.listModels();
-      return models.map((model) => ({
+      const result = models.map((model) => ({
         name: model.name,
         size: model.size,
         modifiedAt: model.modified_at,
         family: model.details?.family || "unknown",
         parameterSize: model.details?.parameter_size || "unknown"
       }));
+      if (ENV.geminiApiKey) {
+        const geminiModels = [
+          "gemini-1.5-flash",
+          "gemini-1.5-pro",
+          "gemini-2.0-flash",
+          "gemini-2.0-flash-lite",
+          "gemini-2.5-flash-lite"
+        ];
+        if (ENV.geminiModel && !geminiModels.includes(ENV.geminiModel)) {
+          geminiModels.push(ENV.geminiModel);
+        }
+        geminiModels.forEach((modelName) => {
+          result.push({
+            name: modelName,
+            size: 0,
+            modifiedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            family: "gemini",
+            parameterSize: "cloud"
+          });
+        });
+      }
+      return result;
     } catch (error) {
       console.error("Failed to list models:", error);
       return [];
@@ -2738,7 +4754,10 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   pullModel: protectedProcedure.input(z2.object({ modelName: z2.string() })).mutation(async ({ input }) => {
     try {
       const success = await ollamaService.pullModel(input.modelName);
-      return { success, message: success ? "Model pulled successfully" : "Failed to pull model" };
+      return {
+        success,
+        message: success ? "Model pulled successfully" : "Failed to pull model"
+      };
     } catch (error) {
       console.error("Failed to pull model:", error);
       return { success: false, message: error.message };
@@ -2750,7 +4769,10 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   deleteModel: protectedProcedure.input(z2.object({ modelName: z2.string() })).mutation(async ({ input }) => {
     try {
       const success = await ollamaService.deleteModel(input.modelName);
-      return { success, message: success ? "Model deleted successfully" : "Failed to delete model" };
+      return {
+        success,
+        message: success ? "Model deleted successfully" : "Failed to delete model"
+      };
     } catch (error) {
       console.error("Failed to delete model:", error);
       return { success: false, message: error.message };
@@ -2765,7 +4787,19 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   /**
    * Get templates by category
    */
-  getTemplatesByCategory: publicProcedure.input(z2.object({ category: z2.enum(["inventory", "deliveries", "quality", "reports", "analysis", "forecasting", "bulk_import"]) })).query(async ({ input }) => {
+  getTemplatesByCategory: publicProcedure.input(
+    z2.object({
+      category: z2.enum([
+        "inventory",
+        "deliveries",
+        "quality",
+        "reports",
+        "analysis",
+        "forecasting",
+        "bulk_import"
+      ])
+    })
+  ).query(async ({ input }) => {
     return getTemplatesByCategory(input.category);
   }),
   /**
@@ -2807,6 +4841,168 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         toolName: input.toolName,
         parameters: input.parameters,
         error: error.message || "Unknown error"
+      };
+    }
+  }),
+  /**
+   * Extract text from image using OCR
+   */
+  extractTextFromImage: protectedProcedure.input(
+    z2.object({
+      imageUrl: z2.string().url(),
+      model: z2.string().optional(),
+      language: z2.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    try {
+      const result = await extractTextFromImage(input.imageUrl, {
+        model: input.model,
+        language: input.language
+      });
+      return {
+        success: true,
+        text: result.text,
+        confidence: result.confidence
+      };
+    } catch (error) {
+      console.error("OCR extraction error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to extract text from image"
+      };
+    }
+  }),
+  /**
+   * Extract text from PDF
+   */
+  extractTextFromPDF: protectedProcedure.input(
+    z2.object({
+      pdfUrl: z2.string().url(),
+      model: z2.string().optional(),
+      maxPages: z2.number().optional()
+    })
+  ).mutation(async ({ input }) => {
+    try {
+      const result = await extractTextFromPDF(input.pdfUrl, {
+        model: input.model,
+        maxPages: input.maxPages
+      });
+      return {
+        success: true,
+        text: result.text,
+        pageCount: result.pageCount
+      };
+    } catch (error) {
+      console.error("PDF extraction error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to extract text from PDF"
+      };
+    }
+  }),
+  /**
+   * Analyze image with custom prompt
+   */
+  analyzeImage: protectedProcedure.input(
+    z2.object({
+      imageUrl: z2.string().url(),
+      prompt: z2.string(),
+      model: z2.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    try {
+      const result = await analyzeImageWithVision(
+        input.imageUrl,
+        input.prompt,
+        {
+          model: input.model
+        }
+      );
+      return {
+        success: true,
+        analysis: result
+      };
+    } catch (error) {
+      console.error("Image analysis error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to analyze image"
+      };
+    }
+  }),
+  /**
+   * Extract structured data from document images
+   */
+  extractStructuredData: protectedProcedure.input(
+    z2.object({
+      imageUrl: z2.string().url(),
+      dataType: z2.enum(["invoice", "receipt", "form", "table"]),
+      model: z2.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    try {
+      const result = await extractStructuredData(
+        input.imageUrl,
+        input.dataType,
+        {
+          model: input.model
+        }
+      );
+      return {
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      console.error("Structured data extraction error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to extract structured data"
+      };
+    }
+  }),
+  /**
+   * Analyze quality control images
+   */
+  analyzeQualityControlImage: protectedProcedure.input(
+    z2.object({
+      imageUrl: z2.string().url(),
+      model: z2.string().optional(),
+      analysisType: z2.enum(["defect-detection", "sample-analysis", "general"]).optional()
+    })
+  ).mutation(async ({ input }) => {
+    try {
+      const result = await analyzeQualityControlImage(input.imageUrl, {
+        model: input.model,
+        analysisType: input.analysisType
+      });
+      return {
+        success: true,
+        ...result
+      };
+    } catch (error) {
+      console.error("QC image analysis error:", error);
+      return {
+        success: false,
+        error: error.message || "Failed to analyze quality control image"
+      };
+    }
+  }),
+  /**
+   * Get available vision models
+   */
+  getVisionModels: protectedProcedure.query(async () => {
+    try {
+      const models = await getAvailableVisionModels();
+      return {
+        success: true,
+        models
+      };
+    } catch (error) {
+      console.error("Failed to get vision models:", error);
+      return {
+        success: false,
+        models: [],
+        error: error.message
       };
     }
   })
@@ -2983,8 +5179,21 @@ async function batchProcess(rows, processor, options = {}) {
 }
 
 // server/routers/bulkImport.ts
+init_db();
 import * as fs2 from "fs";
 import * as path2 from "path";
+import * as os from "os";
+function saveTempFile(fileData, fileName) {
+  const tempDir = os.tmpdir();
+  const fileExt = path2.extname(fileName);
+  const tempPath = path2.join(
+    tempDir,
+    `import_${Date.now()}_${Math.random().toString(36).substring(7)}${fileExt}`
+  );
+  const base64Data = fileData.includes(";base64,") ? fileData.split(";base64,")[1] : fileData;
+  fs2.writeFileSync(tempPath, Buffer.from(base64Data, "base64"));
+  return tempPath;
+}
 var WORK_HOURS_SCHEMA = [
   { name: "employeeId", type: "number", required: true },
   { name: "date", type: "date", required: true },
@@ -3011,26 +5220,36 @@ var DOCUMENTS_SCHEMA = [
   { name: "description", type: "string", required: false },
   { name: "projectId", type: "number", required: false }
 ];
+var EMPLOYEES_SCHEMA = [
+  { name: "firstName", type: "string", required: true },
+  { name: "lastName", type: "string", required: true },
+  { name: "employeeNumber", type: "string", required: false },
+  { name: "jobTitle", type: "string", required: false },
+  { name: "department", type: "string", required: false },
+  { name: "hourlyRate", type: "number", required: false }
+];
 var bulkImportRouter = router({
   /**
    * Upload and preview file
    */
   previewFile: protectedProcedure.input(
     z3.object({
-      filePath: z3.string(),
-      importType: z3.enum(["work_hours", "materials", "documents"]),
+      fileData: z3.string(),
+      fileName: z3.string(),
+      importType: z3.enum([
+        "work_hours",
+        "materials",
+        "documents",
+        "employees"
+      ]),
       sheetName: z3.string().optional()
     })
   ).mutation(async ({ input }) => {
+    let tempPath = "";
     try {
-      const { filePath, importType, sheetName } = input;
-      if (!fs2.existsSync(filePath)) {
-        throw new TRPCError3({
-          code: "NOT_FOUND",
-          message: "File not found"
-        });
-      }
-      const parseResult = parseFile(filePath, sheetName);
+      const { fileData, fileName, importType, sheetName } = input;
+      tempPath = saveTempFile(fileData, fileName);
+      const parseResult = parseFile(tempPath, sheetName);
       if (!parseResult.success) {
         throw new TRPCError3({
           code: "BAD_REQUEST",
@@ -3048,6 +5267,9 @@ var bulkImportRouter = router({
         case "documents":
           schema = DOCUMENTS_SCHEMA;
           break;
+        case "employees":
+          schema = EMPLOYEES_SCHEMA;
+          break;
       }
       const preview = parseResult.data.slice(0, 5);
       const validationResults = preview.map((row, idx) => ({
@@ -3057,7 +5279,7 @@ var bulkImportRouter = router({
       }));
       return {
         success: true,
-        fileName: path2.basename(filePath),
+        fileName,
         totalRows: parseResult.rowCount,
         columns: parseResult.columns,
         preview: preview.slice(0, 3),
@@ -3070,6 +5292,10 @@ var bulkImportRouter = router({
         code: "INTERNAL_SERVER_ERROR",
         message: error instanceof Error ? error.message : "Preview failed"
       });
+    } finally {
+      if (tempPath && fs2.existsSync(tempPath)) {
+        fs2.unlinkSync(tempPath);
+      }
     }
   }),
   /**
@@ -3077,20 +5303,16 @@ var bulkImportRouter = router({
    */
   importWorkHours: protectedProcedure.input(
     z3.object({
-      filePath: z3.string(),
+      fileData: z3.string(),
+      fileName: z3.string(),
       sheetName: z3.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
+    let tempPath = "";
     try {
-      const { filePath, sheetName } = input;
-      const db2 = await getDb();
-      if (!db2) {
-        throw new TRPCError3({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Database not available"
-        });
-      }
-      const parseResult = parseFile(filePath, sheetName);
+      const { fileData, fileName, sheetName } = input;
+      tempPath = saveTempFile(fileData, fileName);
+      const parseResult = parseFile(tempPath, sheetName);
       if (!parseResult.success) {
         throw new TRPCError3({
           code: "BAD_REQUEST",
@@ -3108,30 +5330,13 @@ var bulkImportRouter = router({
             throw new Error(validation.errors.join("; "));
           }
           const transformed = transformRow(row, WORK_HOURS_SCHEMA);
-          let hoursWorked = null;
-          let overtimeHours = 0;
-          if (transformed.endTime) {
-            const start = new Date(transformed.startTime);
-            const end = new Date(transformed.endTime);
-            const diffMs = end.getTime() - start.getTime();
-            hoursWorked = Math.round(diffMs / (1e3 * 60 * 60));
-            if (hoursWorked > 8) {
-              overtimeHours = hoursWorked - 8;
-            }
-          }
-          const workType = transformed.workType || "regular";
-          const validWorkTypes = ["regular", "overtime", "weekend", "holiday"];
           await createWorkHour({
             employeeId: transformed.employeeId,
-            projectId: transformed.projectId || null,
-            date: new Date(transformed.date).toISOString(),
-            startTime: new Date(transformed.startTime).toISOString(),
-            endTime: transformed.endTime ? new Date(transformed.endTime).toISOString() : null,
-            hoursWorked,
-            overtimeHours,
-            workType: validWorkTypes.includes(workType) ? workType : "regular",
+            startTime: new Date(transformed.startTime),
+            endTime: transformed.endTime ? new Date(transformed.endTime) : null,
             notes: transformed.notes || null,
-            status: "pending"
+            status: "pending",
+            createdBy: ctx.user.id
           });
           successCount++;
           return { success: true };
@@ -3158,6 +5363,10 @@ var bulkImportRouter = router({
         code: "INTERNAL_SERVER_ERROR",
         message: error instanceof Error ? error.message : "Import failed"
       });
+    } finally {
+      if (tempPath && fs2.existsSync(tempPath)) {
+        fs2.unlinkSync(tempPath);
+      }
     }
   }),
   /**
@@ -3165,20 +5374,16 @@ var bulkImportRouter = router({
    */
   importMaterials: protectedProcedure.input(
     z3.object({
-      filePath: z3.string(),
+      fileData: z3.string(),
+      fileName: z3.string(),
       sheetName: z3.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
+    let tempPath = "";
     try {
-      const { filePath, sheetName } = input;
-      const db2 = await getDb();
-      if (!db2) {
-        throw new TRPCError3({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Database not available"
-        });
-      }
-      const parseResult = parseFile(filePath, sheetName);
+      const { fileData, fileName, sheetName } = input;
+      tempPath = saveTempFile(fileData, fileName);
+      const parseResult = parseFile(tempPath, sheetName);
       if (!parseResult.success) {
         throw new TRPCError3({
           code: "BAD_REQUEST",
@@ -3197,7 +5402,13 @@ var bulkImportRouter = router({
           }
           const transformed = transformRow(row, MATERIALS_SCHEMA);
           const category = transformed.category || "other";
-          const validCategories = ["cement", "aggregate", "admixture", "water", "other"];
+          const validCategories = [
+            "cement",
+            "aggregate",
+            "admixture",
+            "water",
+            "other"
+          ];
           await createMaterial({
             name: transformed.name,
             category: validCategories.includes(category) ? category : "other",
@@ -3232,6 +5443,10 @@ var bulkImportRouter = router({
         code: "INTERNAL_SERVER_ERROR",
         message: error instanceof Error ? error.message : "Import failed"
       });
+    } finally {
+      if (tempPath && fs2.existsSync(tempPath)) {
+        fs2.unlinkSync(tempPath);
+      }
     }
   }),
   /**
@@ -3239,20 +5454,16 @@ var bulkImportRouter = router({
    */
   importDocuments: protectedProcedure.input(
     z3.object({
-      filePath: z3.string(),
+      fileData: z3.string(),
+      fileName: z3.string(),
       sheetName: z3.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
+    let tempPath = "";
     try {
-      const { filePath, sheetName } = input;
-      const db2 = await getDb();
-      if (!db2) {
-        throw new TRPCError3({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Database not available"
-        });
-      }
-      const parseResult = parseFile(filePath, sheetName);
+      const { fileData, fileName, sheetName } = input;
+      tempPath = saveTempFile(fileData, fileName);
+      const parseResult = parseFile(tempPath, sheetName);
       if (!parseResult.success) {
         throw new TRPCError3({
           code: "BAD_REQUEST",
@@ -3271,13 +5482,18 @@ var bulkImportRouter = router({
           }
           const transformed = transformRow(row, DOCUMENTS_SCHEMA);
           const docCategory = transformed.category || "other";
-          const validDocCategories = ["contract", "blueprint", "report", "certificate", "invoice", "other"];
+          const validDocCategories = [
+            "contract",
+            "blueprint",
+            "report",
+            "certificate",
+            "invoice",
+            "other"
+          ];
           await createDocument({
             name: transformed.name,
-            description: transformed.description || null,
-            fileKey: transformed.fileKey,
-            fileUrl: transformed.fileUrl,
-            category: validDocCategories.includes(docCategory) ? docCategory : "other",
+            url: transformed.fileUrl,
+            type: validDocCategories.includes(docCategory) ? docCategory : "other",
             projectId: transformed.projectId || null,
             uploadedBy: ctx.user.id
           });
@@ -3305,11 +5521,87 @@ var bulkImportRouter = router({
         code: "INTERNAL_SERVER_ERROR",
         message: error instanceof Error ? error.message : "Import failed"
       });
+    } finally {
+      if (tempPath && fs2.existsSync(tempPath)) {
+        fs2.unlinkSync(tempPath);
+      }
+    }
+  }),
+  /**
+   * Import employees from file
+   */
+  importEmployees: protectedProcedure.input(
+    z3.object({
+      fileData: z3.string(),
+      fileName: z3.string(),
+      sheetName: z3.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    let tempPath = "";
+    try {
+      const { fileData, fileName, sheetName } = input;
+      tempPath = saveTempFile(fileData, fileName);
+      const parseResult = parseFile(tempPath, sheetName);
+      if (!parseResult.success) {
+        throw new TRPCError3({
+          code: "BAD_REQUEST",
+          message: parseResult.error || "Failed to parse file"
+        });
+      }
+      const rows = parseResult.data;
+      let successCount = 0;
+      const errors = [];
+      await batchProcess(
+        rows,
+        async (row, index) => {
+          const validation = validateRow(row, EMPLOYEES_SCHEMA);
+          if (!validation.valid) {
+            throw new Error(validation.errors.join("; "));
+          }
+          const transformed = transformRow(row, EMPLOYEES_SCHEMA);
+          await createEmployee({
+            firstName: transformed.firstName,
+            lastName: transformed.lastName,
+            employeeNumber: transformed.employeeNumber || null,
+            jobTitle: transformed.jobTitle || null,
+            department: transformed.department || null,
+            hourlyRate: transformed.hourlyRate || null,
+            active: true
+          });
+          successCount++;
+          return { success: true };
+        },
+        {
+          batchSize: 50,
+          onError: (rowIndex, error) => {
+            errors.push({ rowIndex: rowIndex + 2, error });
+          }
+        }
+      );
+      return {
+        success: true,
+        imported: successCount,
+        failed: errors.length,
+        total: rows.length,
+        errors: errors.slice(0, 10),
+        message: `Successfully imported ${successCount} employee records`
+      };
+    } catch (error) {
+      if (error instanceof TRPCError3) throw error;
+      throw new TRPCError3({
+        code: "INTERNAL_SERVER_ERROR",
+        message: error instanceof Error ? error.message : "Import failed"
+      });
+    } finally {
+      if (tempPath && fs2.existsSync(tempPath)) {
+        fs2.unlinkSync(tempPath);
+      }
     }
   })
 });
 
 // server/routers/notifications.ts
+init_db();
 import { z as z4 } from "zod";
 
 // server/_core/notificationService.ts
@@ -3543,8 +5835,9 @@ var notificationsRouter = router({
 
 // server/routers/notificationTemplates.ts
 import { z as z5 } from "zod";
+init_db();
 import { TRPCError as TRPCError5 } from "@trpc/server";
-var TEMPLATE_VARIABLES = {
+var TEMPLATE_VARIABLES2 = {
   user: ["{{user.name}}", "{{user.email}}", "{{user.role}}"],
   task: ["{{task.title}}", "{{task.description}}", "{{task.dueDate}}", "{{task.priority}}", "{{task.status}}"],
   material: ["{{material.name}}", "{{material.quantity}}", "{{material.unit}}", "{{material.minStock}}"],
@@ -3614,7 +5907,7 @@ var notificationTemplatesRouter = router({
   }),
   // Get available template variables
   getVariables: protectedProcedure.query(() => {
-    return TEMPLATE_VARIABLES;
+    return TEMPLATE_VARIABLES2;
   }),
   // Template CRUD
   listTemplates: protectedProcedure.query(async () => {
@@ -3787,6 +6080,7 @@ function generateHumanReadable(group) {
 import { z as z6 } from "zod";
 
 // server/services/triggerEvaluation.ts
+init_db();
 function evaluateCondition(condition, data) {
   const fieldValue = getNestedValue(data, condition.field);
   const compareValue = condition.value;
@@ -4088,47 +6382,56 @@ var triggerExecutionRouter = router({
 });
 
 // server/routers/timesheets.ts
+init_db();
 import { z as z7 } from "zod";
 var timesheetsRouter = router({
   // ============ SHIFT MANAGEMENT ============
-  createShift: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    shiftDate: z7.date(),
-    startTime: z7.date(),
-    endTime: z7.date(),
-    breakDuration: z7.number().default(0),
-    projectId: z7.number().optional(),
-    notes: z7.string().optional()
-  })).mutation(async ({ input, ctx }) => {
+  createShift: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      templateId: z7.number().optional(),
+      startTime: z7.date(),
+      endTime: z7.date(),
+      notes: z7.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
     const shiftId = await createShift({
       employeeId: input.employeeId,
-      shiftDate: input.shiftDate,
+      templateId: input.templateId,
       startTime: input.startTime,
       endTime: input.endTime,
-      breakDuration: input.breakDuration,
-      projectId: input.projectId,
       notes: input.notes,
       status: "scheduled",
       createdBy: ctx.user.id
     });
     return { success: !!shiftId, shiftId };
   }),
-  getShifts: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    startDate: z7.date(),
-    endDate: z7.date()
-  })).query(async ({ input }) => {
+  getShifts: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      startDate: z7.date(),
+      endDate: z7.date()
+    })
+  ).query(async ({ input }) => {
     return await getShiftsByEmployee(
       input.employeeId,
       input.startDate,
       input.endDate
     );
   }),
-  updateShift: protectedProcedure.input(z7.object({
-    shiftId: z7.number(),
-    status: z7.enum(["scheduled", "in_progress", "completed", "cancelled", "no_show"]).optional(),
-    notes: z7.string().optional()
-  })).mutation(async ({ input }) => {
+  updateShift: protectedProcedure.input(
+    z7.object({
+      shiftId: z7.number(),
+      status: z7.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "no_show"
+      ]).optional(),
+      notes: z7.string().optional()
+    })
+  ).mutation(async ({ input }) => {
     const success = await updateShift(input.shiftId, {
       status: input.status,
       notes: input.notes
@@ -4136,17 +6439,19 @@ var timesheetsRouter = router({
     return { success };
   }),
   // ============ SHIFT TEMPLATES ============
-  createShiftTemplate: protectedProcedure.input(z7.object({
-    name: z7.string(),
-    description: z7.string().optional(),
-    startTime: z7.string(),
-    // HH:MM format
-    endTime: z7.string(),
-    // HH:MM format
-    breakDuration: z7.number().default(0),
-    daysOfWeek: z7.array(z7.number())
-    // 0-6
-  })).mutation(async ({ input, ctx }) => {
+  createShiftTemplate: protectedProcedure.input(
+    z7.object({
+      name: z7.string(),
+      description: z7.string().optional(),
+      startTime: z7.string(),
+      // HH:MM format
+      endTime: z7.string(),
+      // HH:MM format
+      breakDuration: z7.number().default(0),
+      daysOfWeek: z7.array(z7.number())
+      // 0-6
+    })
+  ).mutation(async ({ input, ctx }) => {
     const templateId = await createShiftTemplate({
       name: input.name,
       description: input.description,
@@ -4163,17 +6468,19 @@ var timesheetsRouter = router({
     return await getShiftTemplates();
   }),
   // ============ EMPLOYEE AVAILABILITY ============
-  setAvailability: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    dayOfWeek: z7.number(),
-    // 0-6
-    isAvailable: z7.boolean(),
-    startTime: z7.string().optional(),
-    // HH:MM format
-    endTime: z7.string().optional(),
-    // HH:MM format
-    notes: z7.string().optional()
-  })).mutation(async ({ input }) => {
+  setAvailability: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      dayOfWeek: z7.number(),
+      // 0-6
+      isAvailable: z7.boolean(),
+      startTime: z7.string().optional(),
+      // HH:MM format
+      endTime: z7.string().optional(),
+      // HH:MM format
+      notes: z7.string().optional()
+    })
+  ).mutation(async ({ input }) => {
     const success = await setEmployeeAvailability({
       employeeId: input.employeeId,
       dayOfWeek: input.dayOfWeek,
@@ -4184,38 +6491,45 @@ var timesheetsRouter = router({
     });
     return { success };
   }),
-  getAvailability: protectedProcedure.input(z7.object({
-    employeeId: z7.number()
-  })).query(async ({ input }) => {
+  getAvailability: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number()
+    })
+  ).query(async ({ input }) => {
     return await getEmployeeAvailability(input.employeeId);
   }),
   // ============ COMPLIANCE & AUDIT ============
-  logComplianceAudit: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    auditDate: z7.date(),
-    auditType: z7.enum(["daily_hours", "weekly_hours", "break_compliance", "overtime", "wage_calculation"]),
-    status: z7.enum(["compliant", "warning", "violation"]),
-    details: z7.record(z7.string(), z7.any()),
-    severity: z7.enum(["low", "medium", "high"]).default("low"),
-    actionTaken: z7.string().optional()
-  })).mutation(async ({ input, ctx }) => {
+  logComplianceAudit: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      action: z7.string(),
+      entityType: z7.string(),
+      // e.g. "shift", "timesheet"
+      entityId: z7.number(),
+      oldValue: z7.string().optional(),
+      newValue: z7.string().optional(),
+      reason: z7.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
     const success = await logComplianceAudit({
       employeeId: input.employeeId,
-      auditDate: input.auditDate,
-      auditType: input.auditType,
-      status: input.status,
-      details: input.details,
-      severity: input.severity,
-      actionTaken: input.actionTaken,
-      createdBy: ctx.user.id
+      action: input.action,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      oldValue: input.oldValue,
+      newValue: input.newValue,
+      reason: input.reason,
+      performedBy: ctx.user.id
     });
     return { success };
   }),
-  getComplianceAudits: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    startDate: z7.date(),
-    endDate: z7.date()
-  })).query(async ({ input }) => {
+  getComplianceAudits: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      startDate: z7.date(),
+      endDate: z7.date()
+    })
+  ).query(async ({ input }) => {
     return await getComplianceAudits(
       input.employeeId,
       input.startDate,
@@ -4223,43 +6537,46 @@ var timesheetsRouter = router({
     );
   }),
   // ============ BREAK TRACKING ============
-  recordBreak: protectedProcedure.input(z7.object({
-    workHourId: z7.number(),
-    employeeId: z7.number(),
-    breakStart: z7.date(),
-    breakEnd: z7.date().optional(),
-    breakType: z7.enum(["meal", "rest", "combined"]),
-    notes: z7.string().optional()
-  })).mutation(async ({ input }) => {
-    const breakDuration = input.breakEnd ? Math.round((input.breakEnd.getTime() - input.breakStart.getTime()) / (1e3 * 60)) : void 0;
+  recordBreak: protectedProcedure.input(
+    z7.object({
+      shiftId: z7.number(),
+      startTime: z7.date(),
+      endTime: z7.date().optional(),
+      type: z7.enum(["meal", "rest", "combined"])
+    })
+  ).mutation(async ({ input }) => {
+    const breakDuration = input.endTime ? Math.round(
+      (input.endTime.getTime() - input.startTime.getTime()) / (1e3 * 60)
+    ) : void 0;
     const success = await recordBreak({
-      workHourId: input.workHourId,
-      employeeId: input.employeeId,
-      breakStart: input.breakStart,
-      breakEnd: input.breakEnd,
-      breakDuration,
-      breakType: input.breakType,
-      notes: input.notes
+      shiftId: input.shiftId,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      type: input.type
     });
     return { success };
   }),
-  getBreakRules: protectedProcedure.input(z7.object({
-    jurisdiction: z7.string()
-  })).query(async ({ input }) => {
+  getBreakRules: protectedProcedure.input(
+    z7.object({
+      jurisdiction: z7.string()
+    })
+  ).query(async ({ input }) => {
     return await getBreakRules(input.jurisdiction);
   }),
   // ============ OFFLINE SYNC ============
-  cacheOfflineEntry: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    deviceId: z7.string(),
-    entryData: z7.object({
-      date: z7.string(),
-      startTime: z7.string(),
-      endTime: z7.string(),
-      projectId: z7.number().optional(),
-      notes: z7.string().optional()
+  cacheOfflineEntry: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      deviceId: z7.string(),
+      entryData: z7.object({
+        date: z7.string(),
+        startTime: z7.string(),
+        endTime: z7.string(),
+        projectId: z7.number().optional(),
+        notes: z7.string().optional()
+      })
     })
-  })).mutation(async ({ input }) => {
+  ).mutation(async ({ input }) => {
     const success = await cacheOfflineEntry({
       employeeId: input.employeeId,
       deviceId: input.deviceId,
@@ -4268,14 +6585,18 @@ var timesheetsRouter = router({
     });
     return { success };
   }),
-  getPendingOfflineEntries: protectedProcedure.input(z7.object({
-    employeeId: z7.number()
-  })).query(async ({ input }) => {
+  getPendingOfflineEntries: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number()
+    })
+  ).query(async ({ input }) => {
     return await getPendingOfflineEntries(input.employeeId);
   }),
-  syncOfflineEntry: protectedProcedure.input(z7.object({
-    cacheId: z7.number()
-  })).mutation(async ({ input }) => {
+  syncOfflineEntry: protectedProcedure.input(
+    z7.object({
+      cacheId: z7.number()
+    })
+  ).mutation(async ({ input }) => {
     const success = await updateOfflineSyncStatus(
       input.cacheId,
       "synced",
@@ -4284,16 +6605,23 @@ var timesheetsRouter = router({
     return { success };
   }),
   // ============ SUMMARY REPORTS ============
-  weeklySummary: protectedProcedure.input(z7.object({
-    employeeId: z7.number().optional(),
-    weekStart: z7.date()
-  })).query(async ({ input }) => {
+  weeklySummary: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number().optional(),
+      weekStart: z7.date()
+    })
+  ).query(async ({ input }) => {
     const weekEnd = new Date(input.weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     if (input.employeeId) {
-      const shifts2 = await getShiftsByEmployee(input.employeeId, input.weekStart, weekEnd);
+      const shifts2 = await getShiftsByEmployee(
+        input.employeeId,
+        input.weekStart,
+        weekEnd
+      );
       const totalHours = shifts2.reduce((sum, shift) => {
-        const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
+        const end = shift.endTime ?? shift.startTime;
+        const hours = (end.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
         return sum + hours;
       }, 0);
       return {
@@ -4313,21 +6641,34 @@ var timesheetsRouter = router({
       shifts: []
     };
   }),
-  monthlySummary: protectedProcedure.input(z7.object({
-    employeeId: z7.number().optional(),
-    year: z7.number(),
-    month: z7.number()
-  })).query(async ({ input }) => {
+  monthlySummary: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number().optional(),
+      year: z7.number(),
+      month: z7.number()
+    })
+  ).query(async ({ input }) => {
     const monthStart = new Date(input.year, input.month - 1, 1);
     const monthEnd = new Date(input.year, input.month, 0);
     if (input.employeeId) {
-      const shifts2 = await getShiftsByEmployee(input.employeeId, monthStart, monthEnd);
+      const shifts2 = await getShiftsByEmployee(
+        input.employeeId,
+        monthStart,
+        monthEnd
+      );
       const totalHours = shifts2.reduce((sum, shift) => {
-        const hours = (shift.endTime.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
+        const end = shift.endTime ?? shift.startTime;
+        const hours = (end.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
         return sum + hours;
       }, 0);
-      const audits = await getComplianceAudits(input.employeeId, monthStart, monthEnd);
-      const violations = audits.filter((a) => a.status === "violation").length;
+      const audits = await getComplianceAudits(
+        input.employeeId,
+        monthStart,
+        monthEnd
+      );
+      const violations = audits.filter(
+        (a) => typeof a.action === "string" && a.action.toLowerCase().includes("violation") || typeof a.reason === "string" && a.reason.toLowerCase().includes("violation")
+      ).length;
       return {
         year: input.year,
         month: input.month,
@@ -4351,80 +6692,90 @@ var timesheetsRouter = router({
   }),
   // ============ BACKWARD COMPATIBILITY ============
   // These procedures maintain compatibility with existing UI components
-  list: protectedProcedure.input(z7.object({
-    employeeId: z7.number().optional(),
-    status: z7.enum(["pending", "approved", "rejected"]).optional(),
-    startDate: z7.date().optional(),
-    endDate: z7.date().optional()
-  }).optional()).query(async ({ input }) => {
+  list: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number().optional(),
+      status: z7.enum(["pending", "approved", "rejected"]).optional(),
+      startDate: z7.date().optional(),
+      endDate: z7.date().optional()
+    }).optional()
+  ).query(async ({ input }) => {
     if (input?.employeeId && input?.startDate && input?.endDate) {
-      return await getShiftsByEmployee(input.employeeId, input.startDate, input.endDate);
+      return await getShiftsByEmployee(
+        input.employeeId,
+        input.startDate,
+        input.endDate
+      );
     }
     return [];
   }),
-  clockIn: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    projectId: z7.number().optional(),
-    notes: z7.string().optional()
-  })).mutation(async ({ input }) => {
+  clockIn: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      notes: z7.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
     const shiftId = await createShift({
       employeeId: input.employeeId,
-      shiftDate: /* @__PURE__ */ new Date(),
       startTime: /* @__PURE__ */ new Date(),
       endTime: /* @__PURE__ */ new Date(),
-      projectId: input.projectId,
       notes: input.notes,
       status: "in_progress",
-      createdBy: 1
+      createdBy: ctx.user.id
     });
     return { success: !!shiftId, shiftId: shiftId || 0 };
   }),
-  clockOut: protectedProcedure.input(z7.object({
-    id: z7.number()
-  })).mutation(async ({ input }) => {
+  clockOut: protectedProcedure.input(
+    z7.object({
+      id: z7.number()
+    })
+  ).mutation(async ({ input }) => {
     const success = await updateShift(input.id, {
       endTime: /* @__PURE__ */ new Date(),
       status: "completed"
     });
     return { success };
   }),
-  create: protectedProcedure.input(z7.object({
-    employeeId: z7.number(),
-    date: z7.date(),
-    startTime: z7.date(),
-    endTime: z7.date().optional(),
-    hoursWorked: z7.number().optional(),
-    overtimeHours: z7.number().optional(),
-    workType: z7.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
-    projectId: z7.number().optional(),
-    notes: z7.string().optional(),
-    status: z7.enum(["pending", "approved", "rejected"]).default("pending")
-  })).mutation(async ({ input, ctx }) => {
+  create: protectedProcedure.input(
+    z7.object({
+      employeeId: z7.number(),
+      date: z7.date(),
+      startTime: z7.date(),
+      endTime: z7.date().optional(),
+      hoursWorked: z7.number().optional(),
+      overtimeHours: z7.number().optional(),
+      workType: z7.enum(["regular", "overtime", "weekend", "holiday"]).optional(),
+      notes: z7.string().optional(),
+      status: z7.enum(["pending", "approved", "rejected"]).default("pending")
+    })
+  ).mutation(async ({ input, ctx }) => {
     const shiftId = await createShift({
       employeeId: input.employeeId,
-      shiftDate: input.date,
       startTime: input.startTime,
       endTime: input.endTime || /* @__PURE__ */ new Date(),
-      projectId: input.projectId,
       notes: input.notes,
       status: input.status === "approved" ? "completed" : "scheduled",
       createdBy: ctx.user.id
     });
     return { success: !!shiftId, shiftId: shiftId || 0 };
   }),
-  approve: protectedProcedure.input(z7.object({
-    id: z7.number(),
-    approvedBy: z7.number()
-  })).mutation(async ({ input }) => {
+  approve: protectedProcedure.input(
+    z7.object({
+      id: z7.number(),
+      approvedBy: z7.number()
+    })
+  ).mutation(async ({ input }) => {
     const success = await updateShift(input.id, {
       status: "completed"
     });
     return { success };
   }),
-  reject: protectedProcedure.input(z7.object({
-    id: z7.number(),
-    reason: z7.string().optional()
-  })).mutation(async ({ input }) => {
+  reject: protectedProcedure.input(
+    z7.object({
+      id: z7.number(),
+      reason: z7.string().optional()
+    })
+  ).mutation(async ({ input }) => {
     const success = await updateShift(input.id, {
       status: "cancelled",
       notes: input.reason
@@ -4435,6 +6786,7 @@ var timesheetsRouter = router({
 
 // server/routers/geolocation.ts
 import { z as z8 } from "zod";
+init_db();
 
 // server/services/geolocation.ts
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -4754,6 +7106,7 @@ var geolocationRouter = router({
 import { z as z9 } from "zod";
 
 // server/services/excelExport.ts
+init_db();
 import ExcelJS from "exceljs";
 async function exportMaterialsToExcel(options = {}) {
   const workbook = new ExcelJS.Workbook();
@@ -4951,6 +7304,86 @@ async function exportTimesheetsToExcel(options = {}) {
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
 }
+async function exportQualityTestsToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Quality Tests");
+  const allColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "testName", header: "Test Name", width: 30 },
+    { key: "testType", header: "Test Type", width: 15 },
+    { key: "result", header: "Result", width: 15 },
+    { key: "unit", header: "Unit", width: 10 },
+    { key: "status", header: "Status", width: 12 },
+    { key: "testedBy", header: "Tested By", width: 20 },
+    { key: "notes", header: "Notes", width: 40 },
+    { key: "complianceStandard", header: "Standard", width: 15 },
+    { key: "createdAt", header: "Created At", width: 20 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFA52A2A" }
+    // Brown
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const tests = await getQualityTests();
+  tests.forEach((test) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = test[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+async function exportPurchaseOrdersToExcel(options = {}) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("Purchase Orders");
+  const allColumns = [
+    { key: "id", header: "PO ID", width: 10 },
+    { key: "materialName", header: "Material", width: 30 },
+    { key: "quantity", header: "Quantity", width: 15 },
+    { key: "supplier", header: "Supplier", width: 25 },
+    { key: "supplierEmail", header: "Supplier Email", width: 30 },
+    { key: "orderDate", header: "Order Date", width: 20 },
+    { key: "expectedDelivery", header: "Expected Delivery", width: 20 },
+    { key: "totalCost", header: "Total Cost", width: 15 },
+    { key: "status", header: "Status", width: 15 },
+    { key: "notes", header: "Notes", width: 40 }
+  ];
+  const selectedColumns = options.columns ? allColumns.filter((col) => options.columns.includes(col.key)) : allColumns;
+  worksheet.columns = selectedColumns;
+  worksheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  worksheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF800080" }
+    // Purple
+  };
+  worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
+  const orders = await getPurchaseOrders();
+  orders.forEach((order) => {
+    const row = {};
+    selectedColumns.forEach((col) => {
+      row[col.key] = order[col.key];
+    });
+    worksheet.addRow(row);
+  });
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: selectedColumns.length }
+  };
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
 async function exportAllDataToExcel(options = {}) {
   const workbook = new ExcelJS.Workbook();
   const materialsSheet = workbook.addWorksheet("Materials");
@@ -4964,7 +7397,11 @@ async function exportAllDataToExcel(options = {}) {
   ];
   materialsSheet.columns = materialsColumns;
   materialsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  materialsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+  materialsSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF4472C4" }
+  };
   const materials2 = await getMaterials();
   materials2.forEach((m) => materialsSheet.addRow(m));
   const employeesSheet = workbook.addWorksheet("Employees");
@@ -4978,7 +7415,11 @@ async function exportAllDataToExcel(options = {}) {
   ];
   employeesSheet.columns = employeesColumns;
   employeesSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  employeesSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF70AD47" } };
+  employeesSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF70AD47" }
+  };
   const employees2 = await getEmployees();
   employees2.forEach((e) => employeesSheet.addRow(e));
   const projectsSheet = workbook.addWorksheet("Projects");
@@ -4991,7 +7432,11 @@ async function exportAllDataToExcel(options = {}) {
   ];
   projectsSheet.columns = projectsColumns;
   projectsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  projectsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFC000" } };
+  projectsSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFFFC000" }
+  };
   const projects2 = await getProjects();
   projects2.forEach((p) => projectsSheet.addRow(p));
   const deliveriesSheet = workbook.addWorksheet("Deliveries");
@@ -5007,7 +7452,11 @@ async function exportAllDataToExcel(options = {}) {
   ];
   deliveriesSheet.columns = deliveriesColumns;
   deliveriesSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  deliveriesSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFED7D31" } };
+  deliveriesSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFED7D31" }
+  };
   const deliveries2 = await getDeliveries();
   deliveries2.forEach((d) => deliveriesSheet.addRow(d));
   const timesheetsSheet = workbook.addWorksheet("Timesheets");
@@ -5023,11 +7472,241 @@ async function exportAllDataToExcel(options = {}) {
   ];
   timesheetsSheet.columns = timesheetsColumns;
   timesheetsSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-  timesheetsSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF5B9BD5" } };
+  timesheetsSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF5B9BD5" }
+  };
   const timesheets = await getAllShifts();
   timesheets.forEach((t2) => timesheetsSheet.addRow(t2));
+  const qualitySheet = workbook.addWorksheet("Quality Tests");
+  const qualityColumns = [
+    { key: "id", header: "ID", width: 10 },
+    { key: "testName", header: "Test Name", width: 30 },
+    { key: "testType", header: "Test Type", width: 15 },
+    { key: "result", header: "Result", width: 15 },
+    { key: "status", header: "Status", width: 12 }
+  ];
+  qualitySheet.columns = qualityColumns;
+  qualitySheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  qualitySheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFA52A2A" }
+  };
+  const tests = await getQualityTests();
+  tests.forEach((t2) => qualitySheet.addRow(t2));
+  const poSheet = workbook.addWorksheet("Purchase Orders");
+  const poColumns = [
+    { key: "id", header: "PO ID", width: 10 },
+    { key: "materialName", header: "Material", width: 30 },
+    { key: "quantity", header: "Quantity", width: 15 },
+    { key: "supplier", header: "Supplier", width: 25 },
+    { key: "orderDate", header: "Order Date", width: 20 },
+    { key: "status", header: "Status", width: 15 }
+  ];
+  poSheet.columns = poColumns;
+  poSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
+  poSheet.getRow(1).fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FF800080" }
+  };
+  const orders = await getPurchaseOrders();
+  orders.forEach((o) => poSheet.addRow(o));
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);
+}
+
+// server/services/pdfExport.ts
+init_db();
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+async function generatePdf(data, allAvailableColumns, options, title = "Export Report") {
+  const pdfDoc = await PDFDocument.create();
+  let page = pdfDoc.addPage();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontSize = 10;
+  const textColor = rgb(0, 0, 0);
+  const headerColor = rgb(0.2, 0.2, 0.2);
+  const margin = 30;
+  let y = page.getHeight() - margin;
+  const rowHeight = 18;
+  const headerRowHeight = 25;
+  page.drawText(title, {
+    x: margin,
+    y,
+    font,
+    size: 18,
+    color: headerColor
+  });
+  y -= headerRowHeight * 2;
+  const selectedColumns = options?.columns ? allAvailableColumns.filter((col) => options.columns?.includes(col.key)) : allAvailableColumns;
+  const drawHeaders = (currentPage, currentY) => {
+    let currentX = margin;
+    for (const col of selectedColumns) {
+      currentPage.drawText(col.header, {
+        x: currentX,
+        y: currentY,
+        font,
+        size: fontSize,
+        color: headerColor
+      });
+      currentX += col.width || 80;
+    }
+    return currentY - rowHeight;
+  };
+  y = drawHeaders(page, y);
+  for (const item of data) {
+    if (y < margin + rowHeight) {
+      page = pdfDoc.addPage();
+      y = page.getHeight() - margin;
+      y = drawHeaders(page, y);
+    }
+    let x = margin;
+    for (const col of selectedColumns) {
+      const value = String(item[col.key] || "");
+      page.drawText(value, {
+        x,
+        y,
+        font,
+        size: fontSize,
+        color: textColor
+      });
+      x += col.width || 80;
+    }
+    y -= rowHeight;
+  }
+  return Buffer.from(await pdfDoc.save());
+}
+async function exportMaterialsToPdf(options) {
+  const materials2 = await getMaterials();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "name", header: "Material Name", width: 100 },
+    { key: "category", header: "Category", width: 80 },
+    { key: "unit", header: "Unit", width: 50 },
+    { key: "quantity", header: "Quantity", width: 60 },
+    { key: "minStock", header: "Min Stock", width: 60 },
+    { key: "criticalThreshold", header: "Critical Threshold", width: 80 },
+    { key: "supplier", header: "Supplier", width: 80 },
+    { key: "unitPrice", header: "Unit Price", width: 60 },
+    { key: "supplierEmail", header: "Supplier Email", width: 100 },
+    { key: "createdAt", header: "Created At", width: 90 },
+    { key: "updatedAt", header: "Updated At", width: 90 }
+  ];
+  return generatePdf(
+    materials2,
+    allColumns,
+    options,
+    "Materials Export"
+  );
+}
+async function exportEmployeesToPdf(options) {
+  const employees2 = await getEmployees();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "firstName", header: "First Name", width: 80 },
+    { key: "lastName", header: "Last Name", width: 80 },
+    { key: "employeeNumber", header: "Employee Number", width: 100 },
+    { key: "jobTitle", header: "Job Title", width: 80 },
+    { key: "department", header: "Department", width: 80 },
+    { key: "hourlyRate", header: "Hourly Rate", width: 70 },
+    { key: "active", header: "Active", width: 60 },
+    { key: "hireDate", header: "Hire Date", width: 90 },
+    { key: "createdAt", header: "Created At", width: 90 }
+  ];
+  return generatePdf(
+    employees2,
+    allColumns,
+    options,
+    "Employees Export"
+  );
+}
+async function exportProjectsToPdf(options) {
+  const projects2 = await getProjects();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "name", header: "Project Name", width: 120 },
+    { key: "location", header: "Location", width: 100 },
+    { key: "status", header: "Status", width: 70 },
+    { key: "startDate", header: "Start Date", width: 90 },
+    { key: "endDate", header: "End Date", width: 90 },
+    { key: "createdBy", header: "Created By", width: 100 },
+    { key: "createdAt", header: "Created At", width: 90 }
+  ];
+  return generatePdf(projects2, allColumns, options, "Projects Export");
+}
+async function exportDeliveriesToPdf(options) {
+  const deliveries2 = await getDeliveries();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "projectId", header: "Project ID", width: 80 },
+    { key: "materialId", header: "Material ID", width: 80 },
+    { key: "quantity", header: "Quantity", width: 60 },
+    { key: "scheduledTime", header: "Scheduled Time", width: 90 },
+    { key: "status", header: "Status", width: 70 },
+    { key: "supplier", header: "Supplier", width: 100 },
+    { key: "notes", header: "Notes", width: 120 },
+    { key: "createdAt", header: "Created At", width: 90 }
+  ];
+  return generatePdf(
+    deliveries2,
+    allColumns,
+    options,
+    "Deliveries Export"
+  );
+}
+async function exportTimesheetsToPdf(options) {
+  const timesheets = await getAllShifts();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "employeeId", header: "Employee ID", width: 80 },
+    { key: "employeeName", header: "Employee Name", width: 120 },
+    { key: "startTime", header: "Start Time", width: 120 },
+    { key: "endTime", header: "End Time", width: 120 },
+    { key: "status", header: "Status", width: 70 },
+    { key: "notes", header: "Notes", width: 120 },
+    { key: "createdAt", header: "Created At", width: 90 }
+  ];
+  return generatePdf(timesheets, allColumns, options, "Timesheets Export");
+}
+async function exportQualityTestsToPdf(options) {
+  const qualityTests2 = await getQualityTests();
+  const allColumns = [
+    { key: "id", header: "ID", width: 50 },
+    { key: "testName", header: "Test Name", width: 100 },
+    { key: "testType", header: "Test Type", width: 80 },
+    { key: "result", header: "Result", width: 60 },
+    { key: "unit", header: "Unit", width: 50 },
+    { key: "status", header: "Status", width: 70 },
+    { key: "testedBy", header: "Tested By", width: 100 },
+    { key: "createdAt", header: "Date", width: 90 }
+  ];
+  return generatePdf(
+    qualityTests2,
+    allColumns,
+    options,
+    "Quality Tests Export"
+  );
+}
+async function exportPurchaseOrdersToPdf(options) {
+  const purchaseOrders2 = await getPurchaseOrders();
+  const allColumns = [
+    { key: "id", header: "PO #", width: 60 },
+    { key: "materialName", header: "Material", width: 100 },
+    { key: "quantity", header: "Quantity", width: 70 },
+    { key: "supplier", header: "Supplier", width: 100 },
+    { key: "orderDate", header: "Order Date", width: 90 },
+    { key: "expectedDelivery", header: "Expected Delivery", width: 100 },
+    { key: "status", header: "Status", width: 70 },
+    { key: "totalCost", header: "Total Cost", width: 80 }
+  ];
+  return generatePdf(
+    purchaseOrders2,
+    allColumns,
+    options,
+    "Purchase Orders Export"
+  );
 }
 
 // server/routers/export.ts
@@ -5050,6 +7729,23 @@ var exportRouter = router({
     };
   }),
   /**
+   * Export materials to PDF
+   */
+  materialsPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportMaterialsToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `materials_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
+    };
+  }),
+  /**
    * Export employees to Excel
    */
   employees: publicProcedure.input(
@@ -5064,6 +7760,23 @@ var exportRouter = router({
       data: buffer.toString("base64"),
       filename: `employees_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export employees to PDF
+   */
+  employeesPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportEmployeesToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `employees_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
     };
   }),
   /**
@@ -5084,6 +7797,23 @@ var exportRouter = router({
     };
   }),
   /**
+   * Export projects to PDF
+   */
+  projectsPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportProjectsToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `projects_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
+    };
+  }),
+  /**
    * Export deliveries to Excel
    */
   deliveries: publicProcedure.input(
@@ -5098,6 +7828,23 @@ var exportRouter = router({
       data: buffer.toString("base64"),
       filename: `deliveries_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
       mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export deliveries to PDF
+   */
+  deliveriesPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportDeliveriesToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `deliveries_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
     };
   }),
   /**
@@ -5118,10 +7865,33 @@ var exportRouter = router({
     };
   }),
   /**
+   * Export timesheets to PDF
+   */
+  timesheetsPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportTimesheetsToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `timesheets_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
+    };
+  }),
+  /**
    * Export all data to a single Excel file with multiple sheets
    */
-  all: publicProcedure.mutation(async () => {
-    const buffer = await exportAllDataToExcel();
+  all: publicProcedure.input(z9.record(z9.string(), z9.array(z9.string())).optional()).mutation(async ({ input }) => {
+    const options = {};
+    if (input) {
+      Object.entries(input).forEach(([key, columns]) => {
+        options[key] = { columns };
+      });
+    }
+    const buffer = await exportAllDataToExcel(options);
     return {
       data: buffer.toString("base64"),
       filename: `azvirt_dms_export_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
@@ -5129,9 +7899,87 @@ var exportRouter = router({
     };
   }),
   /**
+   * Export quality tests to Excel
+   */
+  qualityTests: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportQualityTestsToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `quality_tests_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export quality tests to PDF
+   */
+  qualityTestsPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportQualityTestsToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `quality_tests_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
+    };
+  }),
+  /**
+   * Export purchase orders to Excel
+   */
+  purchaseOrders: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportPurchaseOrdersToExcel({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `purchase_orders_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.xlsx`,
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    };
+  }),
+  /**
+   * Export purchase orders to PDF
+   */
+  purchaseOrdersPdf: publicProcedure.input(
+    z9.object({
+      columns: z9.array(z9.string()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const buffer = await exportPurchaseOrdersToPdf({
+      columns: input.columns
+    });
+    return {
+      data: buffer.toString("base64"),
+      filename: `purchase_orders_${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.pdf`,
+      mimeType: "application/pdf"
+    };
+  }),
+  /**
    * Get available columns for each export type
    */
-  getAvailableColumns: publicProcedure.input(z9.enum(["materials", "employees", "projects", "deliveries", "timesheets"])).query(({ input }) => {
+  getAvailableColumns: publicProcedure.input(
+    z9.enum([
+      "materials",
+      "employees",
+      "projects",
+      "deliveries",
+      "timesheets",
+      "qualityTests",
+      "purchaseOrders"
+    ])
+  ).query(({ input }) => {
     const columnDefinitions = {
       materials: [
         { key: "id", label: "ID" },
@@ -5193,6 +8041,26 @@ var exportRouter = router({
         { key: "status", label: "Status" },
         { key: "notes", label: "Notes" },
         { key: "createdAt", label: "Created At" }
+      ],
+      qualityTests: [
+        { key: "id", label: "ID" },
+        { key: "testName", label: "Test Name" },
+        { key: "testType", label: "Test Type" },
+        { key: "result", label: "Result" },
+        { key: "unit", label: "Unit" },
+        { key: "status", label: "Status" },
+        { key: "testedBy", label: "Tested By" },
+        { key: "createdAt", label: "Date" }
+      ],
+      purchaseOrders: [
+        { key: "id", label: "PO #" },
+        { key: "materialName", label: "Material" },
+        { key: "quantity", label: "Quantity" },
+        { key: "supplier", label: "Supplier" },
+        { key: "orderDate", label: "Order Date" },
+        { key: "expectedDelivery", label: "Expected Delivery" },
+        { key: "status", label: "Status" },
+        { key: "totalCost", label: "Total Cost" }
       ]
     };
     return columnDefinitions[input];
@@ -6017,393 +8885,100 @@ var productionAnalyticsRouter = router({
 });
 
 // server/routers/timesheetApprovals.ts
+init_db();
 import { z as z13 } from "zod";
-
-// server/db/timesheetApprovals.ts
-var recordToObj3 = recordToNative;
-async function getPendingTimesheets(approverId) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (ta:TimesheetApproval {status: 'pending'})
-      WHERE ta.approverId = $approverId OR ta.approverId IS NULL
-      MATCH (ta)<-[:HAS_APPROVAL_REQUEST]-(s:Shift)
-      MATCH (u:User)-[:HAS_SHIFT]->(s)
-      RETURN ta, s, u
-    `;
-    const result = await session.run(query, { approverId });
-    return result.records.map((r) => {
-      const approval = recordToObj3(r, "ta");
-      const shift = recordToObj3(r, "s");
-      const user2 = recordToObj3(r, "u");
-      return {
-        id: shift.id,
-        // Drizzle return structure mapped workHours.id to id
-        employeeId: user2.id,
-        employeeName: user2.name,
-        date: shift.startTime,
-        // mapping shift start to date
-        hoursWorked: shift.duration,
-        // mapping duration
-        status: shift.status,
-        notes: shift.notes,
-        // assuming notes on shift
-        approvalStatus: approval.status,
-        approvalId: approval.id
-      };
-    });
-  } catch (error) {
-    console.error("Failed to get pending timesheets:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getEmployeeTimesheets(employeeId) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
-      OPTIONAL MATCH (s)-[:HAS_APPROVAL_REQUEST]->(ta:TimesheetApproval)
-      RETURN s, ta
-      ORDER BY s.startTime DESC
-    `;
-    const result = await session.run(query, { employeeId });
-    return result.records.map((r) => {
-      const shift = recordToObj3(r, "s");
-      const approval = recordToObj3(r, "ta");
-      return {
-        id: shift.id,
-        date: shift.startTime,
-        hoursWorked: shift.duration,
-        status: shift.status,
-        notes: shift.notes,
-        approvalStatus: approval ? approval.status : null,
-        approvalComments: approval ? approval.comments : null,
-        rejectionReason: approval ? approval.rejectionReason : null
-      };
-    });
-  } catch (error) {
-    console.error("Failed to get employee timesheets:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function approveTimesheet(timesheetId, approverId, comments) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (s:Shift {id: $timesheetId})-[:HAS_APPROVAL_REQUEST]->(ta:TimesheetApproval)
-      MATCH (u:User {id: $approverId})
-      SET ta.status = 'approved', 
-          ta.approvedBy = $approverId, 
-          ta.approvedAt = datetime(), 
-          ta.comments = $comments
-      SET s.status = 'approved'
-      MERGE (ta)-[:APPROVED_BY]->(u)
-    `;
-    await session.run(query, { timesheetId, approverId, comments: comments || null });
-    return { success: true, message: "Timesheet approved" };
-  } catch (error) {
-    console.error("Failed to approve timesheet:", error);
-    return { success: false, message: "Database connection failed" };
-  } finally {
-    await session.close();
-  }
-}
-async function rejectTimesheet(timesheetId, approverId, rejectionReason) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (s:Shift {id: $timesheetId})-[:HAS_APPROVAL_REQUEST]->(ta:TimesheetApproval)
-      MATCH (u:User {id: $approverId})
-      SET ta.status = 'rejected', 
-          ta.rejectedBy = $approverId, 
-          ta.rejectedAt = datetime(), 
-          ta.rejectionReason = $rejectionReason
-      SET s.status = 'rejected'
-      MERGE (ta)-[:REJECTED_BY]->(u)
-    `;
-    await session.run(query, { timesheetId, approverId, rejectionReason });
-    return { success: true, message: "Timesheet rejected" };
-  } catch (error) {
-    console.error("Failed to reject timesheet:", error);
-    return { success: false, message: "Database connection failed" };
-  } finally {
-    await session.close();
-  }
-}
-async function getTimesheetApprovalDetails(timesheetId) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (s:Shift {id: $timesheetId})-[:HAS_APPROVAL_REQUEST]->(ta:TimesheetApproval)
-      OPTIONAL MATCH (ta)-[:APPROVED_BY]->(approver:User)
-      RETURN ta, approver
-    `;
-    const result = await session.run(query, { timesheetId });
-    if (result.records.length === 0) return null;
-    const record = result.records[0];
-    const ta = recordToObj3(record, "ta");
-    const approver = recordToObj3(record, "approver");
-    return {
-      id: ta.id,
-      status: ta.status,
-      comments: ta.comments,
-      rejectionReason: ta.rejectionReason,
-      approvedAt: ta.approvedAt,
-      // Note: Neo4j datetime needs conversion if consuming code expects Date
-      approverName: approver ? approver.name : null,
-      approverEmail: approver ? approver.email : null
-    };
-  } catch (error) {
-    console.error("Failed to get approval details:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-
-// server/routers/timesheetApprovals.ts
 var timesheetApprovalsRouter = router({
   /**
-   * Get all pending timesheets for the current manager
+   * Get all pending timesheets for approval
    */
   getPendingForApproval: protectedProcedure.query(async ({ ctx }) => {
-    return await getPendingTimesheets(ctx.user.id);
+    return await getPendingTimesheetApprovals(ctx.user.id);
   }),
   /**
-   * Get all timesheets for an employee
+   * Get approval history for a specific employee
    */
-  getEmployeeTimesheets: protectedProcedure.input(z13.object({ employeeId: z13.number() })).query(async ({ input }) => {
-    return await getEmployeeTimesheets(input.employeeId);
+  getEmployeeHistory: protectedProcedure.input(z13.object({ employeeId: z13.number() })).query(async ({ input }) => {
+    return await getTimesheetApprovalHistory(input.employeeId);
   }),
   /**
-   * Approve a timesheet
+   * Approve a timesheet approval request
    */
   approve: protectedProcedure.input(
     z13.object({
-      timesheetId: z13.number(),
+      approvalId: z13.number(),
       comments: z13.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    return await approveTimesheet(
-      input.timesheetId,
+    const success = await approveTimesheet(
+      input.approvalId,
       ctx.user.id,
       input.comments
     );
+    return { success };
   }),
   /**
-   * Reject a timesheet
+   * Reject a timesheet approval request
    */
   reject: protectedProcedure.input(
     z13.object({
-      timesheetId: z13.number(),
+      approvalId: z13.number(),
       rejectionReason: z13.string()
     })
   ).mutation(async ({ input, ctx }) => {
-    return await rejectTimesheet(
-      input.timesheetId,
+    const success = await rejectTimesheet(
+      input.approvalId,
       ctx.user.id,
       input.rejectionReason
     );
+    return { success };
   }),
   /**
-   * Get approval details for a timesheet
+   * Request approval for a shift
    */
-  getApprovalDetails: protectedProcedure.input(z13.object({ timesheetId: z13.number() })).query(async ({ input }) => {
-    return await getTimesheetApprovalDetails(input.timesheetId);
+  requestApproval: protectedProcedure.input(
+    z13.object({
+      shiftId: z13.number(),
+      comments: z13.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const approvalId = await requestTimesheetApproval({
+      shiftId: input.shiftId,
+      comments: input.comments,
+      status: "pending"
+    });
+    return { success: !!approvalId, approvalId };
   })
 });
 
 // server/routers/shiftAssignments.ts
+init_db();
 import { z as z14 } from "zod";
-
-// server/db/shiftAssignments.ts
-var recordToObj4 = recordToNative;
-async function getAllEmployees() {
-  const session = getSession();
-  try {
-    const result = await session.run(`MATCH (e:User {role: 'employee'}) RETURN e`);
-    const resultEmp = await session.run(`MATCH (e:Employee) RETURN e`);
-    return resultEmp.records.map((r) => recordToObj4(r, "e"));
-  } catch (error) {
-    console.error("Failed to get employees:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getShiftsForDateRange(startDate, endDate) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (s:Shift)
-      WHERE s.startTime >= datetime($startDate) AND s.startTime <= datetime($endDate)
-      RETURN s
-      ORDER BY s.startTime
-    `;
-    const result = await session.run(query, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    return result.records.map((r) => recordToObj4(r, "s"));
-  } catch (error) {
-    console.error("Failed to get shifts for date range:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getEmployeeShifts(employeeId, startDate, endDate) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
-      WHERE s.startTime >= datetime($startDate) AND s.startTime <= datetime($endDate)
-      RETURN s
-      ORDER BY s.startTime
-    `;
-    const result = await session.run(query, {
-      employeeId,
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    return result.records.map((r) => recordToObj4(r, "s"));
-  } catch (error) {
-    console.error("Failed to get employee shifts:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function assignEmployeeToShift(employeeId, startTime, endTime, shiftDate, createdBy) {
-  const session = getSession();
-  try {
-    const conflictQuery = `
-      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
-      WHERE date(s.startTime) = date($shiftDate)
-      RETURN count(s) as count
-    `;
-    const conflictResult = await session.run(conflictQuery, {
-      employeeId,
-      shiftDate: shiftDate.toISOString()
-    });
-    if (conflictResult.records[0].get("count").toNumber() > 0) {
-      return { success: false, message: "Employee already assigned to a shift on this date" };
-    }
-    const createQuery = `
-      MATCH (u:User {id: $employeeId})
-      CREATE (s:Shift {
-        id: toInteger(timestamp()),
-        employeeId: $employeeId,
-        shiftDate: datetime($shiftDate),
-        startTime: datetime($startTime),
-        endTime: datetime($endTime),
-        status: 'scheduled',
-        createdBy: $createdBy,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      MERGE (u)-[:HAS_SHIFT]->(s)
-      RETURN s.id as id
-    `;
-    await session.run(createQuery, {
-      employeeId,
-      shiftDate: shiftDate.toISOString(),
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      createdBy
-    });
-    return { success: true, message: "Shift assigned successfully" };
-  } catch (error) {
-    console.error("Failed to assign shift:", error);
-    return { success: false, message: "Database connection failed" };
-  } finally {
-    await session.close();
-  }
-}
-async function updateShiftAssignment(shiftId, updates) {
-  const session = getSession();
-  try {
-    if (Object.keys(updates).length === 0) {
-      return { success: false, message: "No updates provided" };
-    }
-    let setClause = `s.updatedAt = datetime()`;
-    let params = { shiftId };
-    if (updates.startTime) {
-      setClause += `, s.startTime = datetime($startTime)`;
-      params.startTime = updates.startTime.toISOString();
-    }
-    if (updates.endTime) {
-      setClause += `, s.endTime = datetime($endTime)`;
-      params.endTime = updates.endTime.toISOString();
-    }
-    if (updates.status) {
-      setClause += `, s.status = $status`;
-      params.status = updates.status;
-    }
-    await session.run(`
-      MATCH (s:Shift {id: $shiftId})
-      SET ${setClause}
-    `, params);
-    return { success: true, message: "Shift updated successfully" };
-  } catch (error) {
-    console.error("Failed to update shift:", error);
-    return { success: false, message: "Database connection failed" };
-  } finally {
-    await session.close();
-  }
-}
-async function deleteShiftAssignment(shiftId) {
-  const session = getSession();
-  try {
-    await session.run(`MATCH (s:Shift {id: $shiftId}) DETACH DELETE s`, { shiftId });
-    return { success: true, message: "Shift deleted successfully" };
-  } catch (error) {
-    console.error("Failed to delete shift:", error);
-    return { success: false, message: "Database connection failed" };
-  } finally {
-    await session.close();
-  }
-}
-async function checkShiftConflicts(employeeId, shiftDate) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (u:User {id: $employeeId})-[:HAS_SHIFT]->(s:Shift)
-      WHERE date(s.startTime) = date($shiftDate)
-      RETURN s
-    `, {
-      employeeId,
-      shiftDate: shiftDate.toISOString()
-    });
-    return result.records.map((r) => recordToObj4(r, "s"));
-  } catch (error) {
-    console.error("Failed to check shift conflicts:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-
-// server/routers/shiftAssignments.ts
-async function getAllShiftTemplates() {
-  return await getShiftTemplates();
-}
 var shiftAssignmentsRouter = router({
+  /**
+   * Create a shift template
+   */
+  createTemplate: protectedProcedure.input(
+    z14.object({
+      name: z14.string(),
+      startTime: z14.string(),
+      endTime: z14.string(),
+      durationHours: z14.number().optional(),
+      color: z14.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    return await createShiftTemplate(input);
+  }),
   /**
    * Get all shift templates
    */
   getTemplates: publicProcedure.query(async () => {
-    return await getAllShiftTemplates();
+    return await getShiftTemplates();
   }),
   /**
-   * Get all employees
+   * Get all employees for shift assignment
    */
   getEmployees: publicProcedure.query(async () => {
-    return await getAllEmployees();
+    return await getAllEmployeesForShifts();
   }),
   /**
    * Get shifts for a date range
@@ -6414,7 +8989,10 @@ var shiftAssignmentsRouter = router({
       endDate: z14.date()
     })
   ).query(async ({ input }) => {
-    return await getShiftsForDateRange(input.startDate, input.endDate);
+    const shifts2 = await getAllShifts();
+    return shifts2.filter(
+      (s) => s.startTime >= input.startDate && s.startTime <= input.endDate
+    );
   }),
   /**
    * Get shifts for a specific employee
@@ -6426,7 +9004,11 @@ var shiftAssignmentsRouter = router({
       endDate: z14.date()
     })
   ).query(async ({ input }) => {
-    return await getEmployeeShifts(input.employeeId, input.startDate, input.endDate);
+    return await getShiftsByEmployee(
+      input.employeeId,
+      input.startDate,
+      input.endDate
+    );
   }),
   /**
    * Assign employee to a shift
@@ -6439,10 +9021,6 @@ var shiftAssignmentsRouter = router({
       shiftDate: z14.date()
     })
   ).mutation(async ({ input, ctx }) => {
-    const conflicts = await checkShiftConflicts(input.employeeId, input.shiftDate);
-    if (conflicts.length > 0) {
-      throw new Error("Employee already has a shift on this date");
-    }
     return await assignEmployeeToShift(
       input.employeeId,
       input.startTime,
@@ -6459,17 +9037,26 @@ var shiftAssignmentsRouter = router({
       shiftId: z14.number(),
       startTime: z14.date().optional(),
       endTime: z14.date().optional(),
-      status: z14.enum(["scheduled", "in_progress", "completed", "cancelled", "no_show"]).optional()
+      status: z14.enum([
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+        "no_show"
+      ]).optional(),
+      notes: z14.string().optional()
     })
   ).mutation(async ({ input }) => {
     const { shiftId, ...updates } = input;
-    return await updateShiftAssignment(shiftId, updates);
+    const success = await updateShift(shiftId, updates);
+    return { success };
   }),
   /**
    * Delete shift assignment
    */
   deleteShift: protectedProcedure.input(z14.object({ shiftId: z14.number() })).mutation(async ({ input }) => {
-    return await deleteShiftAssignment(input.shiftId);
+    const success = await deleteShift(input.shiftId);
+    return { success };
   }),
   /**
    * Check for conflicts
@@ -6480,8 +9067,725 @@ var shiftAssignmentsRouter = router({
       shiftDate: z14.date()
     })
   ).query(async ({ input }) => {
-    const conflicts = await checkShiftConflicts(input.employeeId, input.shiftDate);
+    const conflicts = await checkShiftConflicts(
+      input.employeeId,
+      input.shiftDate
+    );
     return { hasConflicts: conflicts.length > 0, count: conflicts.length };
+  }),
+  /**
+   * Set employee availability
+   */
+  setAvailability: protectedProcedure.input(
+    z14.object({
+      employeeId: z14.number(),
+      dayOfWeek: z14.number().min(0).max(6),
+      startTime: z14.string(),
+      endTime: z14.string(),
+      isAvailable: z14.boolean().default(true)
+    })
+  ).mutation(async ({ input }) => {
+    return await setEmployeeAvailability(input);
+  }),
+  /**
+   * Get employee availability
+   */
+  getAvailability: protectedProcedure.input(z14.object({ employeeId: z14.number() })).query(async ({ input }) => {
+    return await getEmployeeAvailability(input.employeeId);
+  }),
+  /**
+   * Request a shift swap
+   */
+  requestSwap: protectedProcedure.input(
+    z14.object({
+      shiftId: z14.number(),
+      toEmployeeId: z14.number().optional(),
+      notes: z14.string().optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const swapId = await createShiftSwap({
+      shiftId: input.shiftId,
+      fromEmployeeId: ctx.user.id,
+      toEmployeeId: input.toEmployeeId,
+      notes: input.notes,
+      status: "pending"
+    });
+    return { success: !!swapId, swapId };
+  }),
+  /**
+   * Get all pending shift swaps
+   */
+  getPendingSwaps: protectedProcedure.query(async () => {
+    return await getPendingShiftSwaps();
+  }),
+  /**
+   * Respond to a shift swap request
+   */
+  respondToSwap: protectedProcedure.input(
+    z14.object({
+      swapId: z14.number(),
+      status: z14.enum(["approved", "rejected", "cancelled"]),
+      notes: z14.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const success = await updateShiftSwapStatus(
+      input.swapId,
+      input.status,
+      input.notes
+    );
+    return { success };
+  })
+});
+
+// server/_core/complianceCertificate.ts
+function generateComplianceCertificateHTML(data) {
+  const { test, project, delivery, companyInfo } = data;
+  let photoUrls = [];
+  try {
+    if (test.photoUrls) {
+      photoUrls = JSON.parse(test.photoUrls);
+    } else if (test.photos) {
+      photoUrls = JSON.parse(test.photos);
+    }
+  } catch (error) {
+    console.error("Error parsing photo URLs:", error);
+  }
+  const testDate = new Date(test.testedAt).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+  const certificateNumber = `QC-${test.id}-${new Date(test.testedAt).getFullYear()}`;
+  const standardColor = test.status === "pass" ? "#10b981" : test.status === "fail" ? "#ef4444" : "#f59e0b";
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quality Control Compliance Certificate - ${certificateNumber}</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .certificate {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border: 3px solid #FF6C0E;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid #FF6C0E;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: bold;
+      color: #FF6C0E;
+    }
+
+    .logo img {
+      max-height: 60px;
+      width: auto;
+    }
+
+    .cert-number {
+      text-align: right;
+      color: #666;
+    }
+
+    .cert-number strong {
+      display: block;
+      font-size: 18px;
+      color: #FF6C0E;
+      margin-bottom: 5px;
+    }
+
+    .title {
+      text-align: center;
+      margin: 30px 0;
+    }
+
+    h1 {
+      font-size: 32px;
+      color: #222;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .standard-badge {
+      display: inline-block;
+      padding: 8px 20px;
+      background: ${standardColor};
+      color: white;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .info-section {
+      background: #f9fafb;
+      padding: 20px;
+      border-left: 4px solid #FF6C0E;
+    }
+
+    .info-section h3 {
+      font-size: 16px;
+      color: #FF6C0E;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .info-item {
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #555;
+      min-width: 140px;
+    }
+
+    .info-value {
+      color: #222;
+      flex: 1;
+      text-align: right;
+    }
+
+    .test-result {
+      text-align: center;
+      padding: 30px;
+      margin: 30px 0;
+      background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+      border-radius: 8px;
+    }
+
+    .test-result h2 {
+      font-size: 24px;
+      margin-bottom: 15px;
+      color: #222;
+    }
+
+    .result-value {
+      font-size: 48px;
+      font-weight: bold;
+      color: ${standardColor};
+      margin: 20px 0;
+    }
+
+    .result-status {
+      display: inline-block;
+      padding: 12px 30px;
+      background: ${standardColor};
+      color: white;
+      border-radius: 25px;
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .photos {
+      margin: 30px 0;
+    }
+
+    .photos h3 {
+      font-size: 18px;
+      color: #222;
+      margin-bottom: 15px;
+    }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .photo-item img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 2px solid #e5e7eb;
+    }
+
+    .notes {
+      background: #fff9e6;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .notes h3 {
+      color: #f59e0b;
+      margin-bottom: 10px;
+    }
+
+    .signatures {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin: 40px 0;
+      padding: 30px 0;
+      border-top: 2px solid #e5e7eb;
+    }
+
+    .signature-box {
+      text-align: center;
+    }
+
+    .signature-image {
+      height: 80px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid #222;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .signature-image img {
+      max-height: 70px;
+      max-width: 200px;
+    }
+
+    .signature-label {
+      font-weight: 600;
+      color: #555;
+      margin-top: 10px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #e5e7eb;
+      color: #666;
+      font-size: 12px;
+    }
+
+    .company-info {
+      margin-top: 15px;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .certificate {
+        box-shadow: none;
+        padding: 20px;
+        max-width: 100%;
+      }
+
+      .photo-item img {
+        break-inside: avoid;
+      }
+
+      .info-grid,
+      .signatures {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        ${companyInfo.logo ? `<img src="${companyInfo.logo}" alt="${companyInfo.name}">` : companyInfo.name}
+      </div>
+      <div class="cert-number">
+        <strong>${certificateNumber}</strong>
+        <div>${testDate}</div>
+      </div>
+    </div>
+
+    <!-- Title -->
+    <div class="title">
+      <h1>Quality Control Certificate</h1>
+      <div class="subtitle">Concrete Testing Compliance Certification</div>
+      <div class="standard-badge">${test.complianceStandard || test.standardUsed || "EN 206"}</div>
+    </div>
+
+    <!-- Information Grid -->
+    <div class="info-grid">
+      ${project ? `
+      <div class="info-section">
+        <h3>Project Information</h3>
+        <div class="info-item">
+          <span class="info-label">Project:</span>
+          <span class="info-value">${project.name}</span>
+        </div>
+        ${project.location ? `
+        <div class="info-item">
+          <span class="info-label">Location:</span>
+          <span class="info-value">${project.location}</span>
+        </div>
+        ` : ""}
+      </div>
+      ` : ""}
+
+      ${delivery ? `
+      <div class="info-section">
+        <h3>Delivery Information</h3>
+        ${delivery.ticketNumber ? `
+        <div class="info-item">
+          <span class="info-label">Ticket Number:</span>
+          <span class="info-value">${delivery.ticketNumber}</span>
+        </div>
+        ` : ""}
+        ${delivery.concreteType ? `
+        <div class="info-item">
+          <span class="info-label">Concrete Type:</span>
+          <span class="info-value">${delivery.concreteType}</span>
+        </div>
+        ` : ""}
+        ${delivery.volume ? `
+        <div class="info-item">
+          <span class="info-label">Volume:</span>
+          <span class="info-value">${delivery.volume} m\xB3</span>
+        </div>
+        ` : ""}
+      </div>
+      ` : ""}
+
+      <div class="info-section">
+        <h3>Test Details</h3>
+        <div class="info-item">
+          <span class="info-label">Test Name:</span>
+          <span class="info-value">${test.testName}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Test Type:</span>
+          <span class="info-value">${test.testType.replace(/_/g, " ").toUpperCase()}</span>
+        </div>
+        ${test.testedBy ? `
+        <div class="info-item">
+          <span class="info-label">Inspector:</span>
+          <span class="info-value">${test.testedBy}</span>
+        </div>
+        ` : ""}
+        ${test.testLocation ? `
+        <div class="info-item">
+          <span class="info-label">Location:</span>
+          <span class="info-value">${test.testLocation}</span>
+        </div>
+        ` : ""}
+      </div>
+
+      <div class="info-section">
+        <h3>Compliance Standard</h3>
+        <div class="info-item">
+          <span class="info-label">Standard:</span>
+          <span class="info-value">${test.complianceStandard || test.standardUsed || "EN 206"}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Test Date:</span>
+          <span class="info-value">${testDate}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Certificate ID:</span>
+          <span class="info-value">${certificateNumber}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Test Result -->
+    <div class="test-result">
+      <h2>Test Result</h2>
+      <div class="result-value">${test.result}${test.unit ? " " + test.unit : ""}</div>
+      <div class="result-status">${test.status.toUpperCase()}</div>
+    </div>
+
+    <!-- Photos -->
+    ${photoUrls.length > 0 ? `
+    <div class="photos">
+      <h3>Documentation Photos</h3>
+      <div class="photo-grid">
+        ${photoUrls.map((url) => `
+        <div class="photo-item">
+          <img src="${url}" alt="Test Photo">
+        </div>
+        `).join("")}
+      </div>
+    </div>
+    ` : ""}
+
+    <!-- Notes -->
+    ${test.notes ? `
+    <div class="notes">
+      <h3>Inspector Notes</h3>
+      <p>${test.notes}</p>
+    </div>
+    ` : ""}
+
+    <!-- Signatures -->
+    <div class="signatures">
+      ${test.inspectorSignature ? `
+      <div class="signature-box">
+        <div class="signature-image">
+          <img src="${test.inspectorSignature}" alt="Inspector Signature">
+        </div>
+        <div class="signature-label">Inspector Signature</div>
+        ${test.testedBy ? `<div style="color: #666; font-size: 14px; margin-top: 5px;">${test.testedBy}</div>` : ""}
+      </div>
+      ` : `
+      <div class="signature-box">
+        <div class="signature-image"></div>
+        <div class="signature-label">Inspector Signature</div>
+      </div>
+      `}
+
+      ${test.supervisorSignature ? `
+      <div class="signature-box">
+        <div class="signature-image">
+          <img src="${test.supervisorSignature}" alt="Supervisor Signature">
+        </div>
+        <div class="signature-label">Supervisor Approval</div>
+      </div>
+      ` : `
+      <div class="signature-box">
+        <div class="signature-image"></div>
+        <div class="signature-label">Supervisor Approval</div>
+      </div>
+      `}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div><strong>This is an officially issued Quality Control Compliance Certificate</strong></div>
+      <div class="company-info">
+        ${companyInfo.name}
+        ${companyInfo.address ? ` | ${companyInfo.address}` : ""}
+        ${companyInfo.phone ? ` | Phone: ${companyInfo.phone}` : ""}
+        ${companyInfo.email ? ` | Email: ${companyInfo.email}` : ""}
+      </div>
+      <div style="margin-top: 10px; color: #999;">
+        Generated on ${(/* @__PURE__ */ new Date()).toLocaleString()}
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Auto-print functionality (optional)
+    // Uncomment to auto-print when page loads
+    // window.onload = () => window.print();
+  </script>
+</body>
+</html>
+  `.trim();
+}
+function getDefaultCompanyInfo() {
+  return {
+    name: "AzVirt Document Management System",
+    address: "Concrete Production & Quality Control",
+    phone: "+387 XX XXX XXX",
+    email: "quality@azvirt.com"
+  };
+}
+
+// server/routers/purchaseOrders.ts
+import { z as z15 } from "zod";
+init_db();
+init_email();
+var purchaseOrdersRouter = router({
+  /**
+   * List purchase orders
+   */
+  list: protectedProcedure.query(async () => {
+    return await getPurchaseOrders();
+  }),
+  /**
+   * Create a purchase order
+   */
+  create: protectedProcedure.input(
+    z15.object({
+      materialId: z15.number().optional(),
+      materialName: z15.string().optional(),
+      // Used for UI but logic relies on ID
+      quantity: z15.number().optional(),
+      supplier: z15.string().optional(),
+      supplierEmail: z15.string().optional(),
+      expectedDelivery: z15.date().optional(),
+      totalCost: z15.number().optional(),
+      notes: z15.string().optional(),
+      status: z15.string().optional(),
+      orderDate: z15.date().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const id = await createPurchaseOrder({
+      materialId: input.materialId,
+      quantity: input.quantity,
+      supplier: input.supplier,
+      supplierEmail: input.supplierEmail,
+      expectedDelivery: input.expectedDelivery,
+      totalCost: input.totalCost,
+      notes: input.notes,
+      status: input.status,
+      orderDate: input.orderDate
+    });
+    if (!id) {
+      throw new Error("Failed to create purchase order");
+    }
+    return { success: true, id };
+  }),
+  /**
+   * Update a purchase order
+   */
+  update: protectedProcedure.input(
+    z15.object({
+      id: z15.number(),
+      status: z15.string().optional(),
+      actualDelivery: z15.date().optional(),
+      expectedDelivery: z15.date().optional(),
+      totalCost: z15.number().optional(),
+      notes: z15.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    await updatePurchaseOrder(input.id, {
+      status: input.status,
+      actualDeliveryDate: input.actualDelivery,
+      expectedDeliveryDate: input.expectedDelivery,
+      totalCost: input.totalCost,
+      notes: input.notes
+    });
+    return { success: true };
+  }),
+  /**
+   * Send purchase order to supplier (email)
+   */
+  sendToSupplier: protectedProcedure.input(
+    z15.object({
+      orderId: z15.number()
+    })
+  ).mutation(async ({ input }) => {
+    const orders = await getPurchaseOrders();
+    const po = orders.find((o) => o.id === input.orderId);
+    if (!po) {
+      throw new Error("Purchase order not found");
+    }
+    if (!po.supplierEmail) {
+      throw new Error("Supplier email not found");
+    }
+    const emailResult = await generatePurchaseOrderEmailHTML({
+      id: po.id,
+      materialName: po.materialName || "Unknown Material",
+      quantity: po.quantity || 0,
+      unit: "",
+      // Unit info typically joined in query if available, defaulting to empty for now
+      supplier: po.supplierName || "Supplier",
+      orderDate: po.orderDate ? po.orderDate.toLocaleDateString() : (/* @__PURE__ */ new Date()).toLocaleDateString(),
+      expectedDelivery: po.expectedDelivery ? po.expectedDelivery.toLocaleDateString() : null,
+      notes: po.notes
+    });
+    const sent = await sendEmail({
+      to: po.supplierEmail,
+      subject: emailResult.subject,
+      html: emailResult.html
+    });
+    if (!sent) {
+      throw new Error("Failed to send email to supplier. Check server logs.");
+    }
+    await updatePurchaseOrder(po.id, { status: "sent" });
+    return { success: true, message: "Email sent to supplier" };
+  }),
+  /**
+   * Receive purchase order and update inventory
+   */
+  receive: protectedProcedure.input(
+    z15.object({
+      id: z15.number()
+    })
+  ).mutation(async ({ input }) => {
+    await receivePurchaseOrder(input.id);
+    return {
+      success: true,
+      message: "Purchase order received and inventory updated"
+    };
+  })
+});
+
+// server/routers/suppliers.ts
+import { z as z16 } from "zod";
+init_db();
+var suppliersRouter = router({
+  list: protectedProcedure.query(async () => {
+    return await getSuppliers();
+  }),
+  create: protectedProcedure.input(
+    z16.object({
+      name: z16.string(),
+      contactPerson: z16.string().optional(),
+      email: z16.string().email().optional(),
+      phone: z16.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    return await createSupplier({
+      name: input.name,
+      contactPerson: input.contactPerson,
+      email: input.email,
+      phone: input.phone
+    });
+  }),
+  update: protectedProcedure.input(
+    z16.object({
+      id: z16.number(),
+      name: z16.string().optional(),
+      contactPerson: z16.string().optional(),
+      email: z16.string().email().optional(),
+      phone: z16.string().optional()
+    })
+  ).mutation(async ({ input }) => {
+    const { id, ...data } = input;
+    await updateSupplier(id, data);
+    return { success: true };
+  }),
+  delete: protectedProcedure.input(z16.object({ id: z16.number() })).mutation(async ({ input }) => {
+    await deleteSupplier(input.id);
+    return { success: true };
   })
 });
 
@@ -6501,6 +9805,8 @@ var appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
+  purchaseOrders: purchaseOrdersRouter,
+  suppliers: suppliersRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
@@ -6510,10 +9816,12 @@ var appRouter = router({
         success: true
       };
     }),
-    updateSMSSettings: protectedProcedure.input(z15.object({
-      phoneNumber: z15.string().min(1),
-      smsNotificationsEnabled: z15.boolean()
-    })).mutation(async ({ input, ctx }) => {
+    updateSMSSettings: protectedProcedure.input(
+      z17.object({
+        phoneNumber: z17.string().min(1),
+        smsNotificationsEnabled: z17.boolean()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const success = await updateUserSMSSettings(
         ctx.user.id,
         input.phoneNumber,
@@ -6521,9 +9829,11 @@ var appRouter = router({
       );
       return { success };
     }),
-    updateLanguagePreference: protectedProcedure.input(z15.object({
-      language: z15.enum(["en", "bs", "az"])
-    })).mutation(async ({ input, ctx }) => {
+    updateLanguagePreference: protectedProcedure.input(
+      z17.object({
+        language: z17.enum(["en", "bs", "az"])
+      })
+    ).mutation(async ({ input, ctx }) => {
       const success = await updateUserLanguagePreference(
         ctx.user.id,
         input.language
@@ -6532,40 +9842,48 @@ var appRouter = router({
     })
   }),
   documents: router({
-    list: protectedProcedure.input(z15.object({
-      projectId: z15.number().optional(),
-      category: z15.string().optional(),
-      search: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        projectId: z17.number().optional(),
+        category: z17.string().optional(),
+        search: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getDocuments(input);
     }),
-    upload: protectedProcedure.input(z15.object({
-      name: z15.string(),
-      description: z15.string().optional(),
-      fileData: z15.string(),
-      mimeType: z15.string(),
-      fileSize: z15.number(),
-      category: z15.enum(["contract", "blueprint", "report", "certificate", "invoice", "other"]),
-      projectId: z15.number().optional()
-    })).mutation(async ({ input, ctx }) => {
+    upload: protectedProcedure.input(
+      z17.object({
+        name: z17.string(),
+        // description: z.string().optional(), // Removed: not in DB schema directly
+        fileData: z17.string(),
+        mimeType: z17.string(),
+        // fileSize: z.number(), // Removed: not in DB schema directly
+        category: z17.enum([
+          "contract",
+          "blueprint",
+          "report",
+          "certificate",
+          "invoice",
+          "other"
+        ]),
+        projectId: z17.number().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const fileBuffer = Buffer.from(input.fileData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "bin";
       const fileKey = `documents/${ctx.user.id}/${nanoid()}.${fileExtension}`;
       const { url } = await storagePut(fileKey, fileBuffer, input.mimeType);
       await createDocument({
         name: input.name,
-        description: input.description,
-        fileKey,
-        fileUrl: url,
-        mimeType: input.mimeType,
-        fileSize: input.fileSize,
-        category: input.category,
+        // description: input.description, // Removed: not in DB schema directly
+        url,
+        type: input.category,
         projectId: input.projectId,
         uploadedBy: ctx.user.id
       });
-      return { success: true, url };
+      return { success: true };
     }),
-    delete: protectedProcedure.input(z15.object({ id: z15.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
       await deleteDocument(input.id);
       return { success: true };
     })
@@ -6574,29 +9892,33 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getProjects();
     }),
-    create: protectedProcedure.input(z15.object({
-      name: z15.string(),
-      description: z15.string().optional(),
-      location: z15.string().optional(),
-      status: z15.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
-      startDate: z15.date().optional(),
-      endDate: z15.date().optional()
-    })).mutation(async ({ input, ctx }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        name: z17.string(),
+        description: z17.string().optional(),
+        location: z17.string().optional(),
+        status: z17.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
+        startDate: z17.date().optional(),
+        endDate: z17.date().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       await createProject({
         ...input,
         createdBy: ctx.user.id
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      name: z15.string().optional(),
-      description: z15.string().optional(),
-      location: z15.string().optional(),
-      status: z15.enum(["planning", "active", "completed", "on_hold"]).optional(),
-      startDate: z15.date().optional(),
-      endDate: z15.date().optional()
-    })).mutation(async ({ input }) => {
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        name: z17.string().optional(),
+        description: z17.string().optional(),
+        location: z17.string().optional(),
+        status: z17.enum(["planning", "active", "completed", "on_hold"]).optional(),
+        startDate: z17.date().optional(),
+        endDate: z17.date().optional()
+      })
+    ).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateProject(id, data);
       return { success: true };
@@ -6606,56 +9928,82 @@ var appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getMaterials();
     }),
-    create: protectedProcedure.input(z15.object({
-      name: z15.string(),
-      category: z15.enum(["cement", "aggregate", "admixture", "water", "other"]),
-      unit: z15.string(),
-      quantity: z15.number().default(0),
-      minStock: z15.number().default(0),
-      criticalThreshold: z15.number().default(0),
-      supplier: z15.string().optional(),
-      unitPrice: z15.number().optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        name: z17.string(),
+        category: z17.enum([
+          "cement",
+          "aggregate",
+          "admixture",
+          "water",
+          "other"
+        ]),
+        unit: z17.string(),
+        quantity: z17.number().default(0),
+        minStock: z17.number().default(0),
+        criticalThreshold: z17.number().default(0),
+        supplier: z17.string().optional(),
+        unitPrice: z17.number().optional()
+      })
+    ).mutation(async ({ input }) => {
       await createMaterial(input);
       return { success: true };
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      name: z15.string().optional(),
-      category: z15.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
-      unit: z15.string().optional(),
-      quantity: z15.number().optional(),
-      minStock: z15.number().optional(),
-      criticalThreshold: z15.number().optional(),
-      supplier: z15.string().optional(),
-      unitPrice: z15.number().optional()
-    })).mutation(async ({ input }) => {
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        name: z17.string().optional(),
+        category: z17.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
+        unit: z17.string().optional(),
+        quantity: z17.number().optional(),
+        minStock: z17.number().optional(),
+        criticalThreshold: z17.number().optional(),
+        supplier: z17.string().optional(),
+        unitPrice: z17.number().optional()
+      })
+    ).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateMaterial(id, data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z15.object({ id: z15.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
       await deleteMaterial(input.id);
       return { success: true };
     }),
     checkLowStock: protectedProcedure.query(async () => {
       return await getLowStockMaterials();
     }),
-    recordConsumption: protectedProcedure.input(z15.object({
-      materialId: z15.number(),
-      quantity: z15.number(),
-      consumptionDate: z15.date(),
-      projectId: z15.number().optional(),
-      deliveryId: z15.number().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input }) => {
-      await recordConsumption(input);
+    recordConsumption: protectedProcedure.input(
+      z17.object({
+        materialId: z17.number(),
+        quantity: z17.number(),
+        consumptionDate: z17.date().optional(),
+        projectId: z17.number().optional(),
+        deliveryId: z17.number().optional(),
+        notes: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      await recordConsumptionWithHistory({
+        materialId: input.materialId,
+        quantity: input.quantity,
+        date: input.consumptionDate,
+        projectId: input.projectId,
+        deliveryId: input.deliveryId
+      });
       return { success: true };
     }),
-    getConsumptionHistory: protectedProcedure.input(z15.object({
-      materialId: z15.number().optional(),
-      days: z15.number().default(30)
-    })).query(async ({ input }) => {
+    getReorderNeeds: protectedProcedure.query(async () => {
+      return await getReorderNeeds();
+    }),
+    getSupplierPerformance: protectedProcedure.input(z17.object({ supplierId: z17.number() })).query(async ({ input }) => {
+      return await getSupplierPerformance(input.supplierId);
+    }),
+    getConsumptionHistory: protectedProcedure.input(
+      z17.object({
+        materialId: z17.number().optional(),
+        days: z17.number().default(30)
+      })
+    ).query(async ({ input }) => {
       return await getConsumptionHistory(input.materialId, input.days);
     }),
     generateForecasts: protectedProcedure.mutation(async () => {
@@ -6665,12 +10013,20 @@ var appRouter = router({
     getForecasts: protectedProcedure.query(async () => {
       return await getForecastPredictions();
     }),
+    get30DayForecast: protectedProcedure.input(z17.object({ materialId: z17.number() })).query(async ({ input }) => {
+      return await get30DayForecast(input.materialId);
+    }),
     sendLowStockAlert: protectedProcedure.mutation(async () => {
       const lowStockMaterials = await getLowStockMaterials();
       if (lowStockMaterials.length === 0) {
-        return { success: true, message: "All materials are adequately stocked" };
+        return {
+          success: true,
+          message: "All materials are adequately stocked"
+        };
       }
-      const materialsList = lowStockMaterials.map((m) => `- ${m.name}: ${m.quantity} ${m.unit} (minimum: ${m.minStock} ${m.unit})`).join("\n");
+      const materialsList = lowStockMaterials.map(
+        (m) => `- ${m.name}: ${m.quantity} ${m.unit} (minimum: ${m.minStock} ${m.unit})`
+      ).join("\n");
       const content = `Low Stock Alert
 
 The following materials have fallen below minimum stock levels:
@@ -6695,13 +10051,23 @@ Please reorder these materials to avoid project delays.`;
     sendCriticalStockSMS: protectedProcedure.mutation(async () => {
       const criticalMaterials = await getCriticalStockMaterials();
       if (criticalMaterials.length === 0) {
-        return { success: true, message: "No critical stock alerts needed", smsCount: 0 };
+        return {
+          success: true,
+          message: "No critical stock alerts needed",
+          smsCount: 0
+        };
       }
       const adminUsers = await getAdminUsersWithSMS();
       if (adminUsers.length === 0) {
-        return { success: false, message: "No managers with SMS notifications enabled", smsCount: 0 };
+        return {
+          success: false,
+          message: "No managers with SMS notifications enabled",
+          smsCount: 0
+        };
       }
-      const materialsList = criticalMaterials.map((m) => `${m.name}: ${m.quantity}/${m.criticalThreshold} ${m.unit}`).join(", ");
+      const materialsList = criticalMaterials.map(
+        (m) => `${m.name}: ${m.quantity}/${m.criticalThreshold} ${m.unit}`
+      ).join(", ");
       const smsMessage = `CRITICAL STOCK ALERT: ${criticalMaterials.length} material(s) below critical level. ${materialsList}. Immediate reorder required.`;
       const { sendSMS: sendSMS2 } = await Promise.resolve().then(() => (init_sms(), sms_exports));
       const smsResults = await Promise.all(
@@ -6725,68 +10091,103 @@ Please reorder these materials to avoid project delays.`;
     })
   }),
   deliveries: router({
-    list: protectedProcedure.input(z15.object({
-      projectId: z15.number().optional(),
-      status: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        projectId: z17.number().optional(),
+        status: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getDeliveries(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      projectId: z15.number().optional(),
-      projectName: z15.string(),
-      concreteType: z15.string(),
-      volume: z15.number(),
-      scheduledTime: z15.date(),
-      status: z15.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).default("scheduled"),
-      driverName: z15.string().optional(),
-      vehicleNumber: z15.string().optional(),
-      notes: z15.string().optional(),
-      gpsLocation: z15.string().optional(),
-      deliveryPhotos: z15.string().optional(),
-      estimatedArrival: z15.number().optional(),
-      actualArrivalTime: z15.number().optional(),
-      actualDeliveryTime: z15.number().optional(),
-      driverNotes: z15.string().optional(),
-      customerName: z15.string().optional(),
-      customerPhone: z15.string().optional()
-    })).mutation(async ({ input, ctx }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        projectId: z17.number().optional(),
+        projectName: z17.string(),
+        concreteType: z17.string(),
+        volume: z17.number(),
+        scheduledTime: z17.date(),
+        status: z17.enum([
+          "scheduled",
+          "loaded",
+          "en_route",
+          "arrived",
+          "delivered",
+          "returning",
+          "completed",
+          "cancelled"
+        ]).default("scheduled"),
+        driverName: z17.string().optional(),
+        vehicleNumber: z17.string().optional(),
+        notes: z17.string().optional(),
+        gpsLocation: z17.string().optional(),
+        deliveryPhotos: z17.string().optional(),
+        estimatedArrival: z17.number().optional(),
+        actualArrivalTime: z17.number().optional(),
+        actualDeliveryTime: z17.number().optional(),
+        driverNotes: z17.string().optional(),
+        customerName: z17.string().optional(),
+        customerPhone: z17.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
       await createDelivery({
         ...input,
         createdBy: ctx.user.id
       });
       return { success: true };
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      projectId: z15.number().optional(),
-      projectName: z15.string().optional(),
-      concreteType: z15.string().optional(),
-      volume: z15.number().optional(),
-      scheduledTime: z15.date().optional(),
-      actualTime: z15.date().optional(),
-      status: z15.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]).optional(),
-      driverName: z15.string().optional(),
-      vehicleNumber: z15.string().optional(),
-      notes: z15.string().optional(),
-      gpsLocation: z15.string().optional(),
-      deliveryPhotos: z15.string().optional(),
-      estimatedArrival: z15.number().optional(),
-      actualArrivalTime: z15.number().optional(),
-      actualDeliveryTime: z15.number().optional(),
-      driverNotes: z15.string().optional(),
-      customerName: z15.string().optional(),
-      customerPhone: z15.string().optional()
-    })).mutation(async ({ input }) => {
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        projectId: z17.number().optional(),
+        projectName: z17.string().optional(),
+        concreteType: z17.string().optional(),
+        volume: z17.number().optional(),
+        scheduledTime: z17.date().optional(),
+        actualTime: z17.date().optional(),
+        status: z17.enum([
+          "scheduled",
+          "loaded",
+          "en_route",
+          "arrived",
+          "delivered",
+          "returning",
+          "completed",
+          "cancelled"
+        ]).optional(),
+        driverName: z17.string().optional(),
+        vehicleNumber: z17.string().optional(),
+        notes: z17.string().optional(),
+        gpsLocation: z17.string().optional(),
+        deliveryPhotos: z17.string().optional(),
+        estimatedArrival: z17.number().optional(),
+        actualArrivalTime: z17.number().optional(),
+        actualDeliveryTime: z17.number().optional(),
+        driverNotes: z17.string().optional(),
+        customerName: z17.string().optional(),
+        customerPhone: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateDelivery(id, data);
       return { success: true };
     }),
-    updateStatus: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      status: z15.enum(["scheduled", "loaded", "en_route", "arrived", "delivered", "returning", "completed", "cancelled"]),
-      gpsLocation: z15.string().optional(),
-      driverNotes: z15.string().optional()
-    })).mutation(async ({ input }) => {
+    updateStatus: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        status: z17.enum([
+          "scheduled",
+          "loaded",
+          "en_route",
+          "arrived",
+          "delivered",
+          "returning",
+          "completed",
+          "cancelled"
+        ]),
+        gpsLocation: z17.string().optional(),
+        driverNotes: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
       const { id, status, gpsLocation, driverNotes } = input;
       const updateData = { status };
       if (gpsLocation) updateData.gpsLocation = gpsLocation;
@@ -6797,11 +10198,13 @@ Please reorder these materials to avoid project delays.`;
       await updateDelivery(id, updateData);
       return { success: true };
     }),
-    uploadDeliveryPhoto: protectedProcedure.input(z15.object({
-      deliveryId: z15.number(),
-      photoData: z15.string(),
-      mimeType: z15.string()
-    })).mutation(async ({ input, ctx }) => {
+    uploadDeliveryPhoto: protectedProcedure.input(
+      z17.object({
+        deliveryId: z17.number(),
+        photoData: z17.string(),
+        mimeType: z17.string()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
       const fileKey = `delivery-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
@@ -6811,7 +10214,9 @@ Please reorder these materials to avoid project delays.`;
       if (delivery) {
         const existingPhotos = delivery.deliveryPhotos ? JSON.parse(delivery.deliveryPhotos) : [];
         existingPhotos.push(url);
-        await updateDelivery(input.deliveryId, { deliveryPhotos: JSON.stringify(existingPhotos) });
+        await updateDelivery(input.deliveryId, {
+          deliveryPhotos: JSON.stringify(existingPhotos)
+        });
       }
       return { success: true, url };
     }),
@@ -6821,113 +10226,261 @@ Please reorder these materials to avoid project delays.`;
         (d) => ["loaded", "en_route", "arrived", "delivered"].includes(d.status)
       );
     }),
-    sendCustomerNotification: protectedProcedure.input(z15.object({
-      deliveryId: z15.number(),
-      message: z15.string()
-    })).mutation(async ({ input }) => {
+    sendCustomerNotification: protectedProcedure.input(
+      z17.object({
+        deliveryId: z17.number(),
+        message: z17.string()
+      })
+    ).mutation(async ({ input }) => {
       const allDeliveries = await getDeliveries();
       const delivery = allDeliveries.find((d) => d.id === input.deliveryId);
       if (!delivery || !delivery.customerPhone) {
         return { success: false, message: "No customer phone number" };
       }
-      await updateDelivery(input.deliveryId, { smsNotificationSent: true });
-      console.log(`[SMS] To: ${delivery.customerPhone}, Message: ${input.message}`);
-      return { success: true, message: "SMS notification sent" };
+      const { sendSMS: sendSMS2 } = await Promise.resolve().then(() => (init_sms(), sms_exports));
+      const { success } = await sendSMS2({
+        phoneNumber: delivery.customerPhone,
+        message: input.message
+      });
+      if (success) {
+        await updateDelivery(input.deliveryId, {
+          smsNotificationSent: true
+        });
+      }
+      return {
+        success,
+        message: success ? "SMS notification sent" : "Failed to send SMS"
+      };
+    }),
+    // ============================================================================
+    // PHASE 2: Real-Time Delivery Tracking Procedures
+    // ============================================================================
+    /**
+     * Update delivery status with GPS capture and history logging
+     * Automatically logs status transitions to delivery_status_history table
+     */
+    updateStatusWithGPS: protectedProcedure.input(
+      z17.object({
+        deliveryId: z17.number(),
+        status: z17.enum([
+          "scheduled",
+          "loaded",
+          "en_route",
+          "arrived",
+          "delivered",
+          "returning",
+          "completed",
+          "cancelled"
+        ]),
+        gpsLocation: z17.string().optional(),
+        // "lat,lng" format
+        driverNotes: z17.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
+      try {
+        const result = await updateDeliveryStatusWithGPS(
+          input.deliveryId,
+          input.status,
+          input.gpsLocation,
+          input.driverNotes,
+          ctx.user.id
+        );
+        return result;
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    }),
+    /**
+     * Get delivery status history (timeline view)
+     * Returns chronological list of all status changes with GPS locations
+     */
+    getHistory: protectedProcedure.input(
+      z17.object({
+        deliveryId: z17.number()
+      })
+    ).query(async ({ input }) => {
+      return await getDeliveryHistory(input.deliveryId);
+    }),
+    /**
+     * Get delivery with full details including project and recipe
+     */
+    getById: protectedProcedure.input(
+      z17.object({
+        id: z17.number()
+      })
+    ).query(async ({ input }) => {
+      const delivery = await getDeliveries({ id: input.id });
+      return delivery[0] || null;
+    }),
+    /**
+     * Calculate ETA for delivery
+     */
+    calculateETA: protectedProcedure.input(
+      z17.object({
+        deliveryId: z17.number(),
+        currentGPS: z17.string().optional()
+        // "lat,lng" format
+      })
+    ).mutation(async ({ input }) => {
+      const eta = await calculateDeliveryETA(
+        input.deliveryId,
+        input.currentGPS
+      );
+      return { success: true, eta };
+    }),
+    /**
+     * Enhanced getActiveDeliveries using database function
+     * Returns deliveries currently in progress (loaded, en_route, arrived, delivered)
+     */
+    getActiveDeliveriesEnhanced: protectedProcedure.query(async () => {
+      return await getActiveDeliveries();
     })
+    // ============================================================================
+    // END PHASE 2 DELIVERY TRACKING PROCEDURES
+    // ============================================================================
   }),
   qualityTests: router({
-    list: protectedProcedure.input(z15.object({
-      projectId: z15.number().optional(),
-      deliveryId: z15.number().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        projectId: z17.number().optional(),
+        deliveryId: z17.number().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getQualityTests(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      testName: z15.string(),
-      testType: z15.enum(["slump", "strength", "air_content", "temperature", "other"]),
-      result: z15.string(),
-      unit: z15.string().optional(),
-      status: z15.enum(["pass", "fail", "pending"]).default("pending"),
-      deliveryId: z15.number().optional(),
-      projectId: z15.number().optional(),
-      testedBy: z15.string().optional(),
-      notes: z15.string().optional(),
-      photoUrls: z15.string().optional(),
-      // JSON array
-      inspectorSignature: z15.string().optional(),
-      supervisorSignature: z15.string().optional(),
-      testLocation: z15.string().optional(),
-      complianceStandard: z15.string().optional(),
-      offlineSyncStatus: z15.enum(["synced", "pending", "failed"]).default("synced").optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        testName: z17.string(),
+        testType: z17.enum([
+          "slump",
+          "strength",
+          "air_content",
+          "temperature",
+          "other"
+        ]),
+        result: z17.string(),
+        unit: z17.string().optional(),
+        status: z17.enum(["pass", "fail", "pending"]).default("pending"),
+        deliveryId: z17.number().optional(),
+        projectId: z17.number().optional(),
+        testedBy: z17.string().optional(),
+        notes: z17.string().optional(),
+        photoUrls: z17.string().optional(),
+        // JSON array
+        inspectorSignature: z17.string().optional(),
+        supervisorSignature: z17.string().optional(),
+        testLocation: z17.string().optional(),
+        complianceStandard: z17.string().optional(),
+        offlineSyncStatus: z17.enum(["synced", "pending", "failed"]).default("synced").optional()
+      })
+    ).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
     }),
-    uploadPhoto: protectedProcedure.input(z15.object({
-      photoData: z15.string(),
-      // Base64 encoded image
-      mimeType: z15.string()
-    })).mutation(async ({ input, ctx }) => {
+    uploadPhoto: protectedProcedure.input(
+      z17.object({
+        photoData: z17.string(),
+        // Base64 encoded image
+        mimeType: z17.string()
+      })
+    ).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
       const fileExtension = input.mimeType.split("/")[1] || "jpg";
       const fileKey = `qc-photos/${ctx.user.id}/${nanoid()}.${fileExtension}`;
       const { url } = await storagePut(fileKey, photoBuffer, input.mimeType);
       return { success: true, url };
     }),
-    syncOfflineTests: protectedProcedure.input(z15.object({
-      tests: z15.array(z15.object({
-        testName: z15.string(),
-        testType: z15.enum(["slump", "strength", "air_content", "temperature", "other"]),
-        result: z15.string(),
-        unit: z15.string().optional(),
-        status: z15.enum(["pass", "fail", "pending"]),
-        deliveryId: z15.number().optional(),
-        projectId: z15.number().optional(),
-        testedBy: z15.string().optional(),
-        notes: z15.string().optional(),
-        photoUrls: z15.string().optional(),
-        inspectorSignature: z15.string().optional(),
-        supervisorSignature: z15.string().optional(),
-        testLocation: z15.string().optional(),
-        complianceStandard: z15.string().optional()
-      }))
-    })).mutation(async ({ input }) => {
+    syncOfflineTests: protectedProcedure.input(
+      z17.object({
+        tests: z17.array(
+          z17.object({
+            testName: z17.string(),
+            testType: z17.enum([
+              "slump",
+              "strength",
+              "air_content",
+              "temperature",
+              "other"
+            ]),
+            result: z17.string(),
+            unit: z17.string().optional(),
+            status: z17.enum(["pass", "fail", "pending"]),
+            deliveryId: z17.number().optional(),
+            projectId: z17.number().optional(),
+            testedBy: z17.string().optional(),
+            notes: z17.string().optional(),
+            photoUrls: z17.string().optional(),
+            inspectorSignature: z17.string().optional(),
+            supervisorSignature: z17.string().optional(),
+            testLocation: z17.string().optional(),
+            complianceStandard: z17.string().optional()
+          })
+        )
+      })
+    ).mutation(async ({ input }) => {
       for (const test of input.tests) {
         await createQualityTest({ ...test, offlineSyncStatus: "synced" });
       }
       return { success: true, syncedCount: input.tests.length };
     }),
-    getFailedTests: protectedProcedure.input(z15.object({
-      days: z15.number().default(30)
-    }).optional()).query(async ({ input }) => {
+    getFailedTests: protectedProcedure.input(
+      z17.object({
+        days: z17.number().default(30)
+      }).optional()
+    ).query(async ({ input }) => {
       return await getFailedQualityTests(input?.days || 30);
     }),
-    getTrends: protectedProcedure.input(z15.object({
-      days: z15.number().default(30)
-    }).optional()).query(async ({ input }) => {
+    getTrends: protectedProcedure.input(
+      z17.object({
+        days: z17.number().default(30)
+      }).optional()
+    ).query(async ({ input }) => {
       return await getQualityTestTrends(input?.days || 30);
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      testName: z15.string().optional(),
-      testType: z15.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
-      result: z15.string().optional(),
-      unit: z15.string().optional(),
-      status: z15.enum(["pass", "fail", "pending"]).optional(),
-      deliveryId: z15.number().optional(),
-      projectId: z15.number().optional(),
-      testedBy: z15.string().optional(),
-      notes: z15.string().optional(),
-      photoUrls: z15.string().optional(),
-      inspectorSignature: z15.string().optional(),
-      supervisorSignature: z15.string().optional(),
-      testLocation: z15.string().optional(),
-      complianceStandard: z15.string().optional(),
-      offlineSyncStatus: z15.enum(["synced", "pending", "failed"]).optional()
-    })).mutation(async ({ input }) => {
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        testName: z17.string().optional(),
+        testType: z17.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
+        result: z17.string().optional(),
+        unit: z17.string().optional(),
+        status: z17.enum(["pass", "fail", "pending"]).optional(),
+        deliveryId: z17.number().optional(),
+        projectId: z17.number().optional(),
+        testedBy: z17.string().optional(),
+        notes: z17.string().optional(),
+        photoUrls: z17.string().optional(),
+        inspectorSignature: z17.string().optional(),
+        supervisorSignature: z17.string().optional(),
+        testLocation: z17.string().optional(),
+        complianceStandard: z17.string().optional(),
+        offlineSyncStatus: z17.enum(["synced", "pending", "failed"]).optional()
+      })
+    ).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateQualityTest(id, data);
       return { success: true };
+    }),
+    /**
+     * Generate compliance certificate HTML for a quality test
+     * Pulls related project and delivery data to create a complete certificate
+     */
+    generateCertificate: protectedProcedure.input(
+      z17.object({
+        testId: z17.number()
+      })
+    ).query(async ({ input }) => {
+      const details = await getQualityTestWithDetails(input.testId);
+      if (!details) {
+        throw new Error(`Quality test with ID ${input.testId} not found`);
+      }
+      const html = generateComplianceCertificateHTML({
+        test: details.test,
+        project: details.project,
+        delivery: details.delivery,
+        companyInfo: getDefaultCompanyInfo()
+      });
+      return { html };
     })
   }),
   dashboard: router({
@@ -6939,15 +10492,21 @@ Please reorder these materials to avoid project delays.`;
         getDeliveries(),
         getQualityTests()
       ]);
-      const activeProjects = allProjects.filter((p) => p.status === "active").length;
+      const activeProjects = allProjects.filter(
+        (p) => p.status === "active"
+      ).length;
       const totalDocuments = allDocuments.length;
-      const lowStockMaterials = allMaterials.filter((m) => m.quantity <= m.minStock).length;
+      const lowStockMaterials = allMaterials.filter(
+        (m) => m.quantity <= m.minStock
+      ).length;
       const todayDeliveries = allDeliveries.filter((d) => {
         const today = /* @__PURE__ */ new Date();
         const schedDate = new Date(d.scheduledTime);
         return schedDate.toDateString() === today.toDateString();
       }).length;
-      const pendingTests = allTests.filter((t2) => t2.status === "pending").length;
+      const pendingTests = allTests.filter(
+        (t2) => t2.status === "pending"
+      ).length;
       return {
         activeProjects,
         totalDocuments,
@@ -6968,15 +10527,26 @@ Please reorder these materials to avoid project delays.`;
         const deliveryDate = new Date(delivery.scheduledTime);
         if (deliveryDate >= sixMonthsAgo) {
           const monthKey = `${deliveryDate.getFullYear()}-${String(deliveryDate.getMonth() + 1).padStart(2, "0")}`;
-          const monthName = deliveryDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+          const monthName = deliveryDate.toLocaleDateString("en-US", {
+            month: "short",
+            year: "numeric"
+          });
           if (!monthlyData[monthKey]) {
-            monthlyData[monthKey] = { month: monthName, deliveries: 0, volume: 0 };
+            monthlyData[monthKey] = {
+              month: monthName,
+              deliveries: 0,
+              volume: 0
+            };
           }
           monthlyData[monthKey].deliveries++;
-          monthlyData[monthKey].volume += delivery.volume;
+          if (delivery.volume) {
+            monthlyData[monthKey].volume += delivery.volume;
+          }
         }
       });
-      return Object.values(monthlyData).sort((a, b) => a.month.localeCompare(b.month));
+      return Object.values(monthlyData).sort(
+        (a, b) => a.month.localeCompare(b.month)
+      );
     }),
     materialConsumption: protectedProcedure.query(async () => {
       const materials2 = await getMaterials();
@@ -6991,80 +10561,104 @@ Please reorder these materials to avoid project delays.`;
   }),
   // Workforce Management
   employees: router({
-    list: protectedProcedure.input(z15.object({
-      department: z15.string().optional(),
-      status: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        department: z17.string().optional(),
+        status: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getEmployees(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      firstName: z15.string(),
-      lastName: z15.string(),
-      employeeNumber: z15.string(),
-      position: z15.string(),
-      department: z15.enum(["construction", "maintenance", "quality", "administration", "logistics"]),
-      phoneNumber: z15.string().optional(),
-      email: z15.string().optional(),
-      hourlyRate: z15.number().optional(),
-      status: z15.enum(["active", "inactive", "on_leave"]).default("active"),
-      hireDate: z15.date().optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        firstName: z17.string(),
+        lastName: z17.string(),
+        employeeNumber: z17.string(),
+        position: z17.string(),
+        department: z17.enum([
+          "construction",
+          "maintenance",
+          "quality",
+          "administration",
+          "logistics"
+        ]),
+        phoneNumber: z17.string().optional(),
+        email: z17.string().optional(),
+        hourlyRate: z17.number().optional(),
+        status: z17.enum(["active", "inactive", "on_leave"]).default("active"),
+        hireDate: z17.date().optional()
+      })
+    ).mutation(async ({ input }) => {
       return await createEmployee(input);
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      data: z15.object({
-        firstName: z15.string().optional(),
-        lastName: z15.string().optional(),
-        position: z15.string().optional(),
-        department: z15.enum(["construction", "maintenance", "quality", "administration", "logistics"]).optional(),
-        phoneNumber: z15.string().optional(),
-        email: z15.string().optional(),
-        hourlyRate: z15.number().optional(),
-        status: z15.enum(["active", "inactive", "on_leave"]).optional()
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        data: z17.object({
+          firstName: z17.string().optional(),
+          lastName: z17.string().optional(),
+          position: z17.string().optional(),
+          department: z17.enum([
+            "construction",
+            "maintenance",
+            "quality",
+            "administration",
+            "logistics"
+          ]).optional(),
+          phoneNumber: z17.string().optional(),
+          email: z17.string().optional(),
+          hourlyRate: z17.number().optional(),
+          status: z17.enum(["active", "inactive", "on_leave"]).optional()
+        })
       })
-    })).mutation(async ({ input }) => {
+    ).mutation(async ({ input }) => {
       await updateEmployee(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z15.object({ id: z15.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
       await deleteEmployee(input.id);
       return { success: true };
     })
   }),
   workHours: router({
-    list: protectedProcedure.input(z15.object({
-      employeeId: z15.number().optional(),
-      projectId: z15.number().optional(),
-      status: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        employeeId: z17.number().optional(),
+        projectId: z17.number().optional(),
+        status: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getWorkHours(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      employeeId: z15.number(),
-      projectId: z15.number().optional(),
-      date: z15.date(),
-      startTime: z15.date(),
-      endTime: z15.date().optional(),
-      hoursWorked: z15.number().optional(),
-      overtimeHours: z15.number().optional(),
-      workType: z15.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
-      notes: z15.string().optional(),
-      status: z15.enum(["pending", "approved", "rejected"]).default("pending")
-    })).mutation(async ({ input, ctx }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        employeeId: z17.number(),
+        projectId: z17.number().optional(),
+        date: z17.date(),
+        startTime: z17.date(),
+        endTime: z17.date().optional(),
+        hoursWorked: z17.number().optional(),
+        overtimeHours: z17.number().optional(),
+        workType: z17.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+        notes: z17.string().optional(),
+        status: z17.enum(["pending", "approved", "rejected"]).default("pending")
+      })
+    ).mutation(async ({ input, ctx }) => {
       return await createWorkHour(input);
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      data: z15.object({
-        endTime: z15.date().optional(),
-        hoursWorked: z15.number().optional(),
-        overtimeHours: z15.number().optional(),
-        notes: z15.string().optional(),
-        status: z15.enum(["pending", "approved", "rejected"]).optional(),
-        approvedBy: z15.number().optional()
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        data: z17.object({
+          endTime: z17.date().optional(),
+          hoursWorked: z17.number().optional(),
+          overtimeHours: z17.number().optional(),
+          notes: z17.string().optional(),
+          status: z17.enum(["pending", "approved", "rejected"]).optional(),
+          approvedBy: z17.number().optional()
+        })
       })
-    })).mutation(async ({ input }) => {
+    ).mutation(async ({ input }) => {
       await updateWorkHour(input.id, input.data);
       return { success: true };
     })
@@ -7074,211 +10668,193 @@ Please reorder these materials to avoid project delays.`;
     list: protectedProcedure.query(async () => {
       return await getConcreteBases();
     }),
-    create: protectedProcedure.input(z15.object({
-      name: z15.string(),
-      location: z15.string(),
-      capacity: z15.number(),
-      status: z15.enum(["operational", "maintenance", "inactive"]).default("operational"),
-      managerName: z15.string().optional(),
-      phoneNumber: z15.string().optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        name: z17.string(),
+        location: z17.string(),
+        capacity: z17.number(),
+        status: z17.enum(["operational", "maintenance", "inactive"]).default("operational"),
+        managerName: z17.string().optional(),
+        phoneNumber: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
       return await createConcreteBase(input);
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      data: z15.object({
-        name: z15.string().optional(),
-        location: z15.string().optional(),
-        capacity: z15.number().optional(),
-        status: z15.enum(["operational", "maintenance", "inactive"]).optional(),
-        managerName: z15.string().optional(),
-        phoneNumber: z15.string().optional()
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        data: z17.object({
+          name: z17.string().optional(),
+          location: z17.string().optional(),
+          capacity: z17.number().optional(),
+          status: z17.enum(["operational", "maintenance", "inactive"]).optional(),
+          managerName: z17.string().optional(),
+          phoneNumber: z17.string().optional()
+        })
       })
-    })).mutation(async ({ input }) => {
+    ).mutation(async ({ input }) => {
       await updateConcreteBase(input.id, input.data);
       return { success: true };
     })
   }),
   machines: router({
-    list: protectedProcedure.input(z15.object({
-      concreteBaseId: z15.number().optional(),
-      type: z15.string().optional(),
-      status: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        concreteBaseId: z17.number().optional(),
+        type: z17.string().optional(),
+        status: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getMachines(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      name: z15.string(),
-      machineNumber: z15.string(),
-      type: z15.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]),
-      manufacturer: z15.string().optional(),
-      model: z15.string().optional(),
-      year: z15.number().optional(),
-      concreteBaseId: z15.number().optional(),
-      status: z15.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        name: z17.string(),
+        machineNumber: z17.string(),
+        type: z17.enum([
+          "mixer",
+          "pump",
+          "truck",
+          "excavator",
+          "crane",
+          "other"
+        ]),
+        manufacturer: z17.string().optional(),
+        model: z17.string().optional(),
+        year: z17.number().optional(),
+        concreteBaseId: z17.number().optional(),
+        status: z17.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+      })
+    ).mutation(async ({ input }) => {
       return await createMachine(input);
     }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      data: z15.object({
-        name: z15.string().optional(),
-        type: z15.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
-        status: z15.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
-        totalWorkingHours: z15.number().optional(),
-        lastMaintenanceDate: z15.date().optional(),
-        nextMaintenanceDate: z15.date().optional()
+    update: protectedProcedure.input(
+      z17.object({
+        id: z17.number(),
+        data: z17.object({
+          name: z17.string().optional(),
+          type: z17.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+          status: z17.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+          totalWorkingHours: z17.number().optional(),
+          lastMaintenanceDate: z17.date().optional(),
+          nextMaintenanceDate: z17.date().optional()
+        })
       })
-    })).mutation(async ({ input }) => {
+    ).mutation(async ({ input }) => {
       await updateMachine(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z15.object({ id: z15.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
       await deleteMachine(input.id);
       return { success: true };
     })
   }),
   machineMaintenance: router({
-    list: protectedProcedure.input(z15.object({
-      machineId: z15.number().optional(),
-      maintenanceType: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        machineId: z17.number().optional(),
+        maintenanceType: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getMachineMaintenance(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      machineId: z15.number(),
-      date: z15.date(),
-      maintenanceType: z15.enum(["lubrication", "fuel", "oil_change", "repair", "inspection", "other"]),
-      description: z15.string().optional(),
-      lubricationType: z15.string().optional(),
-      lubricationAmount: z15.number().optional(),
-      fuelType: z15.string().optional(),
-      fuelAmount: z15.number().optional(),
-      cost: z15.number().optional(),
-      performedBy: z15.string().optional(),
-      hoursAtMaintenance: z15.number().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        machineId: z17.number(),
+        date: z17.date(),
+        maintenanceType: z17.enum([
+          "lubrication",
+          "fuel",
+          "oil_change",
+          "repair",
+          "inspection",
+          "other"
+        ]),
+        description: z17.string().optional(),
+        lubricationType: z17.string().optional(),
+        lubricationAmount: z17.number().optional(),
+        fuelType: z17.string().optional(),
+        fuelAmount: z17.number().optional(),
+        cost: z17.number().optional(),
+        performedBy: z17.string().optional(),
+        hoursAtMaintenance: z17.number().optional(),
+        notes: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
       return await createMachineMaintenance(input);
     })
   }),
   machineWorkHours: router({
-    list: protectedProcedure.input(z15.object({
-      machineId: z15.number().optional(),
-      projectId: z15.number().optional()
-    }).optional()).query(async ({ input }) => {
+    list: protectedProcedure.input(
+      z17.object({
+        machineId: z17.number().optional(),
+        projectId: z17.number().optional()
+      }).optional()
+    ).query(async ({ input }) => {
       return await getMachineWorkHours(input);
     }),
-    create: protectedProcedure.input(z15.object({
-      machineId: z15.number(),
-      projectId: z15.number().optional(),
-      date: z15.date(),
-      startTime: z15.date(),
-      endTime: z15.date().optional(),
-      hoursWorked: z15.number().optional(),
-      operatorId: z15.number().optional(),
-      operatorName: z15.string().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input }) => {
-      return await createMachineWorkHour(input);
+    create: protectedProcedure.input(
+      z17.object({
+        machineId: z17.number(),
+        projectId: z17.number().optional(),
+        date: z17.date(),
+        startTime: z17.date(),
+        endTime: z17.date().optional(),
+        hoursWorked: z17.number().optional(),
+        operatorId: z17.number().optional(),
+        operatorName: z17.string().optional(),
+        notes: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      return await createMachineWorkHour({
+        ...input,
+        hours: input.hoursWorked || 0
+      });
     })
   }),
   aggregateInputs: router({
-    list: protectedProcedure.input(z15.object({
-      concreteBaseId: z15.number().optional(),
-      materialType: z15.string().optional()
-    }).optional()).query(async ({ input }) => {
-      return await getAggregateInputs(input);
+    list: protectedProcedure.input(
+      z17.object({
+        concreteBaseId: z17.number().optional(),
+        materialType: z17.string().optional()
+      }).optional()
+    ).query(async ({ input }) => {
+      return await getAggregateInputs(
+        input?.concreteBaseId,
+        input?.materialType
+      );
     }),
-    create: protectedProcedure.input(z15.object({
-      concreteBaseId: z15.number(),
-      date: z15.date(),
-      materialType: z15.enum(["cement", "sand", "gravel", "water", "admixture", "other"]),
-      materialName: z15.string(),
-      quantity: z15.number(),
-      unit: z15.string(),
-      supplier: z15.string().optional(),
-      batchNumber: z15.string().optional(),
-      receivedBy: z15.string().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input }) => {
+    create: protectedProcedure.input(
+      z17.object({
+        concreteBaseId: z17.number(),
+        date: z17.date(),
+        materialType: z17.enum([
+          "cement",
+          "sand",
+          "gravel",
+          "water",
+          "admixture",
+          "other"
+        ]),
+        materialName: z17.string(),
+        quantity: z17.number(),
+        unit: z17.string(),
+        supplier: z17.string().optional(),
+        batchNumber: z17.string().optional(),
+        receivedBy: z17.string().optional(),
+        notes: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
       return await createAggregateInput(input);
     })
   }),
-  purchaseOrders: router({
-    list: protectedProcedure.input(z15.object({
-      status: z15.string().optional(),
-      materialId: z15.number().optional()
-    }).optional()).query(async ({ input }) => {
-      return await getPurchaseOrders(input);
-    }),
-    create: protectedProcedure.input(z15.object({
-      materialId: z15.number(),
-      materialName: z15.string(),
-      quantity: z15.number(),
-      supplier: z15.string().optional(),
-      supplierEmail: z15.string().optional(),
-      expectedDelivery: z15.date().optional(),
-      totalCost: z15.number().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input, ctx }) => {
-      await createPurchaseOrder({
-        ...input,
-        status: "pending",
-        createdBy: ctx.user.id
-      });
-      return { success: true };
-    }),
-    update: protectedProcedure.input(z15.object({
-      id: z15.number(),
-      status: z15.enum(["pending", "approved", "ordered", "received", "cancelled"]).optional(),
-      expectedDelivery: z15.date().optional(),
-      actualDelivery: z15.date().optional(),
-      totalCost: z15.number().optional(),
-      notes: z15.string().optional()
-    })).mutation(async ({ input }) => {
-      const { id, ...data } = input;
-      await updatePurchaseOrder(id, data);
-      return { success: true };
-    }),
-    sendToSupplier: protectedProcedure.input(z15.object({
-      orderId: z15.number()
-    })).mutation(async ({ input }) => {
-      const orders = await getPurchaseOrders();
-      const order = orders.find((o) => o.id === input.orderId);
-      if (!order || !order.supplierEmail) {
-        return { success: false, message: "No supplier email found" };
-      }
-      const materials2 = await getMaterials();
-      const material = materials2.find((m) => m.id === order.materialId);
-      const unit = material?.unit || "kg";
-      const { sendEmail: sendEmail2, generatePurchaseOrderEmailHTML: generatePurchaseOrderEmailHTML2 } = await Promise.resolve().then(() => (init_email(), email_exports));
-      const emailHTML = generatePurchaseOrderEmailHTML2({
-        id: order.id,
-        materialName: order.materialName,
-        quantity: order.quantity,
-        unit,
-        supplier: order.supplier || "Supplier",
-        orderDate: order.orderDate ? new Date(order.orderDate).toISOString().split("T")[0] : (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
-        expectedDelivery: order.expectedDelivery ? new Date(order.expectedDelivery).toISOString().split("T")[0] : null,
-        notes: order.notes || null
-      });
-      const sent = await sendEmail2({
-        to: order.supplierEmail,
-        subject: `Purchase Order #${order.id} - ${order.materialName}`,
-        html: emailHTML
-      });
-      if (sent) {
-        await updatePurchaseOrder(input.orderId, { status: "ordered" });
-      }
-      return { success: sent };
-    })
-  }),
   reports: router({
-    dailyProduction: protectedProcedure.input(z15.object({
-      date: z15.string()
-      // YYYY-MM-DD format
-    })).query(async ({ input }) => {
+    dailyProduction: protectedProcedure.input(
+      z17.object({
+        date: z17.string()
+        // YYYY-MM-DD format
+      })
+    ).query(async ({ input }) => {
       const targetDate = new Date(input.date);
       const nextDay = new Date(targetDate);
       nextDay.setDate(nextDay.getDate() + 1);
@@ -7288,10 +10864,13 @@ Please reorder these materials to avoid project delays.`;
         const deliveryDate = new Date(d.actualDeliveryTime);
         return deliveryDate >= targetDate && deliveryDate < nextDay;
       });
-      const totalConcreteProduced = completedDeliveries.reduce((sum, d) => sum + (d.volume || 0), 0);
+      const totalConcreteProduced = completedDeliveries.reduce(
+        (sum, d) => sum + (d.volume || 0),
+        0
+      );
       const consumptions = await getConsumptionHistory(void 0, 1);
       const dayConsumptions = consumptions.filter((c) => {
-        const cDate = new Date(c.consumptionDate);
+        const cDate = new Date(c.date);
         return cDate >= targetDate && cDate < nextDay;
       });
       const materials2 = await getMaterials();
@@ -7299,7 +10878,7 @@ Please reorder these materials to avoid project delays.`;
         const material = materials2.find((m) => m.id === c.materialId);
         return {
           name: material?.name || "Unknown",
-          quantity: c.quantity,
+          quantity: c.quantityUsed,
           unit: material?.unit || "units"
         };
       });
@@ -7321,10 +10900,12 @@ Please reorder these materials to avoid project delays.`;
         qualityTests: qualityTests2
       };
     }),
-    sendDailyProductionEmail: protectedProcedure.input(z15.object({
-      date: z15.string(),
-      recipientEmail: z15.string()
-    })).mutation(async ({ input }) => {
+    sendDailyProductionEmail: protectedProcedure.input(
+      z17.object({
+        date: z17.string(),
+        recipientEmail: z17.string()
+      })
+    ).mutation(async ({ input }) => {
       const targetDate = new Date(input.date);
       const nextDay = new Date(targetDate);
       nextDay.setDate(nextDay.getDate() + 1);
@@ -7334,10 +10915,13 @@ Please reorder these materials to avoid project delays.`;
         const deliveryDate = new Date(d.actualDeliveryTime);
         return deliveryDate >= targetDate && deliveryDate < nextDay;
       });
-      const totalConcreteProduced = completedDeliveries.reduce((sum, d) => sum + (d.volume || 0), 0);
+      const totalConcreteProduced = completedDeliveries.reduce(
+        (sum, d) => sum + (d.volume || 0),
+        0
+      );
       const consumptions = await getConsumptionHistory(void 0, 1);
       const dayConsumptions = consumptions.filter((c) => {
-        const cDate = new Date(c.consumptionDate);
+        const cDate = new Date(c.date);
         return cDate >= targetDate && cDate < nextDay;
       });
       const materials2 = await getMaterials();
@@ -7345,7 +10929,7 @@ Please reorder these materials to avoid project delays.`;
         const material = materials2.find((m) => m.id === c.materialId);
         return {
           name: material?.name || "Unknown",
-          quantity: c.quantity,
+          quantity: c.quantityUsed,
           unit: material?.unit || "units"
         };
       });
@@ -7361,22 +10945,25 @@ Please reorder these materials to avoid project delays.`;
       };
       const settings = await getReportSettings(1);
       const { sendEmail: sendEmail2, generateDailyProductionReportHTML: generateDailyProductionReportHTML2 } = await Promise.resolve().then(() => (init_email(), email_exports));
-      const emailHTML = generateDailyProductionReportHTML2({
-        date: input.date,
-        totalConcreteProduced,
-        deliveriesCompleted: completedDeliveries.length,
-        materialConsumption,
-        qualityTests: qualityTests2
-      }, settings ? {
-        includeProduction: settings.includeProduction,
-        includeDeliveries: settings.includeDeliveries,
-        includeMaterials: settings.includeMaterials,
-        includeQualityControl: settings.includeQualityControl
-      } : void 0);
+      const emailResult = await generateDailyProductionReportHTML2(
+        {
+          date: input.date,
+          totalConcreteProduced,
+          deliveriesCompleted: completedDeliveries.length,
+          materialConsumption,
+          qualityTests: qualityTests2
+        },
+        settings ? {
+          includeProduction: settings.includeProduction,
+          includeDeliveries: settings.includeDeliveries,
+          includeMaterials: settings.includeMaterials,
+          includeQualityControl: settings.includeQualityControl
+        } : void 0
+      );
       const sent = await sendEmail2({
         to: input.recipientEmail,
-        subject: `Daily Production Report - ${input.date}`,
-        html: emailHTML
+        subject: emailResult.subject,
+        html: emailResult.html
       });
       return { success: sent };
     })
@@ -7385,25 +10972,41 @@ Please reorder these materials to avoid project delays.`;
     get: protectedProcedure.query(async () => {
       return await getEmailBranding();
     }),
-    update: protectedProcedure.input(z15.object({
-      logoUrl: z15.string().optional(),
-      primaryColor: z15.string().optional(),
-      secondaryColor: z15.string().optional(),
-      companyName: z15.string().optional(),
-      footerText: z15.string().optional()
-    })).mutation(async ({ input }) => {
-      await upsertEmailBranding(input);
+    update: protectedProcedure.input(
+      z17.object({
+        logoUrl: z17.string().optional(),
+        primaryColor: z17.string().optional(),
+        secondaryColor: z17.string().optional(),
+        companyName: z17.string().optional(),
+        footerText: z17.string().optional(),
+        headerStyle: z17.enum(["gradient", "solid", "minimal"]).optional(),
+        fontFamily: z17.string().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
+      await upsertEmailBranding({
+        ...input,
+        updatedBy: ctx.user.id
+      });
       return { success: true };
     }),
-    uploadLogo: protectedProcedure.input(z15.object({
-      fileData: z15.string(),
-      // base64 encoded image
-      fileName: z15.string(),
-      mimeType: z15.string()
-    })).mutation(async ({ input }) => {
-      const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+    uploadLogo: protectedProcedure.input(
+      z17.object({
+        fileData: z17.string(),
+        // base64 encoded image
+        fileName: z17.string(),
+        mimeType: z17.string()
+      })
+    ).mutation(async ({ input }) => {
+      const allowedTypes = [
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+        "image/svg+xml"
+      ];
       if (!allowedTypes.includes(input.mimeType)) {
-        throw new Error("Invalid file type. Only PNG, JPG, and SVG are allowed.");
+        throw new Error(
+          "Invalid file type. Only PNG, JPG, and SVG are allowed."
+        );
       }
       const buffer = Buffer.from(input.fileData, "base64");
       if (buffer.length > 2 * 1024 * 1024) {
@@ -7413,6 +11016,121 @@ Please reorder these materials to avoid project delays.`;
       const { url } = await storagePut(fileKey, buffer, input.mimeType);
       await upsertEmailBranding({ logoUrl: url });
       return { url };
+    })
+  }),
+  // Email Templates Router
+  emailTemplates: router({
+    // List all email templates
+    list: protectedProcedure.query(async () => {
+      const templates = await getEmailTemplates();
+      return templates;
+    }),
+    // Get a specific template by type
+    getByType: protectedProcedure.input(z17.object({ type: z17.string() })).query(async ({ input }) => {
+      const template = await getEmailTemplateByType(input.type);
+      if (!template) {
+        const defaultContent = getDefaultTemplateContent(
+          input.type
+        );
+        return {
+          type: input.type,
+          ...defaultContent,
+          isCustom: false,
+          isActive: true,
+          variables: TEMPLATE_VARIABLES[input.type] || []
+        };
+      }
+      return {
+        ...template,
+        variables: template.variables ? JSON.parse(template.variables) : TEMPLATE_VARIABLES[input.type] || []
+      };
+    }),
+    // Get available template types
+    getTypes: protectedProcedure.query(() => {
+      return [
+        {
+          type: "daily_production_report",
+          name: "Daily Production Report",
+          description: "Sent daily with production metrics, deliveries, and quality control data"
+        },
+        {
+          type: "low_stock_alert",
+          name: "Low Stock Alert",
+          description: "Sent when materials fall below minimum stock levels"
+        },
+        {
+          type: "purchase_order",
+          name: "Purchase Order",
+          description: "Sent to suppliers when creating new purchase orders"
+        },
+        {
+          type: "generic_notification",
+          name: "Generic Notification",
+          description: "General purpose notification template"
+        }
+      ];
+    }),
+    // Get available variables for a template type
+    getVariables: protectedProcedure.input(z17.object({ type: z17.string() })).query(({ input }) => {
+      return TEMPLATE_VARIABLES[input.type] || [];
+    }),
+    // Create or update a template
+    upsert: protectedProcedure.input(
+      z17.object({
+        type: z17.string(),
+        name: z17.string(),
+        description: z17.string().optional(),
+        subject: z17.string(),
+        bodyHtml: z17.string(),
+        bodyText: z17.string().optional(),
+        isActive: z17.boolean().optional()
+      })
+    ).mutation(async ({ input, ctx }) => {
+      const id = await upsertEmailTemplate({
+        ...input,
+        isCustom: true,
+        variables: TEMPLATE_VARIABLES[input.type],
+        createdBy: ctx.user.id
+      });
+      return { success: true, id };
+    }),
+    // Reset a template to default
+    resetToDefault: protectedProcedure.input(z17.object({ type: z17.string() })).mutation(async ({ input }) => {
+      const defaultContent = getDefaultTemplateContent(
+        input.type
+      );
+      await upsertEmailTemplate({
+        type: input.type,
+        ...defaultContent,
+        isCustom: false,
+        isActive: true,
+        variables: TEMPLATE_VARIABLES[input.type]
+      });
+      return { success: true };
+    }),
+    // Get default template content (without saving)
+    getDefault: protectedProcedure.input(z17.object({ type: z17.string() })).query(({ input }) => {
+      return getDefaultTemplateContent(input.type);
+    }),
+    // Preview a template with sample data
+    preview: protectedProcedure.input(
+      z17.object({
+        type: z17.string(),
+        subject: z17.string().optional(),
+        bodyHtml: z17.string().optional()
+      })
+    ).mutation(async ({ input }) => {
+      const preview = await generateEmailPreview(
+        input.type,
+        input.subject,
+        input.bodyHtml
+      );
+      return preview;
+    }),
+    // Initialize all default templates
+    initializeDefaults: protectedProcedure.mutation(async () => {
+      await initializeDefaultTemplates();
+      return { success: true };
     })
   })
 });
@@ -7532,6 +11250,7 @@ function serveStatic(app) {
 }
 
 // server/_core/triggerJobs.ts
+init_db();
 async function checkAllMaterialStockLevels() {
   try {
     console.log("[TriggerJobs] Checking all material stock levels...");
@@ -7621,6 +11340,90 @@ function initializeTriggerJobs() {
   console.log("  - Failed quality tests: every 2 hours");
 }
 
+// server/_core/stockJobs.ts
+init_db();
+init_schema();
+import { eq as eq3 } from "drizzle-orm";
+init_sms();
+init_db();
+async function checkDailyStockLevels() {
+  try {
+    console.log("[StockJobs] Starting daily stock level check...");
+    const materials2 = await db.select().from(materials);
+    const lowStockMaterials = materials2.filter(
+      (m) => m.quantity <= (m.minStock || 0)
+    );
+    const criticalMaterials = materials2.filter(
+      (m) => m.quantity <= (m.criticalThreshold || 0)
+    );
+    if (lowStockMaterials.length === 0) {
+      console.log("[StockJobs] All stock levels are healthy.");
+      return;
+    }
+    const adminUsers = await db.select().from(users).where(eq3(users.role, "admin"));
+    if (adminUsers.length === 0) {
+      console.log("[StockJobs] No admin users found to notify.");
+      return;
+    }
+    const lowStockList = lowStockMaterials.map((m) => `- ${m.name}: ${m.quantity} ${m.unit} (Min: ${m.minStock})`).join("\n");
+    const criticalList = criticalMaterials.length > 0 ? "\nCRITICAL LEVELS:\n" + criticalMaterials.map(
+      (m) => `- ${m.name}: ${m.quantity} ${m.unit} (Critical: ${m.criticalThreshold})`
+    ).join("\n") : "";
+    const emailSubject = `Low Stock Alert - ${(/* @__PURE__ */ new Date()).toLocaleDateString()}`;
+    const emailBody = `Daily Stock Report:
+
+The following materials are below their minimum stock thresholds:
+
+${lowStockList}${criticalList}
+
+Please review and reorder as necessary.`;
+    for (const admin of adminUsers) {
+      await createNotification({
+        userId: admin.id,
+        type: "low_stock",
+        title: "Daily Low Stock Report",
+        message: `There are ${lowStockMaterials.length} materials below minimum stock levels.`,
+        status: "unread"
+      });
+      if (admin.email) {
+        await sendEmailNotification(
+          admin.email,
+          emailSubject,
+          emailBody,
+          void 0,
+          "low_stock"
+        );
+      }
+      if (admin.smsNotificationsEnabled && admin.phoneNumber && criticalMaterials.length > 0) {
+        const smsMessage = `ALERT: ${criticalMaterials.length} materials have reached CRITICAL stock levels. Check AzVirt DMS dashboard for details.`;
+        await sendSMS({ phoneNumber: admin.phoneNumber, message: smsMessage });
+      }
+    }
+    console.log(
+      `[StockJobs] Stock check completed. Notified ${adminUsers.length} admins about ${lowStockMaterials.length} items.`
+    );
+  } catch (error) {
+    console.error("[StockJobs] Error in daily stock check:", error);
+  }
+}
+function scheduleStockCheck() {
+  const CHECK_HOUR = 7;
+  const now = /* @__PURE__ */ new Date();
+  const scheduledTime = new Date(now);
+  scheduledTime.setHours(CHECK_HOUR, 0, 0, 0);
+  if (now.getTime() > scheduledTime.getTime()) {
+    scheduledTime.setDate(scheduledTime.getDate() + 1);
+  }
+  const delayMs = scheduledTime.getTime() - now.getTime();
+  console.log(
+    `[StockJobs] Scheduling daily stock check in ${Math.round(delayMs / 1e3 / 60)} minutes`
+  );
+  setTimeout(() => {
+    checkDailyStockLevels();
+    setInterval(checkDailyStockLevels, 24 * 60 * 60 * 1e3);
+  }, delayMs);
+}
+
 // server/_core/index.ts
 function isPortAvailable(port) {
   return new Promise((resolve) => {
@@ -7651,7 +11454,17 @@ async function startServer() {
     if (url === "/api/clerk/health" || url === "/api/clerk/webhook") {
       return next();
     }
-    clerkBaseMiddleware(req, res, next);
+    const publishableKey = process.env.CLERK_PUBLISHABLE_KEY;
+    const secretKey = process.env.CLERK_SECRET_KEY;
+    if (!publishableKey || publishableKey === "pk_test_placeholder" || !secretKey || secretKey === "sk_test_placeholder") {
+      return next();
+    }
+    try {
+      clerkBaseMiddleware(req, res, next);
+    } catch (err) {
+      console.warn("[Clerk] Middleware failed to initialize, skipping...", err);
+      next();
+    }
   });
   app.use(
     "/api/trpc",
@@ -7663,7 +11476,7 @@ async function startServer() {
       }
     })
   );
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === "development" || process.env.CLERK_PUBLISHABLE_KEY === "pk_test_placeholder") {
     console.log("Setting up Vite for development...");
     await setupVite(app, server);
   } else {
@@ -7676,10 +11489,11 @@ async function startServer() {
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
-  console.log(`Attempting to listen on port ${port}...`);
-  server.listen(port, () => {
+  console.log(`Attempting to listen on port ${port} (0.0.0.0)...`);
+  server.listen(port, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${port}/`);
     initializeTriggerJobs();
+    scheduleStockCheck();
   });
 }
 startServer().catch(console.error);

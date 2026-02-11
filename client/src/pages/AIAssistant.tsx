@@ -20,6 +20,8 @@ import {
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { PromptTemplates } from "@/components/PromptTemplates";
 import { ImageUpload } from "@/components/ImageUpload";
+import { ModelSwitcher } from "@/components/ModelSwitcher";
+import { ThinkingProcess } from "@/components/ThinkingProcess";
 import {
   Send,
   Bot,
@@ -29,6 +31,8 @@ import {
   Plus,
   Sparkles,
   Image as ImageIcon,
+  Copy,
+  Download,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Streamdown } from "streamdown";
@@ -216,28 +220,13 @@ export default function AIAssistant() {
             </h1>
           </div>
 
-          {/* Model Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {t("aiAssistant.model") || "Model"}:
-            </span>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {models.length > 0 ? (
-                  models.map((model) => (
-                    <SelectItem key={model.name} value={model.name}>
-                      {model.name} ({model.parameterSize})
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="llama3.2">llama3.2 (default)</SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Model Switcher */}
+          <ModelSwitcher
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            showModelInfo={true}
+            allowManagement={true}
+          />
         </div>
 
         {/* Messages */}
@@ -256,43 +245,81 @@ export default function AIAssistant() {
           )}
 
           {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              {msg.role === "assistant" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-              )}
-
-              <Card
-                className={`max-w-[70%] p-4 ${
-                  msg.role === "user" ? "bg-orange-500 text-white" : "bg-card"
-                }`}
+            <div key={msg.id} className="space-y-2">
+              <div
+                className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm dark:prose-invert max-w-none">
-                    <Streamdown>{msg.content}</Streamdown>
+                {msg.role === "assistant" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
+                    <Bot className="h-5 w-5 text-white" />
                   </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                 )}
 
-                {(msg as any).audioUrl && (
-                  <audio controls className="mt-2 w-full">
-                    <source src={(msg as any).audioUrl} type="audio/webm" />
-                  </audio>
+                <Card
+                  className={`max-w-[70%] p-4 ${
+                    msg.role === "user" ? "bg-orange-500 text-white" : "bg-card"
+                  }`}
+                >
+                  <div className="space-y-2">
+                    {msg.role === "assistant" ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <Streamdown>{msg.content}</Streamdown>
+                      </div>
+                    ) : (
+                      <p className="text-sm whitespace-pre-wrap">
+                        {msg.content}
+                      </p>
+                    )}
+
+                    {(msg as any).imageUrl && (
+                      <img
+                        src={(msg as any).imageUrl}
+                        alt="Uploaded"
+                        className="mt-2 max-w-xs rounded border"
+                      />
+                    )}
+
+                    {(msg as any).audioUrl && (
+                      <audio controls className="mt-2 w-full">
+                        <source src={(msg as any).audioUrl} type="audio/webm" />
+                      </audio>
+                    )}
+
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-white/20">
+                      <p className="text-xs opacity-70">
+                        {new Date(msg.createdAt).toLocaleTimeString()}
+                      </p>
+                      {msg.role === "assistant" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2"
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content);
+                          }}
+                          title="Copy message"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+
+                {msg.role === "user" && (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
+                    <User className="h-5 w-5 text-white" />
+                  </div>
                 )}
+              </div>
 
-                <p className="text-xs opacity-70 mt-2">
-                  {new Date(msg.createdAt).toLocaleTimeString()}
-                </p>
-              </Card>
-
-              {msg.role === "user" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-500 flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
+              {/* Show thinking process for assistant messages */}
+              {msg.role === "assistant" && (msg as any).thinkingProcess && (
+                <div className="ml-11 max-w-[70%]">
+                  <ThinkingProcess
+                    steps={(msg as any).thinkingProcess}
+                    collapsed={true}
+                  />
                 </div>
               )}
             </div>
