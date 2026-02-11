@@ -93,12 +93,31 @@ export default function AIAssistant() {
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
-    chatMutation.mutate({
-      conversationId: currentConversationId,
-      message: message.trim(),
-      model: selectedModel,
-      useTools: true,
-    });
+    if (currentConversationId) {
+      chatMutation.mutate({
+        conversationId: currentConversationId,
+        message: message.trim(),
+        model: selectedModel,
+        useTools: true,
+      });
+    } else {
+      createConversationMutation.mutate(
+        {
+          title: message.trim().substring(0, 50),
+          modelName: selectedModel,
+        },
+        {
+          onSuccess: (data) => {
+            chatMutation.mutate({
+              conversationId: data.conversationId,
+              message: message.trim(),
+              model: selectedModel,
+              useTools: true,
+            });
+          },
+        },
+      );
+    }
   };
 
   const handleVoiceTranscription = (text: string, audioUrl?: string) => {
