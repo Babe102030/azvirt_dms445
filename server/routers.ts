@@ -32,6 +32,7 @@ import {
 } from "./_core/complianceCertificate";
 import { purchaseOrdersRouter } from "./routers/purchaseOrders";
 import { suppliersRouter } from "./routers/suppliers";
+import { tasksRouter } from "./routers/tasks";
 
 export const appRouter = router({
   system: systemRouter,
@@ -48,6 +49,7 @@ export const appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
+  tasks: tasksRouter,
   purchaseOrders: purchaseOrdersRouter,
   suppliers: suppliersRouter,
 

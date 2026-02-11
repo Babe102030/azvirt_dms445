@@ -1,27 +1,30 @@
 /**
  * Trigger Evaluation Engine
- * 
+ *
  * This service evaluates trigger conditions and sends notifications when conditions are met.
  * It supports complex condition logic with AND/OR operators and template variable substitution.
  */
 
-import * as db from '../db';
-import { sendEmailNotification, sendSmsNotification } from '../_core/notificationService';
+import * as db from "../db";
+import {
+  sendEmailNotification,
+  sendSmsNotification,
+} from "../_core/notificationService";
 
 /**
  * Condition operator types
  */
-export type ConditionOperator = 
-  | 'equals' 
-  | 'not_equals'
-  | 'greater_than' 
-  | 'less_than' 
-  | 'greater_than_or_equal'
-  | 'less_than_or_equal'
-  | 'contains' 
-  | 'not_contains'
-  | 'starts_with'
-  | 'ends_with';
+export type ConditionOperator =
+  | "equals"
+  | "not_equals"
+  | "greater_than"
+  | "less_than"
+  | "greater_than_or_equal"
+  | "less_than_or_equal"
+  | "contains"
+  | "not_contains"
+  | "starts_with"
+  | "ends_with";
 
 /**
  * Single condition structure
@@ -36,48 +39,59 @@ export interface Condition {
  * Condition group with AND/OR logic
  */
 export interface ConditionGroup {
-  operator: 'AND' | 'OR';
+  operator: "AND" | "OR";
   conditions: Condition[];
 }
 
 /**
  * Evaluate a single condition against data
  */
-export function evaluateCondition(condition: Condition, data: Record<string, any>): boolean {
+export function evaluateCondition(
+  condition: Condition,
+  data: Record<string, any>,
+): boolean {
   const fieldValue = getNestedValue(data, condition.field);
   const compareValue = condition.value;
 
   switch (condition.operator) {
-    case 'equals':
+    case "equals":
       return fieldValue == compareValue; // Loose equality for type flexibility
-    
-    case 'not_equals':
+
+    case "not_equals":
       return fieldValue != compareValue;
-    
-    case 'greater_than':
+
+    case "greater_than":
       return Number(fieldValue) > Number(compareValue);
-    
-    case 'less_than':
+
+    case "less_than":
       return Number(fieldValue) < Number(compareValue);
-    
-    case 'greater_than_or_equal':
+
+    case "greater_than_or_equal":
       return Number(fieldValue) >= Number(compareValue);
-    
-    case 'less_than_or_equal':
+
+    case "less_than_or_equal":
       return Number(fieldValue) <= Number(compareValue);
-    
-    case 'contains':
-      return String(fieldValue).toLowerCase().includes(String(compareValue).toLowerCase());
-    
-    case 'not_contains':
-      return !String(fieldValue).toLowerCase().includes(String(compareValue).toLowerCase());
-    
-    case 'starts_with':
-      return String(fieldValue).toLowerCase().startsWith(String(compareValue).toLowerCase());
-    
-    case 'ends_with':
-      return String(fieldValue).toLowerCase().endsWith(String(compareValue).toLowerCase());
-    
+
+    case "contains":
+      return String(fieldValue)
+        .toLowerCase()
+        .includes(String(compareValue).toLowerCase());
+
+    case "not_contains":
+      return !String(fieldValue)
+        .toLowerCase()
+        .includes(String(compareValue).toLowerCase());
+
+    case "starts_with":
+      return String(fieldValue)
+        .toLowerCase()
+        .startsWith(String(compareValue).toLowerCase());
+
+    case "ends_with":
+      return String(fieldValue)
+        .toLowerCase()
+        .endsWith(String(compareValue).toLowerCase());
+
     default:
       console.warn(`Unknown operator: ${condition.operator}`);
       return false;
@@ -87,11 +101,18 @@ export function evaluateCondition(condition: Condition, data: Record<string, any
 /**
  * Evaluate a condition group (AND/OR logic)
  */
-export function evaluateConditionGroup(group: ConditionGroup, data: Record<string, any>): boolean {
-  if (group.operator === 'AND') {
-    return group.conditions.every(condition => evaluateCondition(condition, data));
-  } else if (group.operator === 'OR') {
-    return group.conditions.some(condition => evaluateCondition(condition, data));
+export function evaluateConditionGroup(
+  group: ConditionGroup,
+  data: Record<string, any>,
+): boolean {
+  if (group.operator === "AND") {
+    return group.conditions.every((condition) =>
+      evaluateCondition(condition, data),
+    );
+  } else if (group.operator === "OR") {
+    return group.conditions.some((condition) =>
+      evaluateCondition(condition, data),
+    );
   }
   return false;
 }
@@ -99,21 +120,24 @@ export function evaluateConditionGroup(group: ConditionGroup, data: Record<strin
 /**
  * Evaluate complex conditions (multiple groups with AND/OR)
  */
-export function evaluateConditions(conditions: any, data: Record<string, any>): boolean {
+export function evaluateConditions(
+  conditions: any,
+  data: Record<string, any>,
+): boolean {
   // Handle simple condition array (backward compatibility)
   if (Array.isArray(conditions)) {
-    return conditions.every(condition => evaluateCondition(condition, data));
+    return conditions.every((condition) => evaluateCondition(condition, data));
   }
 
   // Handle condition groups
   if (conditions.groups && Array.isArray(conditions.groups)) {
-    const groupResults = conditions.groups.map((group: ConditionGroup) => 
-      evaluateConditionGroup(group, data)
+    const groupResults = conditions.groups.map((group: ConditionGroup) =>
+      evaluateConditionGroup(group, data),
     );
 
     // Apply top-level operator (default to AND)
-    const topOperator = conditions.operator || 'AND';
-    if (topOperator === 'AND') {
+    const topOperator = conditions.operator || "AND";
+    if (topOperator === "AND") {
       return groupResults.every((result: boolean) => result);
     } else {
       return groupResults.some((result: boolean) => result);
@@ -128,14 +152,17 @@ export function evaluateConditions(conditions: any, data: Record<string, any>): 
  * Example: getNestedValue({ user: { name: 'John' } }, 'user.name') => 'John'
  */
 function getNestedValue(obj: Record<string, any>, path: string): any {
-  return path.split('.').reduce((current, key) => current?.[key], obj);
+  return path.split(".").reduce((current, key) => current?.[key], obj);
 }
 
 /**
  * Substitute template variables with actual data
  * Example: "Hello {{userName}}, your task {{taskName}} is overdue"
  */
-export function substituteVariables(template: string, data: Record<string, any>): string {
+export function substituteVariables(
+  template: string,
+  data: Record<string, any>,
+): string {
   return template.replace(/\{\{(\w+(?:\.\w+)*)\}\}/g, (match, path) => {
     const value = getNestedValue(data, path);
     return value !== undefined ? String(value) : match;
@@ -147,33 +174,33 @@ export function substituteVariables(template: string, data: Record<string, any>)
  */
 export async function executeTrigger(
   triggerId: number,
-  data: Record<string, any>
+  data: Record<string, any>,
 ): Promise<{ success: boolean; message: string; recipientCount?: number }> {
   try {
     // Get trigger details
     const trigger = await db.getNotificationTrigger(triggerId);
     if (!trigger) {
-      return { success: false, message: 'Trigger not found' };
+      return { success: false, message: "Trigger not found" };
     }
 
     if (!trigger.isActive) {
-      return { success: false, message: 'Trigger is not active' };
+      return { success: false, message: "Trigger is not active" };
     }
 
     // Evaluate conditions
     const conditionsMet = evaluateConditions(trigger.triggerCondition, data);
     if (!conditionsMet) {
-      return { success: false, message: 'Conditions not met' };
+      return { success: false, message: "Conditions not met" };
     }
 
     // Get template
     const template = await db.getNotificationTemplate(trigger.templateId);
     if (!template) {
-      return { success: false, message: 'Template not found' };
+      return { success: false, message: "Template not found" };
     }
 
     if (!template.isActive) {
-      return { success: false, message: 'Template is not active' };
+      return { success: false, message: "Template is not active" };
     }
 
     // Substitute variables in subject and body
@@ -184,7 +211,7 @@ export async function executeTrigger(
     const recipients = await getRecipients(trigger.eventType, data);
 
     if (recipients.length === 0) {
-      return { success: false, message: 'No recipients found' };
+      return { success: false, message: "No recipients found" };
     }
 
     // Send notifications through enabled channels
@@ -192,28 +219,33 @@ export async function executeTrigger(
     for (const recipient of recipients) {
       for (const channel of template.channels) {
         try {
-          if (channel === 'email' && recipient.email) {
+          if (channel === "email" && recipient.email) {
             const result = await sendEmailNotification(
               recipient.email,
               subject,
               body,
               0, // taskId not applicable for triggers
-              'trigger_notification'
+              "trigger_notification",
             );
             if (result.success) sentCount++;
-          } else if (channel === 'sms' && recipient.phoneNumber) {
+          } else if (channel === "sms" && recipient.phoneNumber) {
             const result = await sendSmsNotification(
               recipient.phoneNumber,
-              `${subject}: ${body}`
+              `${subject}: ${body}`,
             );
             if (result.success) sentCount++;
-          } else if (channel === 'in_app') {
+          } else if (channel === "in_app") {
             // TODO: Implement in-app notifications
-            console.log(`In-app notification for user ${recipient.id}: ${subject}`);
+            console.log(
+              `In-app notification for user ${recipient.id}: ${subject}`,
+            );
             sentCount++;
           }
         } catch (error) {
-          console.error(`Failed to send ${channel} notification to user ${recipient.id}:`, error);
+          console.error(
+            `Failed to send ${channel} notification to user ${recipient.id}:`,
+            error,
+          );
         }
       }
     }
@@ -239,26 +271,26 @@ export async function executeTrigger(
       recipientCount: recipients.length,
     };
   } catch (error) {
-    console.error('Error executing trigger:', error);
-    
+    console.error("Error executing trigger:", error);
+
     // Log failed execution
     try {
       const trigger = await db.getNotificationTrigger(triggerId);
       await db.recordTriggerExecution({
         triggerId,
-        entityType: trigger?.eventType || 'unknown',
+        entityType: trigger?.eventType || "unknown",
         entityId: 0,
         conditionsMet: false,
         notificationsSent: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       });
     } catch (logError) {
-      console.error('Failed to log trigger execution:', logError);
+      console.error("Failed to log trigger execution:", logError);
     }
 
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
@@ -266,7 +298,10 @@ export async function executeTrigger(
 /**
  * Get recipients based on trigger type
  */
-async function getRecipients(triggerType: string, data: Record<string, any>): Promise<Array<{ id: number; email?: string; phoneNumber?: string }>> {
+async function getRecipients(
+  triggerType: string,
+  data: Record<string, any>,
+): Promise<Array<{ id: number; email?: string; phoneNumber?: string }>> {
   // For now, send to all admin users
   // In the future, this can be customized based on trigger type and data
   const adminUsers = await db.getAdminUsersWithSMS();
@@ -282,7 +317,7 @@ async function getRecipients(triggerType: string, data: Record<string, any>): Pr
  */
 export async function checkTriggersForEvent(
   eventType: string,
-  data: Record<string, any>
+  data: Record<string, any>,
 ): Promise<void> {
   try {
     // Get all active triggers for this event type
@@ -300,12 +335,14 @@ export async function checkTriggersForEvent(
  * Event-specific trigger checks
  */
 
-export async function checkStockLevelTriggers(materialId: number): Promise<void> {
+export async function checkStockLevelTriggers(
+  materialId: number,
+): Promise<void> {
   const materials = await db.getMaterials();
   const material = materials.find((m: any) => m.id === materialId);
   if (!material) return;
 
-  await checkTriggersForEvent('stock_level_change', {
+  await checkTriggersForEvent("stock_level_change", {
     materialId: material.id,
     materialName: material.name,
     currentStock: material.quantity,
@@ -315,12 +352,14 @@ export async function checkStockLevelTriggers(materialId: number): Promise<void>
   });
 }
 
-export async function checkDeliveryStatusTriggers(deliveryId: number): Promise<void> {
+export async function checkDeliveryStatusTriggers(
+  deliveryId: number,
+): Promise<void> {
   const deliveries = await db.getDeliveries();
   const delivery = deliveries.find((d: any) => d.id === deliveryId);
   if (!delivery) return;
 
-  await checkTriggersForEvent('delivery_status_change', {
+  await checkTriggersForEvent("delivery_status_change", {
     deliveryId: delivery.id,
     status: delivery.status,
     projectId: delivery.projectId,
@@ -334,7 +373,7 @@ export async function checkQualityTestTriggers(testId: number): Promise<void> {
   const test = tests.find((t: any) => t.id === testId);
   if (!test) return;
 
-  await checkTriggersForEvent('quality_test_result', {
+  await checkTriggersForEvent("quality_test_result", {
     testId: test.id,
     result: test.result,
     testType: test.testType,
@@ -347,7 +386,7 @@ export async function checkOverdueTaskTriggers(userId: number): Promise<void> {
   const overdueTasks = await db.getOverdueTasks(userId);
 
   for (const task of overdueTasks) {
-    await checkTriggersForEvent('task_overdue', {
+    await checkTriggersForEvent("task_overdue", {
       taskId: task.id,
       taskName: task.title,
       assignedTo: task.assignedTo,
@@ -355,4 +394,19 @@ export async function checkOverdueTaskTriggers(userId: number): Promise<void> {
       priority: task.priority,
     });
   }
+}
+
+export async function checkTaskCompletionTriggers(
+  taskId: number,
+): Promise<void> {
+  const task = await db.getTaskById(taskId);
+  if (!task || task.status !== "completed") return;
+
+  await checkTriggersForEvent("task_completed", {
+    taskId: task.id,
+    taskName: task.title,
+    completedAt: task.updatedAt,
+    priority: task.priority,
+    projectId: task.projectId,
+  });
 }

@@ -8,6 +8,7 @@ import { SignInButton } from "@clerk/clerk-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import DeliveryTrendsChart from "@/components/DeliveryTrendsChart";
 import MaterialConsumptionChart from "@/components/MaterialConsumptionChart";
+import { DailyTasksWidget } from "@/components/DailyTasksWidget";
 import DashboardFilters from "@/components/DashboardFilters";
 import {
   Dialog,
@@ -461,6 +462,11 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Daily Tasks */}
+        <div className="grid gap-6">
+          <DailyTasksWidget />
         </div>
 
         {/* Charts Section */}
