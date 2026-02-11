@@ -104,7 +104,7 @@
     "@types/node": "^24.7.0",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19.2.4",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.4",
     "@vue/tsconfig": "^0.8.1",
     "add": "^2.0.6",
