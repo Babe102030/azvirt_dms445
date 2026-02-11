@@ -10,7 +10,7 @@ import {
   Brain,
   ChevronDown,
   ChevronRight,
-  Tool,
+  Wrench,
   CheckCircle2,
   XCircle,
   Clock,
@@ -66,7 +66,7 @@ export function ThinkingProcess({
       case "reasoning":
         return <Brain className="h-4 w-4 text-blue-500" />;
       case "tool_call":
-        return <Tool className="h-4 w-4 text-orange-500" />;
+        return <Wrench className="h-4 w-4 text-orange-500" />;
       case "synthesis":
         return <Sparkles className="h-4 w-4 text-purple-500" />;
       case "error":
@@ -98,7 +98,7 @@ export function ThinkingProcess({
     if (toolName.includes("document")) {
       return <FileText className="h-3 w-3" />;
     }
-    return <Tool className="h-3 w-3" />;
+    return <Wrench className="h-3 w-3" />;
   };
 
   const formatTimestamp = (date: Date) => {
@@ -236,7 +236,8 @@ export function ThinkingProcess({
                           <CollapsibleContent className="mt-2 space-y-2">
                             {/* Parameters */}
                             {step.toolCall.parameters &&
-                              Object.keys(step.toolCall.parameters).length > 0 && (
+                              Object.keys(step.toolCall.parameters).length >
+                                0 && (
                                 <div>
                                   <div className="text-xs font-semibold text-muted-foreground mb-1">
                                     Parameters:
@@ -246,7 +247,7 @@ export function ThinkingProcess({
                                       {JSON.stringify(
                                         step.toolCall.parameters,
                                         null,
-                                        2
+                                        2,
                                       )}
                                     </pre>
                                   </div>
@@ -263,7 +264,11 @@ export function ThinkingProcess({
                                   <pre className="whitespace-pre-wrap break-all">
                                     {typeof step.toolCall.result === "string"
                                       ? step.toolCall.result
-                                      : JSON.stringify(step.toolCall.result, null, 2)}
+                                      : JSON.stringify(
+                                          step.toolCall.result,
+                                          null,
+                                          2,
+                                        )}
                                   </pre>
                                 </div>
                               </div>
@@ -315,9 +320,7 @@ export function ThinkingProcess({
                   </span>
                   <span>
                     Tool calls:{" "}
-                    <strong>
-                      {steps.filter((s) => s.toolCall).length}
-                    </strong>
+                    <strong>{steps.filter((s) => s.toolCall).length}</strong>
                   </span>
                   <span>
                     Duration:{" "}
@@ -325,8 +328,8 @@ export function ThinkingProcess({
                       {formatDuration(
                         steps.reduce(
                           (acc, s) => acc + (s.toolCall?.duration || 0),
-                          0
-                        )
+                          0,
+                        ),
                       )}
                     </strong>
                   </span>
