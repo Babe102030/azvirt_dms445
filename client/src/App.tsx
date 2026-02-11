@@ -1,9 +1,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { useEffect } from "react";
 import Home from "./pages/Home";
 import Documents from "./pages/Documents";
 import Projects from "./pages/Projects";
@@ -81,6 +82,21 @@ function Router() {
 }
 
 function App() {
+  const [, setLocation] = useLocation();
+
+  // Keyboard shortcut: Ctrl+K or Cmd+K to open AI Assistant
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setLocation("/ai-assistant");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setLocation]);
+
   return (
     <ErrorBoundary>
       <ThemeProvider defaultTheme="dark">
