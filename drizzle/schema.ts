@@ -1,37 +1,31 @@
 import {
-  boolean,
   integer,
-  pgTable,
-  serial,
+  sqliteTable,
   text,
-  timestamp,
-  varchar,
-  decimal,
-  doublePrecision,
-  pgEnum,
-} from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
-
+  real,
+  blob
+} from "drizzle-orm/sqlite-core";
+import { sql, relations } from "drizzle-orm";
 /**
  * Core user table backing auth flow.
  */
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+export const users = sqliteTable("users", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  openId: text("openId").notNull().unique(),
   name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: varchar("role", { length: 20 }).default("user").notNull(),
-  phoneNumber: varchar("phoneNumber", { length: 50 }),
-  smsNotificationsEnabled: boolean("smsNotificationsEnabled")
+  email: text("email"),
+  loginMethod: text("loginMethod"),
+  role: text("role").default("user").notNull(),
+  phoneNumber: text("phoneNumber"),
+  smsNotificationsEnabled: integer("smsNotificationsEnabled", { mode: "boolean" })
     .default(false)
     .notNull(),
-  languagePreference: varchar("languagePreference", { length: 10 })
+  languagePreference: text("languagePreference")
     .default("en")
     .notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
-  lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type User = typeof users.$inferSelect;
@@ -40,17 +34,17 @@ export type InsertUser = typeof users.$inferInsert;
 /**
  * Projects table for construction projects
  */
-export const projects = pgTable("projects", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const projects = sqliteTable("projects", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   description: text("description"),
-  location: varchar("location", { length: 500 }),
-  status: varchar("status", { length: 20 }).default("planning").notNull(),
-  startDate: timestamp("startDate"),
-  endDate: timestamp("endDate"),
+  location: text("location"),
+  status: text("status").default("planning").notNull(),
+  startDate: integer("startDate", { mode: "timestamp" }),
+  endDate: integer("endDate", { mode: "timestamp" }),
   createdBy: integer("createdBy").notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type Project = typeof projects.$inferSelect;
@@ -59,26 +53,26 @@ export type InsertProject = typeof projects.$inferInsert;
 /**
  * Materials table for inventory management
  */
-export const materials = pgTable("materials", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  category: varchar("category", { length: 20 }).default("other").notNull(),
-  unit: varchar("unit", { length: 50 }).notNull(),
-  quantity: doublePrecision("quantity").notNull().default(0),
-  minStock: doublePrecision("minStock").notNull().default(0),
-  criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
-  supplier: varchar("supplier", { length: 255 }),
+export const materials = sqliteTable("materials", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  category: text("category").default("other").notNull(),
+  unit: text("unit").notNull(),
+  quantity: real("quantity").notNull().default(0),
+  minStock: real("minStock").notNull().default(0),
+  criticalThreshold: real("criticalThreshold").notNull().default(0),
+  supplier: text("supplier"),
   unitPrice: integer("unitPrice"),
-  lowStockEmailSent: boolean("lowStockEmailSent").default(false),
-  lastEmailSentAt: timestamp("lastEmailSentAt"),
-  supplierEmail: varchar("supplierEmail", { length: 255 }),
+  lowStockEmailSent: integer("lowStockEmailSent", { mode: "boolean" }).default(false),
+  lastEmailSentAt: integer("lastEmailSentAt", { mode: "timestamp" }),
+  supplierEmail: text("supplierEmail"),
   leadTimeDays: integer("leadTimeDays").default(7),
-  reorderPoint: doublePrecision("reorderPoint"),
-  optimalOrderQuantity: doublePrecision("optimalOrderQuantity"),
+  reorderPoint: real("reorderPoint"),
+  optimalOrderQuantity: real("optimalOrderQuantity"),
   supplierId: integer("supplierId"),
-  lastOrderDate: timestamp("lastOrderDate"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  lastOrderDate: integer("lastOrderDate", { mode: "timestamp" }),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type Material = typeof materials.$inferSelect;
@@ -87,30 +81,30 @@ export type InsertMaterial = typeof materials.$inferInsert;
 /**
  * Suppliers for materials
  */
-export const suppliers = pgTable("suppliers", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  contactPerson: varchar("contactPerson", { length: 255 }),
-  email: varchar("email", { length: 255 }),
-  phone: varchar("phone", { length: 50 }),
+export const suppliers = sqliteTable("suppliers", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  contactPerson: text("contactPerson"),
+  email: text("email"),
+  phone: text("phone"),
   averageLeadTimeDays: integer("averageLeadTimeDays"),
-  onTimeDeliveryRate: doublePrecision("onTimeDeliveryRate"), // Percentage
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  onTimeDeliveryRate: real("onTimeDeliveryRate"), // Percentage
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Material consumption history for forecasting
  */
-export const materialConsumptionHistory = pgTable(
+export const materialConsumptionHistory = sqliteTable(
   "material_consumption_history",
   {
-    id: serial("id").primaryKey(),
+    id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
     materialId: integer("materialId")
       .references(() => materials.id)
       .notNull(),
-    date: timestamp("date").notNull().defaultNow(),
-    quantityUsed: doublePrecision("quantityUsed").notNull(),
+    date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    quantityUsed: real("quantityUsed").notNull(),
     deliveryId: integer("deliveryId").references(() => deliveries.id),
   },
 );
@@ -118,146 +112,146 @@ export const materialConsumptionHistory = pgTable(
 /**
  * Purchase orders for materials
  */
-export const purchaseOrders = pgTable("purchase_orders", {
-  id: serial("id").primaryKey(),
+export const purchaseOrders = sqliteTable("purchase_orders", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   supplierId: integer("supplierId")
     .references(() => suppliers.id)
     .notNull(),
-  orderDate: timestamp("orderDate").notNull().defaultNow(),
-  expectedDeliveryDate: timestamp("expectedDeliveryDate"),
-  actualDeliveryDate: timestamp("actualDeliveryDate"),
-  status: varchar("status", { length: 50 }).default("draft").notNull(), // draft, sent, confirmed, received, cancelled
-  totalCost: doublePrecision("totalCost"),
+  orderDate: integer("orderDate", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  expectedDeliveryDate: integer("expectedDeliveryDate", { mode: "timestamp" }),
+  actualDeliveryDate: integer("actualDeliveryDate", { mode: "timestamp" }),
+  status: text("status").default("draft").notNull(), // draft, sent, confirmed, received, cancelled
+  totalCost: real("totalCost"),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const purchaseOrderItems = pgTable("purchase_order_items", {
-  id: serial("id").primaryKey(),
+export const purchaseOrderItems = sqliteTable("purchase_order_items", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   purchaseOrderId: integer("purchaseOrderId")
     .references(() => purchaseOrders.id)
     .notNull(),
   materialId: integer("materialId")
     .references(() => materials.id)
     .notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unitPrice: doublePrecision("unitPrice").notNull(),
+  quantity: real("quantity").notNull(),
+  unitPrice: real("unitPrice").notNull(),
 });
 
 /**
  * Concrete Recipes
  */
-export const concreteRecipes = pgTable("concrete_recipes", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const concreteRecipes = sqliteTable("concrete_recipes", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   description: text("description"),
-  targetStrength: varchar("targetStrength", { length: 50 }),
-  slump: varchar("slump", { length: 50 }),
-  maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
-  yieldVolume: doublePrecision("yieldVolume").default(1.0),
+  targetStrength: text("targetStrength"),
+  slump: text("slump"),
+  maxAggregateSize: text("maxAggregateSize"),
+  yieldVolume: real("yieldVolume").default(1.0),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const recipeIngredients = pgTable("recipe_ingredients", {
-  id: serial("id").primaryKey(),
+export const recipeIngredients = sqliteTable("recipe_ingredients", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   recipeId: integer("recipeId")
     .references(() => concreteRecipes.id)
     .notNull(),
   materialId: integer("materialId")
     .references(() => materials.id)
     .notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unit: varchar("unit", { length: 50 }).notNull(),
+  quantity: real("quantity").notNull(),
+  unit: text("unit").notNull(),
 });
 
 /**
  * Production / Mixing Logs
  */
-export const mixingLogs = pgTable("mixing_logs", {
-  id: serial("id").primaryKey(),
+export const mixingLogs = sqliteTable("mixing_logs", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   projectId: integer("projectId").references(() => projects.id),
   deliveryId: integer("deliveryId"), // Circular dependency potential, handled by logic
   recipeId: integer("recipeId").references(() => concreteRecipes.id),
-  recipeName: varchar("recipeName", { length: 255 }),
-  batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
-  volume: doublePrecision("volume").notNull(),
-  unit: varchar("unit", { length: 50 }).default("m3").notNull(),
-  status: varchar("status", { length: 20 }).default("planned").notNull(), // planned, in_progress, completed, rejected
-  startTime: timestamp("startTime"),
-  endTime: timestamp("endTime"),
+  recipeName: text("recipeName"),
+  batchNumber: text("batchNumber").notNull().unique(),
+  volume: real("volume").notNull(),
+  unit: text("unit").default("m3").notNull(),
+  status: text("status").default("planned").notNull(), // planned, in_progress, completed, rejected
+  startTime: integer("startTime", { mode: "timestamp" }),
+  endTime: integer("endTime", { mode: "timestamp" }),
   operatorId: integer("operatorId").references(() => users.id),
   approvedBy: integer("approvedBy").references(() => users.id),
   qualityNotes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const batchIngredients = pgTable("batch_ingredients", {
-  id: serial("id").primaryKey(),
+export const batchIngredients = sqliteTable("batch_ingredients", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   batchId: integer("batchId")
     .references(() => mixingLogs.id)
     .notNull(),
   materialId: integer("materialId")
     .references(() => materials.id)
     .notNull(),
-  plannedQuantity: doublePrecision("plannedQuantity").notNull(),
-  actualQuantity: doublePrecision("actualQuantity"),
-  unit: varchar("unit", { length: 50 }).notNull(),
-  inventoryDeducted: boolean("inventoryDeducted").default(false).notNull(),
+  plannedQuantity: real("plannedQuantity").notNull(),
+  actualQuantity: real("actualQuantity"),
+  unit: text("unit").notNull(),
+  inventoryDeducted: integer("inventoryDeducted", { mode: "boolean" }).default(false).notNull(),
 });
 
 /**
  * Deliveries
  */
-export const deliveries = pgTable("deliveries", {
-  id: serial("id").primaryKey(),
+export const deliveries = sqliteTable("deliveries", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   projectId: integer("projectId").references(() => projects.id),
-  projectName: varchar("projectName", { length: 255 }),
+  projectName: text("projectName"),
   recipeId: integer("recipeId").references(() => concreteRecipes.id),
-  concreteType: varchar("concreteType", { length: 100 }),
-  volume: doublePrecision("volume"),
+  concreteType: text("concreteType"),
+  volume: real("volume"),
   batchId: integer("batchId").references(() => mixingLogs.id),
-  ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
-  truckNumber: varchar("truckNumber", { length: 50 }),
-  vehicleNumber: varchar("vehicleNumber", { length: 50 }),
+  ticketNumber: text("ticketNumber").unique(),
+  truckNumber: text("truckNumber"),
+  vehicleNumber: text("vehicleNumber"),
   driverId: integer("driverId").references(() => users.id),
-  driverName: varchar("driverName", { length: 255 }),
-  status: varchar("status", { length: 20 }).default("scheduled").notNull(), // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
-  scheduledTime: timestamp("scheduledTime").notNull(),
-  startTime: timestamp("startTime"),
-  arrivalTime: timestamp("arrivalTime"),
-  deliveryTime: timestamp("deliveryTime"),
-  completionTime: timestamp("completionTime"),
+  driverName: text("driverName"),
+  status: text("status").default("scheduled").notNull(), // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
+  scheduledTime: integer("scheduledTime", { mode: "timestamp" }).notNull(),
+  startTime: integer("startTime", { mode: "timestamp" }),
+  arrivalTime: integer("arrivalTime", { mode: "timestamp" }),
+  deliveryTime: integer("deliveryTime", { mode: "timestamp" }),
+  completionTime: integer("completionTime", { mode: "timestamp" }),
   estimatedArrival: integer("estimatedArrival"),
   actualArrivalTime: integer("actualArrivalTime"),
   actualDeliveryTime: integer("actualDeliveryTime"),
-  gpsLocation: varchar("gpsLocation", { length: 100 }), // lat,lng
+  gpsLocation: text("gpsLocation"), // lat,lng
   photos: text("photos"), // JSON array of strings
   deliveryPhotos: text("deliveryPhotos"), // JSON array of strings (backwards compat)
   notes: text("notes"),
   driverNotes: text("driverNotes"),
-  customerName: varchar("customerName", { length: 255 }),
-  customerPhone: varchar("customerPhone", { length: 50 }),
-  smsNotificationSent: boolean("smsNotificationSent").default(false),
+  customerName: text("customerName"),
+  customerPhone: text("customerPhone"),
+  smsNotificationSent: integer("smsNotificationSent", { mode: "boolean" }).default(false),
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Delivery Status History for tracking status changes with GPS
  */
-export const deliveryStatusHistory = pgTable("delivery_status_history", {
-  id: serial("id").primaryKey(),
+export const deliveryStatusHistory = sqliteTable("delivery_status_history", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   deliveryId: integer("deliveryId")
     .references(() => deliveries.id)
     .notNull(),
-  status: varchar("status", { length: 50 }).notNull(),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  gpsLocation: varchar("gpsLocation", { length: 100 }), // lat,lng
+  status: text("status").notNull(),
+  timestamp: integer("timestamp", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  gpsLocation: text("gpsLocation"), // lat,lng
   notes: text("notes"),
   createdBy: integer("createdBy").references(() => users.id),
 });
@@ -265,96 +259,96 @@ export const deliveryStatusHistory = pgTable("delivery_status_history", {
 /**
  * Quality Tests
  */
-export const qualityTests = pgTable("quality_tests", {
-  id: serial("id").primaryKey(),
+export const qualityTests = sqliteTable("quality_tests", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   deliveryId: integer("deliveryId").references(() => deliveries.id),
   projectId: integer("projectId").references(() => projects.id),
-  testName: varchar("testName", { length: 255 }),
-  testType: varchar("testType", { length: 50 }).notNull(), // slump, strength, air_content, temperature, other
-  result: varchar("result", { length: 100 }),
-  resultValue: varchar("resultValue", { length: 100 }), // legacy
-  unit: varchar("unit", { length: 50 }),
-  status: varchar("status", { length: 20 }).default("pending").notNull(), // pass, fail, pending
+  testName: text("testName"),
+  testType: text("testType").notNull(), // slump, strength, air_content, temperature, other
+  result: text("result"),
+  resultValue: text("resultValue"), // legacy
+  unit: text("unit"),
+  status: text("status").default("pending").notNull(), // pass, fail, pending
   testedByUserId: integer("testedByUserId").references(() => users.id),
-  testedBy: varchar("testedBy", { length: 255 }), // can be string name or user ID
-  testedAt: timestamp("testedAt").notNull().defaultNow(),
+  testedBy: text("testedBy"), // can be string name or user ID
+  testedAt: integer("testedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
   photos: text("photos"), // JSON array
   photoUrls: text("photoUrls"), // JSON array (backwards compat)
   notes: text("notes"),
   inspectorSignature: text("inspectorSignature"), // base64
   supervisorSignature: text("supervisorSignature"), // base64
-  gpsLocation: varchar("gpsLocation", { length: 100 }),
-  testLocation: varchar("testLocation", { length: 100 }),
-  standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
-  complianceStandard: varchar("complianceStandard", { length: 100 }),
-  syncStatus: varchar("syncStatus", { length: 20 }).default("synced"), // synced, pending, failed
-  offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  gpsLocation: text("gpsLocation"),
+  testLocation: text("testLocation"),
+  standardUsed: text("standardUsed").default("EN 206"),
+  complianceStandard: text("complianceStandard"),
+  syncStatus: text("syncStatus").default("synced"), // synced, pending, failed
+  offlineSyncStatus: text("offlineSyncStatus"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Employees and HR
  */
-export const employees = pgTable("employees", {
-  id: serial("id").primaryKey(),
+export const employees = sqliteTable("employees", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   userId: integer("userId")
     .references(() => users.id)
     .unique(),
-  employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
-  firstName: varchar("firstName", { length: 100 }).notNull(),
-  lastName: varchar("lastName", { length: 100 }).notNull(),
-  jobTitle: varchar("jobTitle", { length: 100 }),
-  department: varchar("department", { length: 100 }),
-  hireDate: timestamp("hireDate"),
+  employeeNumber: text("employeeNumber").unique(),
+  firstName: text("firstName").notNull(),
+  lastName: text("lastName").notNull(),
+  jobTitle: text("jobTitle"),
+  department: text("department"),
+  hireDate: integer("hireDate", { mode: "timestamp" }),
   hourlyRate: integer("hourlyRate"),
-  active: boolean("active").default(true).notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  active: integer("active", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const shiftTemplates = pgTable("shift_templates", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 100 }).notNull(),
-  startTime: varchar("startTime", { length: 5 }).notNull(), // HH:mm
-  endTime: varchar("endTime", { length: 5 }).notNull(), // HH:mm
-  durationHours: doublePrecision("durationHours"),
-  color: varchar("color", { length: 20 }),
-  isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+export const shiftTemplates = sqliteTable("shift_templates", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  startTime: text("startTime").notNull(), // HH:mm
+  endTime: text("endTime").notNull(), // HH:mm
+  durationHours: real("durationHours"),
+  color: text("color"),
+  isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const shifts = pgTable("shifts", {
-  id: serial("id").primaryKey(),
+export const shifts = sqliteTable("shifts", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   employeeId: integer("employeeId")
     .references(() => users.id)
     .notNull(), // Linked to User for easier auth checks
   templateId: integer("templateId").references(() => shiftTemplates.id),
-  startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime"),
-  status: varchar("status", { length: 20 }).default("scheduled").notNull(), // scheduled, in_progress, completed, cancelled, no_show
+  startTime: integer("startTime", { mode: "timestamp" }).notNull(),
+  endTime: integer("endTime", { mode: "timestamp" }),
+  status: text("status").default("scheduled").notNull(), // scheduled, in_progress, completed, cancelled, no_show
   createdBy: integer("createdBy").references(() => users.id),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const employeeAvailability = pgTable("employee_availability", {
-  id: serial("id").primaryKey(),
+export const employeeAvailability = sqliteTable("employee_availability", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   employeeId: integer("employeeId")
     .references(() => users.id)
     .notNull(),
   dayOfWeek: integer("dayOfWeek").notNull(), // 0-6 (Sunday-Saturday)
-  startTime: varchar("startTime", { length: 5 }).notNull(),
-  endTime: varchar("endTime", { length: 5 }).notNull(),
-  isAvailable: boolean("isAvailable").default(true).notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  startTime: text("startTime").notNull(),
+  endTime: text("endTime").notNull(),
+  isAvailable: integer("isAvailable", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const shiftSwaps = pgTable("shift_swaps", {
-  id: serial("id").primaryKey(),
+export const shiftSwaps = sqliteTable("shift_swaps", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   shiftId: integer("shiftId")
     .references(() => shifts.id)
     .notNull(),
@@ -362,43 +356,43 @@ export const shiftSwaps = pgTable("shift_swaps", {
     .references(() => users.id)
     .notNull(),
   toEmployeeId: integer("toEmployeeId").references(() => users.id),
-  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, approved, rejected, cancelled
-  requestedAt: timestamp("requestedAt").notNull().defaultNow(),
-  respondedAt: timestamp("respondedAt"),
+  status: text("status").default("pending").notNull(), // pending, approved, rejected, cancelled
+  requestedAt: integer("requestedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  respondedAt: integer("respondedAt", { mode: "timestamp" }),
   notes: text("notes"),
 });
 
-export const shiftBreaks = pgTable("shift_breaks", {
-  id: serial("id").primaryKey(),
+export const shiftBreaks = sqliteTable("shift_breaks", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   shiftId: integer("shiftId")
     .references(() => shifts.id)
     .notNull(),
-  startTime: timestamp("startTime").notNull(),
-  endTime: timestamp("endTime"),
-  type: varchar("type", { length: 50 }).default("unpaid").notNull(), // paid, unpaid
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  startTime: integer("startTime", { mode: "timestamp" }).notNull(),
+  endTime: integer("endTime", { mode: "timestamp" }),
+  type: text("type").default("unpaid").notNull(), // paid, unpaid
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const timesheetApprovals = pgTable("timesheet_approvals", {
-  id: serial("id").primaryKey(),
+export const timesheetApprovals = sqliteTable("timesheet_approvals", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   shiftId: integer("shiftId")
     .references(() => shifts.id)
     .notNull(),
   approverId: integer("approverId").references(() => users.id),
-  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, approved, rejected
-  approvedAt: timestamp("approvedAt"),
+  status: text("status").default("pending").notNull(), // pending, approved, rejected
+  approvedAt: integer("approvedAt", { mode: "timestamp" }),
   comments: text("comments"),
   rejectionReason: text("rejectionReason"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const complianceAuditTrail = pgTable("compliance_audit_trail", {
-  id: serial("id").primaryKey(),
+export const complianceAuditTrail = sqliteTable("compliance_audit_trail", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   employeeId: integer("employeeId")
     .references(() => users.id)
     .notNull(),
-  action: varchar("action", { length: 100 }).notNull(),
-  entityType: varchar("entityType", { length: 50 }).notNull(), // shift, timesheet, etc.
+  action: text("action").notNull(),
+  entityType: text("entityType").notNull(), // shift, timesheet, etc.
   entityId: integer("entityId").notNull(),
   oldValue: text("oldValue"),
   newValue: text("newValue"),
@@ -406,148 +400,148 @@ export const complianceAuditTrail = pgTable("compliance_audit_trail", {
   performedBy: integer("performedBy")
     .references(() => users.id)
     .notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Assets and Maintenance
  */
-export const machines = pgTable("machines", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 100 }),
-  serialNumber: varchar("serialNumber", { length: 100 }),
-  status: varchar("status", { length: 20 }).default("active"),
-  lastMaintenanceAt: timestamp("lastMaintenanceAt"),
-  totalWorkingHours: doublePrecision("totalWorkingHours").default(0),
+export const machines = sqliteTable("machines", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  type: text("type"),
+  serialNumber: text("serialNumber"),
+  status: text("status").default("active"),
+  lastMaintenanceAt: integer("lastMaintenanceAt", { mode: "timestamp" }),
+  totalWorkingHours: real("totalWorkingHours").default(0),
   concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const machineWorkHours = pgTable("machine_work_hours", {
-  id: serial("id").primaryKey(),
+export const machineWorkHours = sqliteTable("machine_work_hours", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   machineId: integer("machineId")
     .references(() => machines.id)
     .notNull(),
-  hours: doublePrecision("hours").notNull(),
-  date: timestamp("date").notNull(),
+  hours: real("hours").notNull(),
+  date: integer("date", { mode: "timestamp" }).notNull(),
   operatorId: integer("operatorId").references(() => users.id),
 });
 
-export const workHours = pgTable("work_hours", {
-  id: serial("id").primaryKey(),
+export const workHours = sqliteTable("work_hours", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   employeeId: integer("employeeId")
     .references(() => users.id)
     .notNull(),
   projectId: integer("projectId").references(() => projects.id),
-  date: timestamp("date").notNull(),
+  date: integer("date", { mode: "timestamp" }).notNull(),
   hoursWorked: text("hoursWorked").notNull(),
   notes: text("notes"),
-  status: varchar("status", { length: 20 }).default("pending").notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  status: text("status").default("pending").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Tasks and AI
  */
-export const tasks = pgTable("tasks", {
-  id: serial("id").primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(),
+export const tasks = sqliteTable("tasks", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  title: text("title").notNull(),
   description: text("description"),
-  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, in_progress, completed, cancelled
-  priority: varchar("priority", { length: 20 }).default("medium"), // low, medium, high, critical
-  dueDate: timestamp("dueDate"),
+  status: text("status").default("pending").notNull(), // pending, in_progress, completed, cancelled
+  priority: text("priority").default("medium"), // low, medium, high, critical
+  dueDate: integer("dueDate", { mode: "timestamp" }),
   projectId: integer("projectId").references(() => projects.id),
   createdBy: integer("createdBy")
     .references(() => users.id)
     .notNull(),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const taskAssignments = pgTable("task_assignments", {
-  id: serial("id").primaryKey(),
+export const taskAssignments = sqliteTable("task_assignments", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   taskId: integer("taskId")
     .references(() => tasks.id)
     .notNull(),
   userId: integer("userId")
     .references(() => users.id)
     .notNull(),
-  assignedAt: timestamp("assignedAt").notNull().defaultNow(),
+  assignedAt: integer("assignedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const aiConversations = pgTable("ai_conversations", {
-  id: serial("id").primaryKey(),
+export const aiConversations = sqliteTable("ai_conversations", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   userId: integer("userId")
     .references(() => users.id)
     .notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
-  modelName: varchar("modelName", { length: 100 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  title: text("title").notNull(),
+  modelName: text("modelName"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const aiMessages = pgTable("ai_messages", {
-  id: serial("id").primaryKey(),
+export const aiMessages = sqliteTable("ai_messages", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   conversationId: integer("conversationId")
     .references(() => aiConversations.id)
     .notNull(),
-  role: varchar("role", { length: 20 }).notNull(), // user, assistant, system
+  role: text("role").notNull(), // user, assistant, system
   content: text("content").notNull(),
   metadata: text("metadata"), // JSON
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * System and Notifications
  */
-export const notifications = pgTable("notifications", {
-  id: serial("id").primaryKey(),
+export const notifications = sqliteTable("notifications", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   userId: integer("userId")
     .references(() => users.id)
     .notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
+  title: text("title").notNull(),
   message: text("message").notNull(),
-  type: varchar("type", { length: 50 }),
-  status: varchar("status", { length: 20 }).default("unread"), // unread, read, archived
-  sentAt: timestamp("sentAt").notNull().defaultNow(),
+  type: text("type"),
+  status: text("status").default("unread"), // unread, read, archived
+  sentAt: integer("sentAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
-export const documents = pgTable("documents", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  type: varchar("type", { length: 50 }),
+export const documents = sqliteTable("documents", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  type: text("type"),
   url: text("url").notNull(),
   projectId: integer("projectId").references(() => projects.id),
   uploadedBy: integer("uploadedBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
  * Project Sites table for geolocation check-in system
  * Stores geofence boundaries and metadata for job sites
  */
-export const projectSites = pgTable("projectSites", {
-  id: serial("id").primaryKey(),
+export const projectSites = sqliteTable("projectSites", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   projectId: integer("projectId")
     .notNull()
     .references(() => projects.id, { onDelete: "cascade" }),
-  name: varchar("name", { length: 255 }).notNull(),
+  name: text("name").notNull(),
   description: text("description"),
-  latitude: doublePrecision("latitude").notNull(),
-  longitude: doublePrecision("longitude").notNull(),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
   radiusMeters: integer("radiusMeters").notNull().default(50),
-  address: varchar("address", { length: 500 }),
-  city: varchar("city", { length: 100 }),
-  state: varchar("state", { length: 100 }),
-  zipCode: varchar("zipCode", { length: 20 }),
-  country: varchar("country", { length: 100 }),
-  isActive: boolean("isActive").notNull().default(true),
+  address: text("address"),
+  city: text("city"),
+  state: text("state"),
+  zipCode: text("zipCode"),
+  country: text("country"),
+  isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type ProjectSite = typeof projectSites.$inferSelect;
@@ -557,8 +551,8 @@ export type InsertProjectSite = typeof projectSites.$inferInsert;
  * Check-In Records table for geolocation check-in system
  * Logs all employee check-ins with location data and accuracy metrics
  */
-export const checkInRecords = pgTable("checkInRecords", {
-  id: serial("id").primaryKey(),
+export const checkInRecords = sqliteTable("checkInRecords", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   shiftId: integer("shiftId")
     .notNull()
     .references(() => shifts.id, { onDelete: "cascade" }),
@@ -568,18 +562,18 @@ export const checkInRecords = pgTable("checkInRecords", {
   projectSiteId: integer("projectSiteId")
     .notNull()
     .references(() => projectSites.id, { onDelete: "restrict" }),
-  latitude: doublePrecision("latitude").notNull(),
-  longitude: doublePrecision("longitude").notNull(),
-  accuracy: doublePrecision("accuracy").notNull(),
-  distanceFromSiteMeters: doublePrecision("distanceFromSiteMeters"),
-  isWithinGeofence: boolean("isWithinGeofence").notNull(),
-  checkInType: varchar("checkInType", { length: 20 })
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  accuracy: real("accuracy").notNull(),
+  distanceFromSiteMeters: real("distanceFromSiteMeters"),
+  isWithinGeofence: integer("isWithinGeofence", { mode: "boolean" }).notNull(),
+  checkInType: text("checkInType")
     .notNull()
     .default("check_in"),
-  ipAddress: varchar("ipAddress", { length: 45 }),
+  ipAddress: text("ipAddress"),
   userAgent: text("userAgent"),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type CheckInRecord = typeof checkInRecords.$inferSelect;
@@ -588,16 +582,16 @@ export type InsertCheckInRecord = typeof checkInRecords.$inferInsert;
 /**
  * Concrete Bases table for managing concrete production facilities
  */
-export const concreteBases = pgTable("concrete_bases", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const concreteBases = sqliteTable("concrete_bases", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   location: text("location"),
   capacity: integer("capacity"), // m3 per hour
-  status: varchar("status", { length: 20 }).default("active").notNull(), // active, maintenance, inactive
-  managerName: varchar("managerName", { length: 255 }),
-  phoneNumber: varchar("phoneNumber", { length: 50 }),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  status: text("status").default("active").notNull(), // active, maintenance, inactive
+  managerName: text("managerName"),
+  phoneNumber: text("phoneNumber"),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -606,21 +600,21 @@ export const concreteBases = pgTable("concrete_bases", {
 export type ConcreteBase = typeof concreteBases.$inferSelect;
 export type InsertConcreteBase = typeof concreteBases.$inferInsert;
 
-export const aggregateInputs = pgTable("aggregate_inputs", {
-  id: serial("id").primaryKey(),
+export const aggregateInputs = sqliteTable("aggregate_inputs", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   concreteBaseId: integer("concreteBaseId")
     .references(() => concreteBases.id, { onDelete: "cascade" })
     .notNull(),
-  date: timestamp("date").notNull().defaultNow(),
-  materialType: varchar("materialType", { length: 50 }).notNull(), // cement, sand, gravel, etc.
-  materialName: varchar("materialName", { length: 255 }).notNull(),
-  quantity: doublePrecision("quantity").notNull(),
-  unit: varchar("unit", { length: 20 }).notNull(),
-  supplier: varchar("supplier", { length: 255 }),
-  batchNumber: varchar("batchNumber", { length: 100 }),
-  receivedBy: varchar("receivedBy", { length: 255 }),
+  date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  materialType: text("materialType").notNull(), // cement, sand, gravel, etc.
+  materialName: text("materialName").notNull(),
+  quantity: real("quantity").notNull(),
+  unit: text("unit").notNull(),
+  supplier: text("supplier"),
+  batchNumber: text("batchNumber"),
+  receivedBy: text("receivedBy"),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type AggregateInput = typeof aggregateInputs.$inferSelect;
@@ -629,20 +623,20 @@ export type InsertAggregateInput = typeof aggregateInputs.$inferInsert;
 /**
  * Email Templates - Custom templates for system emails
  */
-export const emailTemplates = pgTable("email_templates", {
-  id: serial("id").primaryKey(),
-  type: varchar("type", { length: 50 }).notNull().unique(), // daily_production_report, low_stock_alert, purchase_order, generic_notification
-  name: varchar("name", { length: 255 }).notNull(),
+export const emailTemplates = sqliteTable("email_templates", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  type: text("type").notNull().unique(), // daily_production_report, low_stock_alert, purchase_order, generic_notification
+  name: text("name").notNull(),
   description: text("description"),
-  subject: varchar("subject", { length: 500 }).notNull(),
+  subject: text("subject").notNull(),
   bodyHtml: text("bodyHtml").notNull(),
   bodyText: text("bodyText"), // Plain text fallback
-  isCustom: boolean("isCustom").default(false).notNull(), // true if user customized
-  isActive: boolean("isActive").default(true).notNull(),
+  isCustom: integer("isCustom", { mode: "boolean" }).default(false).notNull(), // true if user customized
+  isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
   variables: text("variables"), // JSON array of available variables
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
@@ -651,27 +645,27 @@ export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
 /**
  * Email Branding - Company branding settings for emails
  */
-export const emailBranding = pgTable("email_branding", {
-  id: serial("id").primaryKey(),
+export const emailBranding = sqliteTable("email_branding", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   logoUrl: text("logoUrl"),
-  primaryColor: varchar("primaryColor", { length: 20 })
+  primaryColor: text("primaryColor")
     .default("#f97316")
     .notNull(),
-  secondaryColor: varchar("secondaryColor", { length: 20 })
+  secondaryColor: text("secondaryColor")
     .default("#ea580c")
     .notNull(),
-  companyName: varchar("companyName", { length: 255 })
+  companyName: text("companyName")
     .default("AzVirt")
     .notNull(),
   footerText: text("footerText"),
-  headerStyle: varchar("headerStyle", { length: 50 })
+  headerStyle: text("headerStyle")
     .default("gradient")
     .notNull(), // gradient, solid, minimal
-  fontFamily: varchar("fontFamily", { length: 100 })
+  fontFamily: text("fontFamily")
     .default("Arial, sans-serif")
     .notNull(),
   updatedBy: integer("updatedBy").references(() => users.id),
-  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type EmailBranding = typeof emailBranding.$inferSelect;
