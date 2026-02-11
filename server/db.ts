@@ -1061,3 +1061,70 @@ export async function resolveGeofenceViolation(
     return false;
   }
 }
+
+/**
+ * Get all job sites, optionally filtered by project.
+ */
+export async function getJobSites(projectId?: number) {
+  try {
+    if ((schema as any).jobSites) {
+      if (projectId) {
+        return await db
+          .select()
+          .from((schema as any).jobSites)
+          .where(eq((schema as any).jobSites.projectId, projectId));
+      }
+      return await db.select().from((schema as any).jobSites);
+    } else {
+      // Fallback to projects table if jobSites doesn't exist
+      if (projectId) {
+        return await db
+          .select()
+          .from(schema.projects)
+          .where(eq(schema.projects.id, projectId));
+      }
+      return await db.select().from(schema.projects);
+    }
+  } catch (error) {
+    console.error("[DB] getJobSites error:", error);
+    return [];
+  }
+}
+
+/**
+ * Get a shift by its ID.
+ */
+export async function getShiftById(id: number) {
+  try {
+    if ((schema as any).shifts) {
+      const result = await db
+        .select()
+        .from((schema as any).shifts)
+        .where(eq((schema as any).shifts.id, id));
+      return result[0] || null;
+    }
+    return null;
+  } catch (error) {
+    console.error("[DB] getShiftById error:", error);
+    return null;
+  }
+}
+
+/**
+ * Get an employee by their ID.
+ */
+export async function getEmployeeById(id: number) {
+  try {
+    if ((schema as any).employees) {
+      const result = await db
+        .select()
+        .from((schema as any).employees)
+        .where(eq((schema as any).employees.id, id));
+      return result[0] || null;
+    }
+    return null;
+  } catch (error) {
+    console.error("[DB] getEmployeeById error:", error);
+    return null;
+  }
+}
