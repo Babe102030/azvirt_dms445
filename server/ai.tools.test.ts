@@ -9,13 +9,49 @@ import * as db from "./db";
  */
 
 // Mock the entire db module
-vi.mock("./db", () => ({
-  // Mock specific functions that are directly called
-  createMaterial: vi.fn(),
-  deleteMaterial: vi.fn(),
-  generateForecastPredictions: vi.fn(),
-  getDb: vi.fn(),
-}));
+// This replaces the actual db object and functions with mocks.
+vi.mock("./db", () => {
+  const mockQueryBuilder = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue([{ id: 1, name: "Mocked Item" }]),
+    insert: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockResolvedValue([{ id: 456 }]),
+    update: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockReturnThis(),
+    // Make the query builder thenable to handle direct awaits on queries
+    then: (resolve: any) =>
+      resolve([
+        {
+          id: 1,
+          name: "Mocked Item",
+          count: 10,
+          total: 1000,
+          totalTests: 20,
+          passed: 18,
+        },
+      ]),
+  };
+
+  return {
+    db: mockQueryBuilder, // Mock the 'db' object itself
+    getDb: vi.fn().mockResolvedValue(mockQueryBuilder), // Mock the getDb function
+    createMaterial: vi.fn().mockResolvedValue(123),
+    deleteMaterial: vi.fn().mockResolvedValue(true),
+    generateForecastPredictions: vi.fn().mockResolvedValue([
+      {
+        materialId: 1,
+        materialName: "cement",
+        predictedStockoutDate: new Date(),
+        needsReorder: true,
+      },
+    ]),
+  };
+});
 
 // Mock user context
 const mockUser = {
@@ -38,46 +74,13 @@ function createAuthContext() {
   };
 }
 
-const { ctx } = createAuthContext();
+const ctx = createAuthContext();
 const caller = appRouter.createCaller(ctx);
 
 describe("AI Agentic Tools", () => {
   beforeEach(() => {
-    // Reset mocks before each test
+    // Reset mocks before each test to ensure isolation
     vi.clearAllMocks();
-
-    // Setup default mock implementations for the db module
-    const mockDbClient = {
-      select: vi.fn().mockReturnThis(),
-      from: vi.fn().mockReturnThis(),
-      where: vi.fn().mockReturnThis(),
-      orderBy: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue([{ id: 1, name: "Mocked Item" }]),
-      // Mock the thenable part of the query builder for queries that are awaited directly
-      then: (resolve: any) =>
-        resolve([
-          {
-            count: 10,
-            total: 1000,
-            totalTests: 20,
-            passed: 18,
-            id: 1,
-            name: "Mocked Item",
-          },
-        ]),
-    };
-
-    (db.getDb as vi.Mock).mockResolvedValue(mockDbClient);
-    (db.createMaterial as vi.Mock).mockResolvedValue(123);
-    (db.deleteMaterial as vi.Mock).mockResolvedValue(true);
-    (db.generateForecastPredictions as vi.Mock).mockResolvedValue([
-      {
-        materialId: 1,
-        materialName: "cement",
-        predictedStockoutDate: new Date(),
-        needsReorder: true,
-      },
-    ]);
   });
 
   describe("Tool Execution", () => {
@@ -196,15 +199,15 @@ describe("AI Agentic Tools", () => {
       });
       expect(db.generateForecastPredictions).toHaveBeenCalled();
 
-      // Execute a tool that uses the mocked getDb
+      // Execute a tool that uses the mocked getDb and the query builder
       await caller.ai.executeTool({
         toolName: "get_delivery_status",
         parameters: { status: "completed" },
       });
-      const mockDbInstance = await db.getDb();
       expect(db.getDb).toHaveBeenCalled();
-      expect(mockDbInstance.select).toHaveBeenCalled();
-      expect(mockDbInstance.from).toHaveBeenCalled();
+      // We can check if the chained methods were called on the mocked db object
+      expect(db.db.select).toHaveBeenCalled();
+      expect(db.db.from).toHaveBeenCalled();
     });
   });
 });
