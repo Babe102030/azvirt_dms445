@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,18 +7,30 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Eye, 
-  Variable, 
-  Mail, 
-  MessageSquare, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Eye,
+  Variable,
+  Mail,
+  MessageSquare,
   Bell,
   ChevronDown,
   ChevronRight,
   Copy,
-  Check
+  Check,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 interface TemplateEditorProps {
   initialData?: {
@@ -39,34 +51,67 @@ interface TemplateEditorProps {
   onCancel: () => void;
 }
 
-export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditorProps) {
+export function TemplateEditor({
+  initialData,
+  onSave,
+  onCancel,
+}: TemplateEditorProps) {
   const [name, setName] = useState(initialData?.name || "");
-  const [description, setDescription] = useState(initialData?.description || "");
+  const [description, setDescription] = useState(
+    initialData?.description || "",
+  );
   const [subject, setSubject] = useState(initialData?.subject || "");
   const [bodyHtml, setBodyHtml] = useState(initialData?.bodyHtml || "");
-  const [channels, setChannels] = useState<string[]>(initialData?.channels || ["email"]);
-  const [expandedCategories, setExpandedCategories] = useState<string[]>(["user", "task"]);
+  const [channels, setChannels] = useState<string[]>(
+    initialData?.channels || ["email"],
+  );
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([
+    "user",
+    "task",
+  ]);
   const [copiedVariable, setCopiedVariable] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("edit");
+  const [testRecipientEmail, setTestRecipientEmail] = useState("");
 
-  const { data: variables } = trpc.notificationTemplates.getVariables.useQuery();
-  const previewMutation = trpc.notificationTemplates.previewTemplate.useMutation();
+  const { data: currentUser } = trpc.auth.me.useQuery();
+  const { data: variables } =
+    trpc.notificationTemplates.getVariables.useQuery();
+  const previewMutation =
+    trpc.notificationTemplates.previewTemplate.useMutation();
+  const sendTestMutation =
+    trpc.notificationTemplates.sendTestNotification.useMutation({
+      onSuccess: () => {
+        toast.success(`Testni email poslan na ${testRecipientEmail}`);
+      },
+      onError: (error) => {
+        toast.error(`Slanje nije uspjelo: ${error.message}`);
+      },
+    });
+
+  useEffect(() => {
+    if (currentUser?.email && !testRecipientEmail) {
+      setTestRecipientEmail(currentUser.email);
+    }
+  }, [currentUser, testRecipientEmail]);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories((prev) =>
       prev.includes(category)
         ? prev.filter((c) => c !== category)
-        : [...prev, category]
+        : [...prev, category],
     );
   };
 
-  const insertVariable = useCallback((variable: string, target: "subject" | "body") => {
-    if (target === "subject") {
-      setSubject((prev) => prev + variable);
-    } else {
-      setBodyHtml((prev) => prev + variable);
-    }
-  }, []);
+  const insertVariable = useCallback(
+    (variable: string, target: "subject" | "body") => {
+      if (target === "subject") {
+        setSubject((prev) => prev + variable);
+      } else {
+        setBodyHtml((prev) => prev + variable);
+      }
+    },
+    [],
+  );
 
   const copyVariable = (variable: string) => {
     navigator.clipboard.writeText(variable);
@@ -78,13 +123,25 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
     setChannels((prev) =>
       prev.includes(channel)
         ? prev.filter((c) => c !== channel)
-        : [...prev, channel]
+        : [...prev, channel],
     );
   };
 
   const handlePreview = () => {
     previewMutation.mutate({ subject, bodyHtml });
     setActiveTab("preview");
+  };
+
+  const handleSendTest = () => {
+    if (!testRecipientEmail) {
+      toast.error("Unesite email adresu primaoca.");
+      return;
+    }
+    sendTestMutation.mutate({
+      recipientEmail: testRecipientEmail,
+      subject,
+      bodyHtml,
+    });
   };
 
   const handleSave = () => {
@@ -112,7 +169,12 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
   const channelConfig = [
     { id: "email", label: "Email", icon: Mail, color: "bg-blue-500" },
     { id: "sms", label: "SMS", icon: MessageSquare, color: "bg-green-500" },
-    { id: "in_app", label: "U aplikaciji", icon: Bell, color: "bg-purple-500" },
+    {
+      id: "in_app",
+      label: "U aplikaciji",
+      icon: Bell,
+      color: "bg-purple-500",
+    },
   ];
 
   return (
@@ -181,10 +243,55 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Sadržaj šablona</CardTitle>
-              <Button variant="outline" size="sm" onClick={handlePreview}>
-                <Eye className="w-4 h-4 mr-2" />
-                Pregled
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePreview}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  Pregled
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Send className="w-4 h-4 mr-2" />
+                      Pošalji test
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Pošalji testni email</DialogTitle>
+                      <DialogDescription>
+                        Pošaljite pregled ovog šablona na email adresu.
+                        Varijable će biti zamijenjene sa primjer podacima.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="test-email" className="text-right">
+                          Email
+                        </Label>
+                        <Input
+                          id="test-email"
+                          value={testRecipientEmail}
+                          onChange={(e) =>
+                            setTestRecipientEmail(e.target.value)
+                          }
+                          className="col-span-3"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={handleSendTest}
+                        disabled={sendTestMutation.isLoading}
+                      >
+                        {sendTestMutation.isLoading && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        Pošalji
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -229,17 +336,29 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
               </TabsContent>
 
               <TabsContent value="preview">
-                {previewMutation.data ? (
+                {previewMutation.isLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Generisanje pregleda...
+                  </div>
+                ) : previewMutation.data ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-muted rounded-lg">
-                      <Label className="text-xs text-muted-foreground">Naslov</Label>
-                      <p className="font-medium">{previewMutation.data.subject}</p>
+                      <Label className="text-xs text-muted-foreground">
+                        Naslov
+                      </Label>
+                      <p className="font-medium">
+                        {previewMutation.data.subject}
+                      </p>
                     </div>
                     <div className="p-4 bg-muted rounded-lg">
-                      <Label className="text-xs text-muted-foreground">Tijelo poruke</Label>
+                      <Label className="text-xs text-muted-foreground">
+                        Tijelo poruke
+                      </Label>
                       <div
                         className="mt-2 prose prose-sm dark:prose-invert max-w-none"
-                        dangerouslySetInnerHTML={{ __html: previewMutation.data.bodyHtml }}
+                        dangerouslySetInnerHTML={{
+                          __html: previewMutation.data.bodyHtml,
+                        }}
                       />
                     </div>
                   </div>
@@ -258,7 +377,10 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
           <Button variant="outline" onClick={onCancel}>
             Otkaži
           </Button>
-          <Button onClick={handleSave} disabled={!name || !subject || !bodyHtml}>
+          <Button
+            onClick={handleSave}
+            disabled={!name || !subject || !bodyHtml}
+          >
             Sačuvaj šablon
           </Button>
         </div>
@@ -276,12 +398,17 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
           <CardContent className="space-y-2">
             {variables &&
               Object.entries(variables).map(([category, vars]) => (
-                <div key={category} className="border rounded-lg overflow-hidden">
+                <div
+                  key={category}
+                  className="border rounded-lg overflow-hidden"
+                >
                   <button
                     className="w-full flex items-center justify-between p-3 bg-muted/50 hover:bg-muted transition-colors"
                     onClick={() => toggleCategory(category)}
                   >
-                    <span className="font-medium">{categoryLabels[category] || category}</span>
+                    <span className="font-medium">
+                      {categoryLabels[category] || category}
+                    </span>
                     {expandedCategories.includes(category) ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
@@ -326,7 +453,10 @@ export function TemplateEditor({ initialData, onSave, onCancel }: TemplateEditor
             <CardTitle className="text-sm">Savjeti</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>• Koristite varijable u dvostrukim vitičastim zagradama: <code className="bg-muted px-1 rounded">{"{{variable}}"}</code></p>
+            <p>
+              • Koristite varijable u dvostrukim vitičastim zagradama:{" "}
+              <code className="bg-muted px-1 rounded">{"{{variable}}"}</code>
+            </p>
             <p>• HTML tagovi su podržani za formatiranje</p>
             <p>• SMS poruke koriste samo tekst verziju</p>
             <p>• Testirajte šablon prije aktivacije</p>

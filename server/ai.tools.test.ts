@@ -45,12 +45,14 @@ vi.spyOn(db, "generateForecastPredictions").mockResolvedValue([
 ]);
 
 describe("AI Agentic Tools", () => {
+  let mockQueryBuilder: any;
+
   beforeEach(() => {
     // Reset mocks before each test to ensure isolation
     vi.clearAllMocks();
 
     // Mock the query builder chain
-    const mockQueryBuilder = {
+    mockQueryBuilder = {
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
@@ -201,7 +203,7 @@ describe("AI Agentic Tools", () => {
         parameters: { status: "completed" },
       });
       expect(db.db.select).toHaveBeenCalled();
-      expect(db.db.from).toHaveBeenCalled();
+      expect(mockQueryBuilder.from).toHaveBeenCalled();
     });
   });
 });

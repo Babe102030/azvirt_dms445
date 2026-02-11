@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
+import { sendEmail } from "../_core/email";
 import { TRPCError } from "@trpc/server";
 import {
   createNotificationTemplate,
@@ -17,10 +18,31 @@ import {
 // Available template variables
 const TEMPLATE_VARIABLES = {
   user: ["{{user.name}}", "{{user.email}}", "{{user.role}}"],
-  task: ["{{task.title}}", "{{task.description}}", "{{task.dueDate}}", "{{task.priority}}", "{{task.status}}"],
-  material: ["{{material.name}}", "{{material.quantity}}", "{{material.unit}}", "{{material.minStock}}"],
-  delivery: ["{{delivery.date}}", "{{delivery.status}}", "{{delivery.supplier}}", "{{delivery.quantity}}"],
-  project: ["{{project.name}}", "{{project.status}}", "{{project.startDate}}", "{{project.endDate}}"],
+  task: [
+    "{{task.title}}",
+    "{{task.description}}",
+    "{{task.dueDate}}",
+    "{{task.priority}}",
+    "{{task.status}}",
+  ],
+  material: [
+    "{{material.name}}",
+    "{{material.quantity}}",
+    "{{material.unit}}",
+    "{{material.minStock}}",
+  ],
+  delivery: [
+    "{{delivery.date}}",
+    "{{delivery.status}}",
+    "{{delivery.supplier}}",
+    "{{delivery.quantity}}",
+  ],
+  project: [
+    "{{project.name}}",
+    "{{project.status}}",
+    "{{project.startDate}}",
+    "{{project.endDate}}",
+  ],
   system: ["{{system.date}}", "{{system.time}}", "{{system.appName}}"],
 };
 
@@ -28,13 +50,37 @@ const TEMPLATE_VARIABLES = {
 const CONDITION_FIELDS = [
   { id: "material.quantity", label: "Material Quantity", type: "number" },
   { id: "material.minStock", label: "Material Min Stock", type: "number" },
-  { id: "task.status", label: "Task Status", type: "select", options: ["pending", "in_progress", "completed", "cancelled"] },
-  { id: "task.priority", label: "Task Priority", type: "select", options: ["low", "medium", "high", "urgent"] },
+  {
+    id: "task.status",
+    label: "Task Status",
+    type: "select",
+    options: ["pending", "in_progress", "completed", "cancelled"],
+  },
+  {
+    id: "task.priority",
+    label: "Task Priority",
+    type: "select",
+    options: ["low", "medium", "high", "urgent"],
+  },
   { id: "task.daysOverdue", label: "Days Overdue", type: "number" },
-  { id: "delivery.status", label: "Delivery Status", type: "select", options: ["scheduled", "in_transit", "delivered", "cancelled"] },
+  {
+    id: "delivery.status",
+    label: "Delivery Status",
+    type: "select",
+    options: ["scheduled", "in_transit", "delivered", "cancelled"],
+  },
   { id: "delivery.daysUntil", label: "Days Until Delivery", type: "number" },
-  { id: "order.daysSinceLastOrder", label: "Days Since Last Order", type: "number" },
-  { id: "project.status", label: "Project Status", type: "select", options: ["planning", "active", "on_hold", "completed"] },
+  {
+    id: "order.daysSinceLastOrder",
+    label: "Days Since Last Order",
+    type: "number",
+  },
+  {
+    id: "project.status",
+    label: "Project Status",
+    type: "select",
+    options: ["planning", "active", "on_hold", "completed"],
+  },
 ];
 
 // Condition operators
@@ -60,7 +106,7 @@ const conditionGroupSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     logic: z.enum(["AND", "OR"]),
     conditions: z.array(z.union([conditionSchema, conditionGroupSchema])),
-  })
+  }),
 );
 
 export const notificationTemplatesRouter = router({
@@ -70,17 +116,50 @@ export const notificationTemplatesRouter = router({
       fields: [
         { id: "stock_quantity", label: "Količina na zalihama", type: "number" },
         { id: "stock_threshold", label: "Minimalna zaliha", type: "number" },
-        { id: "material_category", label: "Kategorija materijala", type: "select", options: ["cement", "aggregate", "admixture", "steel", "other"] },
-        { id: "days_since_order", label: "Dana od zadnje narudžbe", type: "number" },
-        { id: "task_status", label: "Status zadatka", type: "select", options: ["pending", "in_progress", "completed", "overdue"] },
-        { id: "task_priority", label: "Prioritet zadatka", type: "select", options: ["low", "medium", "high", "critical"] },
+        {
+          id: "material_category",
+          label: "Kategorija materijala",
+          type: "select",
+          options: ["cement", "aggregate", "admixture", "steel", "other"],
+        },
+        {
+          id: "days_since_order",
+          label: "Dana od zadnje narudžbe",
+          type: "number",
+        },
+        {
+          id: "task_status",
+          label: "Status zadatka",
+          type: "select",
+          options: ["pending", "in_progress", "completed", "overdue"],
+        },
+        {
+          id: "task_priority",
+          label: "Prioritet zadatka",
+          type: "select",
+          options: ["low", "medium", "high", "critical"],
+        },
         { id: "days_overdue", label: "Dana kašnjenja", type: "number" },
-        { id: "delivery_status", label: "Status isporuke", type: "select", options: ["scheduled", "in_transit", "delivered", "delayed"] },
-        { id: "quality_result", label: "Rezultat testa kvaliteta", type: "select", options: ["pass", "fail", "pending"] },
+        {
+          id: "delivery_status",
+          label: "Status isporuke",
+          type: "select",
+          options: ["scheduled", "in_transit", "delivered", "delayed"],
+        },
+        {
+          id: "quality_result",
+          label: "Rezultat testa kvaliteta",
+          type: "select",
+          options: ["pass", "fail", "pending"],
+        },
       ],
       operators: [
         { id: "eq", label: "jednako", types: ["string", "number", "select"] },
-        { id: "ne", label: "nije jednako", types: ["string", "number", "select"] },
+        {
+          id: "ne",
+          label: "nije jednako",
+          types: ["string", "number", "select"],
+        },
         { id: "gt", label: "veće od", types: ["number"] },
         { id: "gte", label: "veće ili jednako", types: ["number"] },
         { id: "lt", label: "manje od", types: ["number"] },
@@ -106,7 +185,10 @@ export const notificationTemplatesRouter = router({
     .query(async ({ input }) => {
       const template = await getNotificationTemplate(input.id);
       if (!template) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Template not found",
+        });
       }
       return template;
     }),
@@ -121,7 +203,7 @@ export const notificationTemplatesRouter = router({
         bodyText: z.string().optional(),
         channels: z.array(z.enum(["email", "sms", "in_app"])),
         variables: z.array(z.string()).optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       const result = await createNotificationTemplate({
@@ -149,7 +231,7 @@ export const notificationTemplatesRouter = router({
         channels: z.string().optional(),
         variables: z.string().optional(),
         isActive: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { id, ...updates } = input;
@@ -174,7 +256,10 @@ export const notificationTemplatesRouter = router({
     .query(async ({ input }) => {
       const trigger = await getNotificationTrigger(input.id);
       if (!trigger) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Trigger not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Trigger not found",
+        });
       }
       return trigger;
     }),
@@ -189,7 +274,7 @@ export const notificationTemplatesRouter = router({
         templateId: z.number(),
         recipients: z.string(), // JSON array of recipient rules
         isActive: z.boolean().default(true),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       const result = await createNotificationTrigger({
@@ -215,7 +300,7 @@ export const notificationTemplatesRouter = router({
         templateId: z.number().optional(),
         recipients: z.string().optional(),
         isActive: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { id, ...updates } = input;
@@ -236,17 +321,46 @@ export const notificationTemplatesRouter = router({
       z.object({
         subject: z.string(),
         bodyHtml: z.string(),
-      })
+      }),
     )
     .mutation(({ input }) => {
       // Sample data for preview
       const sampleData = {
-        user: { name: "Marko Petrović", email: "marko@azvirt.com", role: "Supervisor" },
-        task: { title: "Provjera kvaliteta betona", description: "Uzorkovanje i testiranje", dueDate: "2024-12-20", priority: "high", status: "pending" },
-        material: { name: "Cement Portland", quantity: 45, unit: "tona", minStock: 50 },
-        delivery: { date: "2024-12-18", status: "scheduled", supplier: "Holcim d.o.o.", quantity: 100 },
-        project: { name: "Autoput Sarajevo-Mostar", status: "active", startDate: "2024-01-15", endDate: "2025-06-30" },
-        system: { date: new Date().toLocaleDateString("bs-BA"), time: new Date().toLocaleTimeString("bs-BA"), appName: "AzVirt DMS" },
+        user: {
+          name: "Marko Petrović",
+          email: "marko@azvirt.com",
+          role: "Supervisor",
+        },
+        task: {
+          title: "Provjera kvaliteta betona",
+          description: "Uzorkovanje i testiranje",
+          dueDate: "2024-12-20",
+          priority: "high",
+          status: "pending",
+        },
+        material: {
+          name: "Cement Portland",
+          quantity: 45,
+          unit: "tona",
+          minStock: 50,
+        },
+        delivery: {
+          date: "2024-12-18",
+          status: "scheduled",
+          supplier: "Holcim d.o.o.",
+          quantity: 100,
+        },
+        project: {
+          name: "Autoput Sarajevo-Mostar",
+          status: "active",
+          startDate: "2024-01-15",
+          endDate: "2025-06-30",
+        },
+        system: {
+          date: new Date().toLocaleDateString("bs-BA"),
+          time: new Date().toLocaleTimeString("bs-BA"),
+          appName: "AzVirt DMS",
+        },
       };
 
       let previewSubject = input.subject;
@@ -256,8 +370,14 @@ export const notificationTemplatesRouter = router({
       Object.entries(sampleData).forEach(([category, values]) => {
         Object.entries(values).forEach(([key, value]) => {
           const variable = `{{${category}.${key}}}`;
-          previewSubject = previewSubject.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), String(value));
-          previewBody = previewBody.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), String(value));
+          previewSubject = previewSubject.replace(
+            new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+            String(value),
+          );
+          previewBody = previewBody.replace(
+            new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+            String(value),
+          );
         });
       });
 
@@ -280,6 +400,89 @@ export const notificationTemplatesRouter = router({
         return { valid: true, humanReadable: generateHumanReadable(parsed) };
       } catch (e) {
         return { valid: false, error: "Invalid JSON format" };
+      }
+    }),
+
+  sendTestNotification: protectedProcedure
+    .input(
+      z.object({
+        recipientEmail: z.string().email("Invalid email address"),
+        subject: z.string(),
+        bodyHtml: z.string(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { recipientEmail, subject, bodyHtml } = input;
+
+      const sampleData = {
+        user: {
+          name: "Marko Petrović",
+          email: "marko@azvirt.com",
+          role: "Supervisor",
+        },
+        task: {
+          title: "Provjera kvaliteta betona",
+          description: "Uzorkovanje i testiranje",
+          dueDate: "2024-12-20",
+          priority: "high",
+          status: "pending",
+        },
+        material: {
+          name: "Cement Portland",
+          quantity: 45,
+          unit: "tona",
+          minStock: 50,
+        },
+        delivery: {
+          date: "2024-12-18",
+          status: "scheduled",
+          supplier: "Holcim d.o.o.",
+          quantity: 100,
+        },
+        project: {
+          name: "Autoput Sarajevo-Mostar",
+          status: "active",
+          startDate: "2024-01-15",
+          endDate: "2025-06-30",
+        },
+        system: {
+          date: new Date().toLocaleDateString("bs-BA"),
+          time: new Date().toLocaleTimeString("bs-BA"),
+          appName: "AzVirt DMS",
+        },
+      };
+
+      let previewSubject = subject;
+      let previewBody = bodyHtml;
+
+      Object.entries(sampleData).forEach(([category, values]) => {
+        Object.entries(values).forEach(([key, value]) => {
+          const variable = `{{${category}.${key}}}`;
+          previewSubject = previewSubject.replace(
+            new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+            String(value),
+          );
+          previewBody = previewBody.replace(
+            new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+            String(value),
+          );
+        });
+      });
+
+      try {
+        await sendEmail({
+          to: recipientEmail,
+          subject: `[TEST] ${previewSubject}`,
+          html: previewBody,
+        });
+        return { success: true };
+      } catch (error) {
+        console.error("Failed to send test email:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to send test email.",
+          cause: error,
+        });
       }
     }),
 });

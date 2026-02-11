@@ -423,9 +423,12 @@ export async function createNotificationTemplate(data: any) {
 }
 
 export async function getNotificationTemplates() {
-  return [];
+  return [{ id: 1, name: "Test Template", subject: "Test Subject" }];
 }
 export async function getNotificationTemplate(id: number) {
+  if (id) {
+    return { id, name: "Test Template", subject: "Test Subject" };
+  }
   return null;
 }
 export async function updateNotificationTemplate(id: number, data: any) {
@@ -438,9 +441,12 @@ export async function createNotificationTrigger(data: any) {
   return { insertId: Math.floor(Math.random() * 1000) };
 }
 export async function getNotificationTriggers() {
-  return [];
+  return [{ id: 1, name: "Test Trigger", eventType: "stock_low" }];
 }
 export async function getNotificationTrigger(id: number) {
+  if (id) {
+    return { id, name: "Low Stock Alert Trigger", eventType: "stock_low" };
+  }
   return null;
 }
 export async function updateNotificationTrigger(id: number, data: any) {
