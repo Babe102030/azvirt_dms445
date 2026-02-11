@@ -3,7 +3,7 @@ import {
   sqliteTable,
   text,
   real,
-  blob
+  blob,
 } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 /**
@@ -17,15 +17,21 @@ export const users = sqliteTable("users", {
   loginMethod: text("loginMethod"),
   role: text("role").default("user").notNull(),
   phoneNumber: text("phoneNumber"),
-  smsNotificationsEnabled: integer("smsNotificationsEnabled", { mode: "boolean" })
+  smsNotificationsEnabled: integer("smsNotificationsEnabled", {
+    mode: "boolean",
+  })
     .default(false)
     .notNull(),
-  languagePreference: text("languagePreference")
-    .default("en")
-    .notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  languagePreference: text("languagePreference").default("en").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  lastSignedIn: integer("lastSignedIn", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type User = typeof users.$inferSelect;
@@ -43,8 +49,12 @@ export const projects = sqliteTable("projects", {
   startDate: integer("startDate", { mode: "timestamp" }),
   endDate: integer("endDate", { mode: "timestamp" }),
   createdBy: integer("createdBy").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type Project = typeof projects.$inferSelect;
@@ -63,7 +73,9 @@ export const materials = sqliteTable("materials", {
   criticalThreshold: real("criticalThreshold").notNull().default(0),
   supplier: text("supplier"),
   unitPrice: integer("unitPrice"),
-  lowStockEmailSent: integer("lowStockEmailSent", { mode: "boolean" }).default(false),
+  lowStockEmailSent: integer("lowStockEmailSent", { mode: "boolean" }).default(
+    false,
+  ),
   lastEmailSentAt: integer("lastEmailSentAt", { mode: "timestamp" }),
   supplierEmail: text("supplierEmail"),
   leadTimeDays: integer("leadTimeDays").default(7),
@@ -71,8 +83,12 @@ export const materials = sqliteTable("materials", {
   optimalOrderQuantity: real("optimalOrderQuantity"),
   supplierId: integer("supplierId"),
   lastOrderDate: integer("lastOrderDate", { mode: "timestamp" }),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type Material = typeof materials.$inferSelect;
@@ -89,8 +105,12 @@ export const suppliers = sqliteTable("suppliers", {
   phone: text("phone"),
   averageLeadTimeDays: integer("averageLeadTimeDays"),
   onTimeDeliveryRate: real("onTimeDeliveryRate"), // Percentage
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -103,7 +123,9 @@ export const materialConsumptionHistory = sqliteTable(
     materialId: integer("materialId")
       .references(() => materials.id)
       .notNull(),
-    date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    date: integer("date", { mode: "timestamp" })
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
     quantityUsed: real("quantityUsed").notNull(),
     deliveryId: integer("deliveryId").references(() => deliveries.id),
   },
@@ -117,14 +139,20 @@ export const purchaseOrders = sqliteTable("purchase_orders", {
   supplierId: integer("supplierId")
     .references(() => suppliers.id)
     .notNull(),
-  orderDate: integer("orderDate", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  orderDate: integer("orderDate", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
   expectedDeliveryDate: integer("expectedDeliveryDate", { mode: "timestamp" }),
   actualDeliveryDate: integer("actualDeliveryDate", { mode: "timestamp" }),
   status: text("status").default("draft").notNull(), // draft, sent, confirmed, received, cancelled
   totalCost: real("totalCost"),
   notes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const purchaseOrderItems = sqliteTable("purchase_order_items", {
@@ -151,8 +179,12 @@ export const concreteRecipes = sqliteTable("concrete_recipes", {
   maxAggregateSize: text("maxAggregateSize"),
   yieldVolume: real("yieldVolume").default(1.0),
   notes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const recipeIngredients = sqliteTable("recipe_ingredients", {
@@ -185,8 +217,12 @@ export const mixingLogs = sqliteTable("mixing_logs", {
   operatorId: integer("operatorId").references(() => users.id),
   approvedBy: integer("approvedBy").references(() => users.id),
   qualityNotes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const batchIngredients = sqliteTable("batch_ingredients", {
@@ -200,7 +236,9 @@ export const batchIngredients = sqliteTable("batch_ingredients", {
   plannedQuantity: real("plannedQuantity").notNull(),
   actualQuantity: real("actualQuantity"),
   unit: text("unit").notNull(),
-  inventoryDeducted: integer("inventoryDeducted", { mode: "boolean" }).default(false).notNull(),
+  inventoryDeducted: integer("inventoryDeducted", { mode: "boolean" })
+    .default(false)
+    .notNull(),
 });
 
 /**
@@ -235,10 +273,16 @@ export const deliveries = sqliteTable("deliveries", {
   driverNotes: text("driverNotes"),
   customerName: text("customerName"),
   customerPhone: text("customerPhone"),
-  smsNotificationSent: integer("smsNotificationSent", { mode: "boolean" }).default(false),
+  smsNotificationSent: integer("smsNotificationSent", {
+    mode: "boolean",
+  }).default(false),
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -250,7 +294,9 @@ export const deliveryStatusHistory = sqliteTable("delivery_status_history", {
     .references(() => deliveries.id)
     .notNull(),
   status: text("status").notNull(),
-  timestamp: integer("timestamp", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  timestamp: integer("timestamp", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
   gpsLocation: text("gpsLocation"), // lat,lng
   notes: text("notes"),
   createdBy: integer("createdBy").references(() => users.id),
@@ -271,7 +317,9 @@ export const qualityTests = sqliteTable("quality_tests", {
   status: text("status").default("pending").notNull(), // pass, fail, pending
   testedByUserId: integer("testedByUserId").references(() => users.id),
   testedBy: text("testedBy"), // can be string name or user ID
-  testedAt: integer("testedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  testedAt: integer("testedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
   photos: text("photos"), // JSON array
   photoUrls: text("photoUrls"), // JSON array (backwards compat)
   notes: text("notes"),
@@ -283,8 +331,12 @@ export const qualityTests = sqliteTable("quality_tests", {
   complianceStandard: text("complianceStandard"),
   syncStatus: text("syncStatus").default("synced"), // synced, pending, failed
   offlineSyncStatus: text("offlineSyncStatus"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -303,8 +355,12 @@ export const employees = sqliteTable("employees", {
   hireDate: integer("hireDate", { mode: "timestamp" }),
   hourlyRate: integer("hourlyRate"),
   active: integer("active", { mode: "boolean" }).default(true).notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const shiftTemplates = sqliteTable("shift_templates", {
@@ -315,8 +371,12 @@ export const shiftTemplates = sqliteTable("shift_templates", {
   durationHours: real("durationHours"),
   color: text("color"),
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const shifts = sqliteTable("shifts", {
@@ -330,8 +390,12 @@ export const shifts = sqliteTable("shifts", {
   status: text("status").default("scheduled").notNull(), // scheduled, in_progress, completed, cancelled, no_show
   createdBy: integer("createdBy").references(() => users.id),
   notes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const employeeAvailability = sqliteTable("employee_availability", {
@@ -342,9 +406,15 @@ export const employeeAvailability = sqliteTable("employee_availability", {
   dayOfWeek: integer("dayOfWeek").notNull(), // 0-6 (Sunday-Saturday)
   startTime: text("startTime").notNull(),
   endTime: text("endTime").notNull(),
-  isAvailable: integer("isAvailable", { mode: "boolean" }).default(true).notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  isAvailable: integer("isAvailable", { mode: "boolean" })
+    .default(true)
+    .notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const shiftSwaps = sqliteTable("shift_swaps", {
@@ -357,7 +427,9 @@ export const shiftSwaps = sqliteTable("shift_swaps", {
     .notNull(),
   toEmployeeId: integer("toEmployeeId").references(() => users.id),
   status: text("status").default("pending").notNull(), // pending, approved, rejected, cancelled
-  requestedAt: integer("requestedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  requestedAt: integer("requestedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
   respondedAt: integer("respondedAt", { mode: "timestamp" }),
   notes: text("notes"),
 });
@@ -370,7 +442,9 @@ export const shiftBreaks = sqliteTable("shift_breaks", {
   startTime: integer("startTime", { mode: "timestamp" }).notNull(),
   endTime: integer("endTime", { mode: "timestamp" }),
   type: text("type").default("unpaid").notNull(), // paid, unpaid
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const timesheetApprovals = sqliteTable("timesheet_approvals", {
@@ -383,7 +457,9 @@ export const timesheetApprovals = sqliteTable("timesheet_approvals", {
   approvedAt: integer("approvedAt", { mode: "timestamp" }),
   comments: text("comments"),
   rejectionReason: text("rejectionReason"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const complianceAuditTrail = sqliteTable("compliance_audit_trail", {
@@ -400,7 +476,9 @@ export const complianceAuditTrail = sqliteTable("compliance_audit_trail", {
   performedBy: integer("performedBy")
     .references(() => users.id)
     .notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -415,8 +493,12 @@ export const machines = sqliteTable("machines", {
   lastMaintenanceAt: integer("lastMaintenanceAt", { mode: "timestamp" }),
   totalWorkingHours: real("totalWorkingHours").default(0),
   concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const machineWorkHours = sqliteTable("machine_work_hours", {
@@ -439,8 +521,12 @@ export const workHours = sqliteTable("work_hours", {
   hoursWorked: text("hoursWorked").notNull(),
   notes: text("notes"),
   status: text("status").default("pending").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -457,8 +543,12 @@ export const tasks = sqliteTable("tasks", {
   createdBy: integer("createdBy")
     .references(() => users.id)
     .notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const taskAssignments = sqliteTable("task_assignments", {
@@ -469,7 +559,9 @@ export const taskAssignments = sqliteTable("task_assignments", {
   userId: integer("userId")
     .references(() => users.id)
     .notNull(),
-  assignedAt: integer("assignedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  assignedAt: integer("assignedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const aiConversations = sqliteTable("ai_conversations", {
@@ -479,8 +571,12 @@ export const aiConversations = sqliteTable("ai_conversations", {
     .notNull(),
   title: text("title").notNull(),
   modelName: text("modelName"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const aiMessages = sqliteTable("ai_messages", {
@@ -491,7 +587,9 @@ export const aiMessages = sqliteTable("ai_messages", {
   role: text("role").notNull(), // user, assistant, system
   content: text("content").notNull(),
   metadata: text("metadata"), // JSON
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -506,7 +604,81 @@ export const notifications = sqliteTable("notifications", {
   message: text("message").notNull(),
   type: text("type"),
   status: text("status").default("unread"), // unread, read, archived
-  sentAt: integer("sentAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  sentAt: integer("sentAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+/**
+ * Notification Templates
+ */
+export const notificationTemplates = sqliteTable("notification_templates", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  subject: text("subject").notNull(),
+  bodyText: text("bodyText").notNull(),
+  channels: text("channels").notNull(), // JSON array of channels: ["email", "sms", "in_app"]
+  isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+/**
+ * Notification Triggers
+ */
+export const notificationTriggers = sqliteTable("notification_triggers", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  eventType: text("eventType").notNull(), // stock_level_change, delivery_status_change, etc.
+  templateId: integer("templateId")
+    .references(() => notificationTemplates.id)
+    .notNull(),
+  triggerCondition: text("triggerCondition").notNull(), // JSON representation of conditions
+  isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
+  lastExecutedAt: integer("lastExecutedAt", { mode: "timestamp" }),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+/**
+ * Notification History (Tracking sent messages)
+ */
+export const notificationHistory = sqliteTable("notification_history", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  notificationId: integer("notificationId"), // Internal ID if available
+  userId: integer("userId").references(() => users.id),
+  channel: text("channel").notNull(), // email, sms, in_app
+  status: text("status").notNull(), // sent, failed, pending
+  recipient: text("recipient").notNull(), // email address or phone number
+  errorMessage: text("errorMessage"),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+/**
+ * Trigger Execution Logs
+ */
+export const triggerExecutionLogs = sqliteTable("trigger_execution_logs", {
+  id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+  triggerId: integer("triggerId").references(() => notificationTriggers.id),
+  entityType: text("entityType").notNull(),
+  entityId: integer("entityId").notNull(),
+  conditionsMet: integer("conditionsMet", { mode: "boolean" }).notNull(),
+  notificationsSent: integer("notificationsSent").default(0),
+  error: text("error"),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export const documents = sqliteTable("documents", {
@@ -516,7 +688,9 @@ export const documents = sqliteTable("documents", {
   url: text("url").notNull(),
   projectId: integer("projectId").references(() => projects.id),
   uploadedBy: integer("uploadedBy").references(() => users.id),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -540,8 +714,12 @@ export const projectSites = sqliteTable("projectSites", {
   country: text("country"),
   isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type ProjectSite = typeof projectSites.$inferSelect;
@@ -567,13 +745,13 @@ export const checkInRecords = sqliteTable("checkInRecords", {
   accuracy: real("accuracy").notNull(),
   distanceFromSiteMeters: real("distanceFromSiteMeters"),
   isWithinGeofence: integer("isWithinGeofence", { mode: "boolean" }).notNull(),
-  checkInType: text("checkInType")
-    .notNull()
-    .default("check_in"),
+  checkInType: text("checkInType").notNull().default("check_in"),
   ipAddress: text("ipAddress"),
   userAgent: text("userAgent"),
   notes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type CheckInRecord = typeof checkInRecords.$inferSelect;
@@ -590,8 +768,12 @@ export const concreteBases = sqliteTable("concrete_bases", {
   status: text("status").default("active").notNull(), // active, maintenance, inactive
   managerName: text("managerName"),
   phoneNumber: text("phoneNumber"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 /**
@@ -605,7 +787,9 @@ export const aggregateInputs = sqliteTable("aggregate_inputs", {
   concreteBaseId: integer("concreteBaseId")
     .references(() => concreteBases.id, { onDelete: "cascade" })
     .notNull(),
-  date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  date: integer("date", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
   materialType: text("materialType").notNull(), // cement, sand, gravel, etc.
   materialName: text("materialName").notNull(),
   quantity: real("quantity").notNull(),
@@ -614,7 +798,9 @@ export const aggregateInputs = sqliteTable("aggregate_inputs", {
   batchNumber: text("batchNumber"),
   receivedBy: text("receivedBy"),
   notes: text("notes"),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type AggregateInput = typeof aggregateInputs.$inferSelect;
@@ -635,8 +821,12 @@ export const emailTemplates = sqliteTable("email_templates", {
   isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
   variables: text("variables"), // JSON array of available variables
   createdBy: integer("createdBy").references(() => users.id),
-  createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
@@ -648,24 +838,16 @@ export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
 export const emailBranding = sqliteTable("email_branding", {
   id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
   logoUrl: text("logoUrl"),
-  primaryColor: text("primaryColor")
-    .default("#f97316")
-    .notNull(),
-  secondaryColor: text("secondaryColor")
-    .default("#ea580c")
-    .notNull(),
-  companyName: text("companyName")
-    .default("AzVirt")
-    .notNull(),
+  primaryColor: text("primaryColor").default("#f97316").notNull(),
+  secondaryColor: text("secondaryColor").default("#ea580c").notNull(),
+  companyName: text("companyName").default("AzVirt").notNull(),
   footerText: text("footerText"),
-  headerStyle: text("headerStyle")
-    .default("gradient")
-    .notNull(), // gradient, solid, minimal
-  fontFamily: text("fontFamily")
-    .default("Arial, sans-serif")
-    .notNull(),
+  headerStyle: text("headerStyle").default("gradient").notNull(), // gradient, solid, minimal
+  fontFamily: text("fontFamily").default("Arial, sans-serif").notNull(),
   updatedBy: integer("updatedBy").references(() => users.id),
-  updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
 });
 
 export type EmailBranding = typeof emailBranding.$inferSelect;

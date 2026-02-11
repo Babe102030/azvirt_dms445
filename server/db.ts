@@ -75,6 +75,18 @@ export async function getUserById(id: number) {
   return result[0];
 }
 
+export async function getAdminUsersWithSMS() {
+  return db
+    .select()
+    .from(schema.users)
+    .where(
+      and(
+        eq(schema.users.role, "admin"),
+        eq(schema.users.smsNotificationsEnabled, true),
+      ),
+    );
+}
+
 export async function createProject(data: InsertProject) {
   const result = await db
     .insert(schema.projects)
@@ -437,43 +449,134 @@ export async function generateForecastPredictions() {
 }
 
 export async function createNotificationTemplate(data: any) {
-  // This is a placeholder. A real implementation would insert into a 'notificationTemplates' table.
-  console.log("Creating notification template:", data);
-  return { insertId: Math.floor(Math.random() * 1000) };
+  const result = await db
+    .insert(schema.notificationTemplates)
+    .values({
+      ...data,
+      channels: JSON.stringify(data.channels || []),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.notificationTemplates.id });
+  return { insertId: result[0].id };
 }
 
 export async function getNotificationTemplates() {
-  return [{ id: 1, name: "Test Template", subject: "Test Subject" }];
+  const result = await db.select().from(schema.notificationTemplates);
+  return result.map((t) => ({
+    ...t,
+    channels: t.channels ? JSON.parse(t.channels) : [],
+  }));
 }
+
 export async function getNotificationTemplate(id: number) {
-  if (id) {
-    return { id, name: "Test Template", subject: "Test Subject" };
-  }
-  return null;
+  const result = await db
+    .select()
+    .from(schema.notificationTemplates)
+    .where(eq(schema.notificationTemplates.id, id));
+  if (!result[0]) return null;
+  return {
+    ...result[0],
+    channels: result[0].channels ? JSON.parse(result[0].channels) : [],
+  };
 }
+
 export async function updateNotificationTemplate(id: number, data: any) {
-  return true;
-}
-export async function deleteNotificationTemplate(id: number) {
-  return true;
-}
-export async function createNotificationTrigger(data: any) {
-  return { insertId: Math.floor(Math.random() * 1000) };
-}
-export async function getNotificationTriggers() {
-  return [{ id: 1, name: "Test Trigger", eventType: "stock_low" }];
-}
-export async function getNotificationTrigger(id: number) {
-  if (id) {
-    return { id, name: "Low Stock Alert Trigger", eventType: "stock_low" };
+  const updateData = { ...data };
+  if (data.channels) {
+    updateData.channels = JSON.stringify(data.channels);
   }
-  return null;
+  await db
+    .update(schema.notificationTemplates)
+    .set({ ...updateData, updatedAt: new Date() })
+    .where(eq(schema.notificationTemplates.id, id));
+  return true;
 }
+
+export async function deleteNotificationTemplate(id: number) {
+  await db
+    .delete(schema.notificationTemplates)
+    .where(eq(schema.notificationTemplates.id, id));
+  return true;
+}
+
+export async function createNotificationTrigger(data: any) {
+  const result = await db
+    .insert(schema.notificationTriggers)
+    .values({
+      ...data,
+      triggerCondition: JSON.stringify(data.triggerCondition || {}),
+      updatedAt: new Date(),
+    })
+    .returning({ id: schema.notificationTriggers.id });
+  return { insertId: result[0].id };
+}
+
+export async function getNotificationTriggers() {
+  const result = await db.select().from(schema.notificationTriggers);
+  return result.map((t) => ({
+    ...t,
+    triggerCondition: t.triggerCondition ? JSON.parse(t.triggerCondition) : {},
+  }));
+}
+
+export async function getNotificationTrigger(id: number) {
+  const result = await db
+    .select()
+    .from(schema.notificationTriggers)
+    .where(eq(schema.notificationTriggers.id, id));
+  if (!result[0]) return null;
+  return {
+    ...result[0],
+    triggerCondition: result[0].triggerCondition
+      ? JSON.parse(result[0].triggerCondition)
+      : {},
+  };
+}
+
+export async function getTriggersByEventType(eventType: string) {
+  const result = await db
+    .select()
+    .from(schema.notificationTriggers)
+    .where(
+      and(
+        eq(schema.notificationTriggers.eventType, eventType),
+        eq(schema.notificationTriggers.isActive, true),
+      ),
+    );
+  return result.map((t) => ({
+    ...t,
+    triggerCondition: t.triggerCondition ? JSON.parse(t.triggerCondition) : {},
+  }));
+}
+
 export async function updateNotificationTrigger(id: number, data: any) {
+  const updateData = { ...data };
+  if (data.triggerCondition) {
+    updateData.triggerCondition = JSON.stringify(data.triggerCondition);
+  }
+  await db
+    .update(schema.notificationTriggers)
+    .set({ ...updateData, updatedAt: new Date() })
+    .where(eq(schema.notificationTriggers.id, id));
   return true;
 }
+
 export async function deleteNotificationTrigger(id: number) {
+  await db
+    .delete(schema.notificationTriggers)
+    .where(eq(schema.notificationTriggers.id, id));
   return true;
+}
+
+export async function recordTriggerExecution(data: any) {
+  const result = await db
+    .insert(schema.triggerExecutionLogs)
+    .values({
+      ...data,
+      createdAt: new Date(),
+    })
+    .returning({ id: schema.triggerExecutionLogs.id });
+  return result[0]?.id;
 }
 
 /**
@@ -597,22 +700,17 @@ export async function getNotificationHistoryByUser(
  */
 export async function createNotification(notification: any) {
   try {
-    if ((schema as any).notifications) {
-      const toInsert = {
-        ...notification,
-        sentAt: notification.sentAt ?? new Date(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      const result = await db
-        .insert((schema as any).notifications)
-        .values(toInsert)
-        .returning({ id: (schema as any).notifications.id });
-      return result && result[0] ? result[0].id : null;
-    } else {
-      console.log("[DB] createNotification (stub)", notification);
-      return Math.floor(Math.random() * 100000);
-    }
+    const toInsert = {
+      ...notification,
+      sentAt: notification.sentAt ?? new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const result = await db
+      .insert(schema.notifications)
+      .values(toInsert)
+      .returning({ id: schema.notifications.id });
+    return result && result[0] ? result[0].id : null;
   } catch (error) {
     console.error("[DB] createNotification error:", error);
     return null;
