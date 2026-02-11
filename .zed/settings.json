@@ -94,6 +94,12 @@
 
   // Additional settings you might find useful
   "terminal": {
+    "shell": {
+      "with_arguments": {
+        "program": "powershell.exe",
+        "args": []
+      }
+    },
     "font_size": 13,
   },
   "ui": {
