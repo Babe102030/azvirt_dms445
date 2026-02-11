@@ -19,6 +19,12 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { SignInButton } from "@clerk/clerk-react";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
@@ -45,6 +51,7 @@ import {
   CheckCircle2,
   Calendar,
   Factory,
+  Sparkles,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -365,6 +372,30 @@ function DashboardLayoutContent({
         >
           {children}
         </main>
+
+        {/* Floating AI Assistant Button */}
+        {location !== "/ai-assistant" && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={() => setLocation("/ai-assistant")}
+                  size="lg"
+                  className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-2xl bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 transition-all hover:scale-110 z-50 group"
+                >
+                  <Sparkles className="h-6 w-6 text-white group-hover:rotate-12 transition-transform" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="flex items-center gap-2">
+                <Bot className="h-4 w-4" />
+                <span>AI Assistant</span>
+                <kbd className="px-2 py-1 text-xs font-semibold bg-muted rounded">
+                  {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"} K
+                </kbd>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </SidebarInset>
     </>
   );
