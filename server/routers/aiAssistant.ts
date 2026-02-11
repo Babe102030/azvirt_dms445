@@ -14,6 +14,14 @@ import {
   getTemplateById,
   type TemplateCategory,
 } from "../../shared/promptTemplates";
+import {
+  extractTextFromImage,
+  extractTextFromPDF,
+  analyzeImageWithVision,
+  extractStructuredData,
+  analyzeQualityControlImage,
+  getAvailableVisionModels,
+} from "../_core/ocr";
 
 /**
  * AI Assistant Router
@@ -471,4 +479,184 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         };
       }
     }),
+
+  /**
+   * Extract text from image using OCR
+   */
+  extractTextFromImage: protectedProcedure
+    .input(
+      z.object({
+        imageUrl: z.string().url(),
+        model: z.string().optional(),
+        language: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await extractTextFromImage(input.imageUrl, {
+          model: input.model,
+          language: input.language,
+        });
+        return {
+          success: true,
+          text: result.text,
+          confidence: result.confidence,
+        };
+      } catch (error: any) {
+        console.error("OCR extraction error:", error);
+        return {
+          success: false,
+          error: error.message || "Failed to extract text from image",
+        };
+      }
+    }),
+
+  /**
+   * Extract text from PDF
+   */
+  extractTextFromPDF: protectedProcedure
+    .input(
+      z.object({
+        pdfUrl: z.string().url(),
+        model: z.string().optional(),
+        maxPages: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await extractTextFromPDF(input.pdfUrl, {
+          model: input.model,
+          maxPages: input.maxPages,
+        });
+        return {
+          success: true,
+          text: result.text,
+          pageCount: result.pageCount,
+        };
+      } catch (error: any) {
+        console.error("PDF extraction error:", error);
+        return {
+          success: false,
+          error: error.message || "Failed to extract text from PDF",
+        };
+      }
+    }),
+
+  /**
+   * Analyze image with custom prompt
+   */
+  analyzeImage: protectedProcedure
+    .input(
+      z.object({
+        imageUrl: z.string().url(),
+        prompt: z.string(),
+        model: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await analyzeImageWithVision(
+          input.imageUrl,
+          input.prompt,
+          {
+            model: input.model,
+          },
+        );
+        return {
+          success: true,
+          analysis: result,
+        };
+      } catch (error: any) {
+        console.error("Image analysis error:", error);
+        return {
+          success: false,
+          error: error.message || "Failed to analyze image",
+        };
+      }
+    }),
+
+  /**
+   * Extract structured data from document images
+   */
+  extractStructuredData: protectedProcedure
+    .input(
+      z.object({
+        imageUrl: z.string().url(),
+        dataType: z.enum(["invoice", "receipt", "form", "table"]),
+        model: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await extractStructuredData(
+          input.imageUrl,
+          input.dataType,
+          {
+            model: input.model,
+          },
+        );
+        return {
+          success: true,
+          data: result,
+        };
+      } catch (error: any) {
+        console.error("Structured data extraction error:", error);
+        return {
+          success: false,
+          error: error.message || "Failed to extract structured data",
+        };
+      }
+    }),
+
+  /**
+   * Analyze quality control images
+   */
+  analyzeQualityControlImage: protectedProcedure
+    .input(
+      z.object({
+        imageUrl: z.string().url(),
+        model: z.string().optional(),
+        analysisType: z
+          .enum(["defect-detection", "sample-analysis", "general"])
+          .optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await analyzeQualityControlImage(input.imageUrl, {
+          model: input.model,
+          analysisType: input.analysisType,
+        });
+        return {
+          success: true,
+          ...result,
+        };
+      } catch (error: any) {
+        console.error("QC image analysis error:", error);
+        return {
+          success: false,
+          error: error.message || "Failed to analyze quality control image",
+        };
+      }
+    }),
+
+  /**
+   * Get available vision models
+   */
+  getVisionModels: protectedProcedure.query(async () => {
+    try {
+      const models = await getAvailableVisionModels();
+      return {
+        success: true,
+        models,
+      };
+    } catch (error: any) {
+      console.error("Failed to get vision models:", error);
+      return {
+        success: false,
+        models: [],
+        error: error.message,
+      };
+    }
+  }),
 });

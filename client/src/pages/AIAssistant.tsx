@@ -19,7 +19,17 @@ import {
 } from "@/components/ui/dialog";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import { PromptTemplates } from "@/components/PromptTemplates";
-import { Send, Bot, User, Loader2, Trash2, Plus, Sparkles } from "lucide-react";
+import { ImageUpload } from "@/components/ImageUpload";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Trash2,
+  Plus,
+  Sparkles,
+  Image as ImageIcon,
+} from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Streamdown } from "streamdown";
 
@@ -31,6 +41,7 @@ export default function AIAssistant() {
   >();
   const [selectedModel, setSelectedModel] = useState("llama3.2");
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Queries
@@ -118,6 +129,30 @@ export default function AIAssistant() {
   const handleSelectTemplate = (prompt: string) => {
     setMessage(prompt);
     setShowTemplates(false);
+  };
+
+  const handleImageAnalyzed = (analysis: string, imageUrl: string) => {
+    const messageText = `[Image Analysis]\n\n${analysis}`;
+    chatMutation.mutate({
+      conversationId: currentConversationId,
+      message: messageText,
+      model: selectedModel,
+      imageUrl,
+      useTools: true,
+    });
+    setShowImageUpload(false);
+  };
+
+  const handleTextExtracted = (text: string, imageUrl: string) => {
+    const messageText = `[OCR Text Extraction]\n\n${text}`;
+    chatMutation.mutate({
+      conversationId: currentConversationId,
+      message: messageText,
+      model: selectedModel,
+      imageUrl,
+      useTools: true,
+    });
+    setShowImageUpload(false);
   };
 
   return (
@@ -278,51 +313,85 @@ export default function AIAssistant() {
         </div>
 
         {/* Input Area */}
-        <div className="flex gap-2 items-end">
-          <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon" title="Šabloni upita">
-                <Sparkles className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Šabloni upita</DialogTitle>
-              </DialogHeader>
-              <PromptTemplates onSelectTemplate={handleSelectTemplate} />
-            </DialogContent>
-          </Dialog>
+        <div className="space-y-4">
+          {/* Image Upload Dialog */}
+          {showImageUpload && (
+            <Card className="p-4 border-orange-500">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">Upload Image for Analysis</h3>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setShowImageUpload(false)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <ImageUpload
+                  onImageAnalyzed={handleImageAnalyzed}
+                  onTextExtracted={handleTextExtracted}
+                  mode="both"
+                />
+              </div>
+            </Card>
+          )}
 
-          <div className="flex-1">
-            <Input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={
-                t("aiAssistant.placeholder") ||
-                "Ask me anything about your business..."
-              }
-              disabled={chatMutation.isPending}
-              className="resize-none"
+          <div className="flex gap-2 items-end">
+            <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" title="Šabloni upita">
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Šabloni upita</DialogTitle>
+                </DialogHeader>
+                <PromptTemplates onSelectTemplate={handleSelectTemplate} />
+              </DialogContent>
+            </Dialog>
+
+            <Button
+              variant="outline"
+              size="icon"
+              title="Upload Image"
+              onClick={() => setShowImageUpload(!showImageUpload)}
+            >
+              <ImageIcon className="h-4 w-4" />
+            </Button>
+
+            <div className="flex-1">
+              <Input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={
+                  t("aiAssistant.placeholder") ||
+                  "Ask me anything about your business..."
+                }
+                disabled={chatMutation.isPending}
+                className="resize-none"
+              />
+            </div>
+
+            <VoiceRecorder
+              onTranscription={handleVoiceTranscription}
+              language="bs"
             />
+
+            <Button
+              onClick={handleSendMessage}
+              disabled={!message.trim() || chatMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              {chatMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-
-          <VoiceRecorder
-            onTranscription={handleVoiceTranscription}
-            language="bs"
-          />
-
-          <Button
-            onClick={handleSendMessage}
-            disabled={!message.trim() || chatMutation.isPending}
-            className="bg-orange-500 hover:bg-orange-600"
-          >
-            {chatMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </div>
     </div>
