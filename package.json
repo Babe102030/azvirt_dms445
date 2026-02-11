@@ -109,6 +109,7 @@
     "@vue/tsconfig": "^0.8.1",
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
+    "baseline-browser-mapping": "^2.9.19",
     "drizzle-kit": "^0.31.9",
     "esbuild": "^0.25.0",
     "pnpm": "^10.15.1",
