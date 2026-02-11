@@ -256,6 +256,16 @@ export async function getQualityTests(filters?: {
 // Stubs for other functions from the outline to avoid breaking the app
 // These can be implemented as needed.
 
+export type InsertEmployee = typeof schema.employees.$inferInsert;
+
+export async function createEmployee(data: InsertEmployee) {
+  const result = await db
+    .insert(schema.employees)
+    .values(data)
+    .returning({ id: schema.employees.id });
+  return result[0].id;
+}
+
 export async function updateQualityTest(
   id: number,
   data: Partial<InsertQualityTest>,
