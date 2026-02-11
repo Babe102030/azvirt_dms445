@@ -8,23 +8,6 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// server/_core/env.ts
-var ENV;
-var init_env = __esm({
-  "server/_core/env.ts"() {
-    "use strict";
-    ENV = {
-      databaseUrl: process.env.DATABASE_URL ?? "",
-      ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-      isProduction: process.env.NODE_ENV === "production",
-      forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-      geminiApiKey: process.env.GEMINI_API_KEY ?? "",
-      geminiModel: process.env.GEMINI_MODEL ?? "gemini-1.5-flash"
-    };
-  }
-});
-
 // drizzle/schema.ts
 var schema_exports = {};
 __export(schema_exports, {
@@ -63,183 +46,181 @@ __export(schema_exports, {
   taskAssignments: () => taskAssignments,
   tasks: () => tasks,
   timesheetApprovals: () => timesheetApprovals,
-  users: () => users
+  users: () => users,
+  workHours: () => workHours
 });
 import {
-  boolean,
   integer,
-  pgTable,
-  serial,
+  sqliteTable,
   text,
-  timestamp,
-  varchar,
-  doublePrecision
-} from "drizzle-orm/pg-core";
-var users, projects, materials, suppliers, materialConsumptionHistory, purchaseOrders, purchaseOrderItems, concreteRecipes, recipeIngredients, mixingLogs, batchIngredients, deliveries, deliveryStatusHistory, qualityTests, employees, shiftTemplates, shifts, employeeAvailability, shiftSwaps, shiftBreaks, timesheetApprovals, complianceAuditTrail, machines, machineWorkHours, tasks, taskAssignments, aiConversations, aiMessages, notifications, documents, projectSites, checkInRecords, concreteBases, aggregateInputs, emailTemplates, emailBranding;
+  real
+} from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+var users, projects, materials, suppliers, materialConsumptionHistory, purchaseOrders, purchaseOrderItems, concreteRecipes, recipeIngredients, mixingLogs, batchIngredients, deliveries, deliveryStatusHistory, qualityTests, employees, shiftTemplates, shifts, employeeAvailability, shiftSwaps, shiftBreaks, timesheetApprovals, complianceAuditTrail, machines, machineWorkHours, workHours, tasks, taskAssignments, aiConversations, aiMessages, notifications, documents, projectSites, checkInRecords, concreteBases, aggregateInputs, emailTemplates, emailBranding;
 var init_schema = __esm({
   "drizzle/schema.ts"() {
     "use strict";
-    users = pgTable("users", {
-      id: serial("id").primaryKey(),
-      openId: varchar("openId", { length: 64 }).notNull().unique(),
+    users = sqliteTable("users", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      openId: text("openId").notNull().unique(),
       name: text("name"),
-      email: varchar("email", { length: 320 }),
-      loginMethod: varchar("loginMethod", { length: 64 }),
-      role: varchar("role", { length: 20 }).default("user").notNull(),
-      phoneNumber: varchar("phoneNumber", { length: 50 }),
-      smsNotificationsEnabled: boolean("smsNotificationsEnabled").default(false).notNull(),
-      languagePreference: varchar("languagePreference", { length: 10 }).default("en").notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow(),
-      lastSignedIn: timestamp("lastSignedIn").notNull().defaultNow()
+      email: text("email"),
+      loginMethod: text("loginMethod"),
+      role: text("role").default("user").notNull(),
+      phoneNumber: text("phoneNumber"),
+      smsNotificationsEnabled: integer("smsNotificationsEnabled", { mode: "boolean" }).default(false).notNull(),
+      languagePreference: text("languagePreference").default("en").notNull(),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    projects = pgTable("projects", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
+    projects = sqliteTable("projects", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
       description: text("description"),
-      location: varchar("location", { length: 500 }),
-      status: varchar("status", { length: 20 }).default("planning").notNull(),
-      startDate: timestamp("startDate"),
-      endDate: timestamp("endDate"),
+      location: text("location"),
+      status: text("status").default("planning").notNull(),
+      startDate: integer("startDate", { mode: "timestamp" }),
+      endDate: integer("endDate", { mode: "timestamp" }),
       createdBy: integer("createdBy").notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    materials = pgTable("materials", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
-      category: varchar("category", { length: 20 }).default("other").notNull(),
-      unit: varchar("unit", { length: 50 }).notNull(),
-      quantity: doublePrecision("quantity").notNull().default(0),
-      minStock: doublePrecision("minStock").notNull().default(0),
-      criticalThreshold: doublePrecision("criticalThreshold").notNull().default(0),
-      supplier: varchar("supplier", { length: 255 }),
+    materials = sqliteTable("materials", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      category: text("category").default("other").notNull(),
+      unit: text("unit").notNull(),
+      quantity: real("quantity").notNull().default(0),
+      minStock: real("minStock").notNull().default(0),
+      criticalThreshold: real("criticalThreshold").notNull().default(0),
+      supplier: text("supplier"),
       unitPrice: integer("unitPrice"),
-      lowStockEmailSent: boolean("lowStockEmailSent").default(false),
-      lastEmailSentAt: timestamp("lastEmailSentAt"),
-      supplierEmail: varchar("supplierEmail", { length: 255 }),
+      lowStockEmailSent: integer("lowStockEmailSent", { mode: "boolean" }).default(false),
+      lastEmailSentAt: integer("lastEmailSentAt", { mode: "timestamp" }),
+      supplierEmail: text("supplierEmail"),
       leadTimeDays: integer("leadTimeDays").default(7),
-      reorderPoint: doublePrecision("reorderPoint"),
-      optimalOrderQuantity: doublePrecision("optimalOrderQuantity"),
+      reorderPoint: real("reorderPoint"),
+      optimalOrderQuantity: real("optimalOrderQuantity"),
       supplierId: integer("supplierId"),
-      lastOrderDate: timestamp("lastOrderDate"),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      lastOrderDate: integer("lastOrderDate", { mode: "timestamp" }),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    suppliers = pgTable("suppliers", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
-      contactPerson: varchar("contactPerson", { length: 255 }),
-      email: varchar("email", { length: 255 }),
-      phone: varchar("phone", { length: 50 }),
+    suppliers = sqliteTable("suppliers", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      contactPerson: text("contactPerson"),
+      email: text("email"),
+      phone: text("phone"),
       averageLeadTimeDays: integer("averageLeadTimeDays"),
-      onTimeDeliveryRate: doublePrecision("onTimeDeliveryRate"),
+      onTimeDeliveryRate: real("onTimeDeliveryRate"),
       // Percentage
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    materialConsumptionHistory = pgTable(
+    materialConsumptionHistory = sqliteTable(
       "material_consumption_history",
       {
-        id: serial("id").primaryKey(),
+        id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
         materialId: integer("materialId").references(() => materials.id).notNull(),
-        date: timestamp("date").notNull().defaultNow(),
-        quantityUsed: doublePrecision("quantityUsed").notNull(),
+        date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+        quantityUsed: real("quantityUsed").notNull(),
         deliveryId: integer("deliveryId").references(() => deliveries.id)
       }
     );
-    purchaseOrders = pgTable("purchase_orders", {
-      id: serial("id").primaryKey(),
+    purchaseOrders = sqliteTable("purchase_orders", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       supplierId: integer("supplierId").references(() => suppliers.id).notNull(),
-      orderDate: timestamp("orderDate").notNull().defaultNow(),
-      expectedDeliveryDate: timestamp("expectedDeliveryDate"),
-      actualDeliveryDate: timestamp("actualDeliveryDate"),
-      status: varchar("status", { length: 50 }).default("draft").notNull(),
+      orderDate: integer("orderDate", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      expectedDeliveryDate: integer("expectedDeliveryDate", { mode: "timestamp" }),
+      actualDeliveryDate: integer("actualDeliveryDate", { mode: "timestamp" }),
+      status: text("status").default("draft").notNull(),
       // draft, sent, confirmed, received, cancelled
-      totalCost: doublePrecision("totalCost"),
+      totalCost: real("totalCost"),
       notes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    purchaseOrderItems = pgTable("purchase_order_items", {
-      id: serial("id").primaryKey(),
+    purchaseOrderItems = sqliteTable("purchase_order_items", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       purchaseOrderId: integer("purchaseOrderId").references(() => purchaseOrders.id).notNull(),
       materialId: integer("materialId").references(() => materials.id).notNull(),
-      quantity: doublePrecision("quantity").notNull(),
-      unitPrice: doublePrecision("unitPrice").notNull()
+      quantity: real("quantity").notNull(),
+      unitPrice: real("unitPrice").notNull()
     });
-    concreteRecipes = pgTable("concrete_recipes", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
+    concreteRecipes = sqliteTable("concrete_recipes", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
       description: text("description"),
-      targetStrength: varchar("targetStrength", { length: 50 }),
-      slump: varchar("slump", { length: 50 }),
-      maxAggregateSize: varchar("maxAggregateSize", { length: 50 }),
-      yieldVolume: doublePrecision("yieldVolume").default(1),
+      targetStrength: text("targetStrength"),
+      slump: text("slump"),
+      maxAggregateSize: text("maxAggregateSize"),
+      yieldVolume: real("yieldVolume").default(1),
       notes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    recipeIngredients = pgTable("recipe_ingredients", {
-      id: serial("id").primaryKey(),
+    recipeIngredients = sqliteTable("recipe_ingredients", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       recipeId: integer("recipeId").references(() => concreteRecipes.id).notNull(),
       materialId: integer("materialId").references(() => materials.id).notNull(),
-      quantity: doublePrecision("quantity").notNull(),
-      unit: varchar("unit", { length: 50 }).notNull()
+      quantity: real("quantity").notNull(),
+      unit: text("unit").notNull()
     });
-    mixingLogs = pgTable("mixing_logs", {
-      id: serial("id").primaryKey(),
+    mixingLogs = sqliteTable("mixing_logs", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       projectId: integer("projectId").references(() => projects.id),
       deliveryId: integer("deliveryId"),
       // Circular dependency potential, handled by logic
       recipeId: integer("recipeId").references(() => concreteRecipes.id),
-      recipeName: varchar("recipeName", { length: 255 }),
-      batchNumber: varchar("batchNumber", { length: 100 }).notNull().unique(),
-      volume: doublePrecision("volume").notNull(),
-      unit: varchar("unit", { length: 50 }).default("m3").notNull(),
-      status: varchar("status", { length: 20 }).default("planned").notNull(),
+      recipeName: text("recipeName"),
+      batchNumber: text("batchNumber").notNull().unique(),
+      volume: real("volume").notNull(),
+      unit: text("unit").default("m3").notNull(),
+      status: text("status").default("planned").notNull(),
       // planned, in_progress, completed, rejected
-      startTime: timestamp("startTime"),
-      endTime: timestamp("endTime"),
+      startTime: integer("startTime", { mode: "timestamp" }),
+      endTime: integer("endTime", { mode: "timestamp" }),
       operatorId: integer("operatorId").references(() => users.id),
       approvedBy: integer("approvedBy").references(() => users.id),
       qualityNotes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    batchIngredients = pgTable("batch_ingredients", {
-      id: serial("id").primaryKey(),
+    batchIngredients = sqliteTable("batch_ingredients", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       batchId: integer("batchId").references(() => mixingLogs.id).notNull(),
       materialId: integer("materialId").references(() => materials.id).notNull(),
-      plannedQuantity: doublePrecision("plannedQuantity").notNull(),
-      actualQuantity: doublePrecision("actualQuantity"),
-      unit: varchar("unit", { length: 50 }).notNull(),
-      inventoryDeducted: boolean("inventoryDeducted").default(false).notNull()
+      plannedQuantity: real("plannedQuantity").notNull(),
+      actualQuantity: real("actualQuantity"),
+      unit: text("unit").notNull(),
+      inventoryDeducted: integer("inventoryDeducted", { mode: "boolean" }).default(false).notNull()
     });
-    deliveries = pgTable("deliveries", {
-      id: serial("id").primaryKey(),
+    deliveries = sqliteTable("deliveries", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       projectId: integer("projectId").references(() => projects.id),
-      projectName: varchar("projectName", { length: 255 }),
+      projectName: text("projectName"),
       recipeId: integer("recipeId").references(() => concreteRecipes.id),
-      concreteType: varchar("concreteType", { length: 100 }),
-      volume: doublePrecision("volume"),
+      concreteType: text("concreteType"),
+      volume: real("volume"),
       batchId: integer("batchId").references(() => mixingLogs.id),
-      ticketNumber: varchar("ticketNumber", { length: 100 }).unique(),
-      truckNumber: varchar("truckNumber", { length: 50 }),
-      vehicleNumber: varchar("vehicleNumber", { length: 50 }),
+      ticketNumber: text("ticketNumber").unique(),
+      truckNumber: text("truckNumber"),
+      vehicleNumber: text("vehicleNumber"),
       driverId: integer("driverId").references(() => users.id),
-      driverName: varchar("driverName", { length: 255 }),
-      status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+      driverName: text("driverName"),
+      status: text("status").default("scheduled").notNull(),
       // scheduled, loaded, en_route, arrived, delivered, returning, completed, cancelled
-      scheduledTime: timestamp("scheduledTime").notNull(),
-      startTime: timestamp("startTime"),
-      arrivalTime: timestamp("arrivalTime"),
-      deliveryTime: timestamp("deliveryTime"),
-      completionTime: timestamp("completionTime"),
+      scheduledTime: integer("scheduledTime", { mode: "timestamp" }).notNull(),
+      startTime: integer("startTime", { mode: "timestamp" }),
+      arrivalTime: integer("arrivalTime", { mode: "timestamp" }),
+      deliveryTime: integer("deliveryTime", { mode: "timestamp" }),
+      completionTime: integer("completionTime", { mode: "timestamp" }),
       estimatedArrival: integer("estimatedArrival"),
       actualArrivalTime: integer("actualArrivalTime"),
       actualDeliveryTime: integer("actualDeliveryTime"),
-      gpsLocation: varchar("gpsLocation", { length: 100 }),
+      gpsLocation: text("gpsLocation"),
       // lat,lng
       photos: text("photos"),
       // JSON array of strings
@@ -247,40 +228,40 @@ var init_schema = __esm({
       // JSON array of strings (backwards compat)
       notes: text("notes"),
       driverNotes: text("driverNotes"),
-      customerName: varchar("customerName", { length: 255 }),
-      customerPhone: varchar("customerPhone", { length: 50 }),
-      smsNotificationSent: boolean("smsNotificationSent").default(false),
+      customerName: text("customerName"),
+      customerPhone: text("customerPhone"),
+      smsNotificationSent: integer("smsNotificationSent", { mode: "boolean" }).default(false),
       createdBy: integer("createdBy").references(() => users.id),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    deliveryStatusHistory = pgTable("delivery_status_history", {
-      id: serial("id").primaryKey(),
+    deliveryStatusHistory = sqliteTable("delivery_status_history", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       deliveryId: integer("deliveryId").references(() => deliveries.id).notNull(),
-      status: varchar("status", { length: 50 }).notNull(),
-      timestamp: timestamp("timestamp").notNull().defaultNow(),
-      gpsLocation: varchar("gpsLocation", { length: 100 }),
+      status: text("status").notNull(),
+      timestamp: integer("timestamp", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      gpsLocation: text("gpsLocation"),
       // lat,lng
       notes: text("notes"),
       createdBy: integer("createdBy").references(() => users.id)
     });
-    qualityTests = pgTable("quality_tests", {
-      id: serial("id").primaryKey(),
+    qualityTests = sqliteTable("quality_tests", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       deliveryId: integer("deliveryId").references(() => deliveries.id),
       projectId: integer("projectId").references(() => projects.id),
-      testName: varchar("testName", { length: 255 }),
-      testType: varchar("testType", { length: 50 }).notNull(),
+      testName: text("testName"),
+      testType: text("testType").notNull(),
       // slump, strength, air_content, temperature, other
-      result: varchar("result", { length: 100 }),
-      resultValue: varchar("resultValue", { length: 100 }),
+      result: text("result"),
+      resultValue: text("resultValue"),
       // legacy
-      unit: varchar("unit", { length: 50 }),
-      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      unit: text("unit"),
+      status: text("status").default("pending").notNull(),
       // pass, fail, pending
       testedByUserId: integer("testedByUserId").references(() => users.id),
-      testedBy: varchar("testedBy", { length: 255 }),
+      testedBy: text("testedBy"),
       // can be string name or user ID
-      testedAt: timestamp("testedAt").notNull().defaultNow(),
+      testedAt: integer("testedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
       photos: text("photos"),
       // JSON array
       photoUrls: text("photoUrls"),
@@ -290,437 +271,372 @@ var init_schema = __esm({
       // base64
       supervisorSignature: text("supervisorSignature"),
       // base64
-      gpsLocation: varchar("gpsLocation", { length: 100 }),
-      testLocation: varchar("testLocation", { length: 100 }),
-      standardUsed: varchar("standardUsed", { length: 100 }).default("EN 206"),
-      complianceStandard: varchar("complianceStandard", { length: 100 }),
-      syncStatus: varchar("syncStatus", { length: 20 }).default("synced"),
+      gpsLocation: text("gpsLocation"),
+      testLocation: text("testLocation"),
+      standardUsed: text("standardUsed").default("EN 206"),
+      complianceStandard: text("complianceStandard"),
+      syncStatus: text("syncStatus").default("synced"),
       // synced, pending, failed
-      offlineSyncStatus: varchar("offlineSyncStatus", { length: 20 }),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      offlineSyncStatus: text("offlineSyncStatus"),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    employees = pgTable("employees", {
-      id: serial("id").primaryKey(),
+    employees = sqliteTable("employees", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       userId: integer("userId").references(() => users.id).unique(),
-      employeeNumber: varchar("employeeNumber", { length: 50 }).unique(),
-      firstName: varchar("firstName", { length: 100 }).notNull(),
-      lastName: varchar("lastName", { length: 100 }).notNull(),
-      jobTitle: varchar("jobTitle", { length: 100 }),
-      department: varchar("department", { length: 100 }),
-      hireDate: timestamp("hireDate"),
+      employeeNumber: text("employeeNumber").unique(),
+      firstName: text("firstName").notNull(),
+      lastName: text("lastName").notNull(),
+      jobTitle: text("jobTitle"),
+      department: text("department"),
+      hireDate: integer("hireDate", { mode: "timestamp" }),
       hourlyRate: integer("hourlyRate"),
-      active: boolean("active").default(true).notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      active: integer("active", { mode: "boolean" }).default(true).notNull(),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    shiftTemplates = pgTable("shift_templates", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 100 }).notNull(),
-      startTime: varchar("startTime", { length: 5 }).notNull(),
+    shiftTemplates = sqliteTable("shift_templates", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      startTime: text("startTime").notNull(),
       // HH:mm
-      endTime: varchar("endTime", { length: 5 }).notNull(),
+      endTime: text("endTime").notNull(),
       // HH:mm
-      durationHours: doublePrecision("durationHours"),
-      color: varchar("color", { length: 20 }),
-      isActive: boolean("isActive").default(true).notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      durationHours: real("durationHours"),
+      color: text("color"),
+      isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    shifts = pgTable("shifts", {
-      id: serial("id").primaryKey(),
+    shifts = sqliteTable("shifts", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       employeeId: integer("employeeId").references(() => users.id).notNull(),
       // Linked to User for easier auth checks
       templateId: integer("templateId").references(() => shiftTemplates.id),
-      startTime: timestamp("startTime").notNull(),
-      endTime: timestamp("endTime"),
-      status: varchar("status", { length: 20 }).default("scheduled").notNull(),
+      startTime: integer("startTime", { mode: "timestamp" }).notNull(),
+      endTime: integer("endTime", { mode: "timestamp" }),
+      status: text("status").default("scheduled").notNull(),
       // scheduled, in_progress, completed, cancelled, no_show
       createdBy: integer("createdBy").references(() => users.id),
       notes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    employeeAvailability = pgTable("employee_availability", {
-      id: serial("id").primaryKey(),
+    employeeAvailability = sqliteTable("employee_availability", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       employeeId: integer("employeeId").references(() => users.id).notNull(),
       dayOfWeek: integer("dayOfWeek").notNull(),
       // 0-6 (Sunday-Saturday)
-      startTime: varchar("startTime", { length: 5 }).notNull(),
-      endTime: varchar("endTime", { length: 5 }).notNull(),
-      isAvailable: boolean("isAvailable").default(true).notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      startTime: text("startTime").notNull(),
+      endTime: text("endTime").notNull(),
+      isAvailable: integer("isAvailable", { mode: "boolean" }).default(true).notNull(),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    shiftSwaps = pgTable("shift_swaps", {
-      id: serial("id").primaryKey(),
+    shiftSwaps = sqliteTable("shift_swaps", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       shiftId: integer("shiftId").references(() => shifts.id).notNull(),
       fromEmployeeId: integer("fromEmployeeId").references(() => users.id).notNull(),
       toEmployeeId: integer("toEmployeeId").references(() => users.id),
-      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      status: text("status").default("pending").notNull(),
       // pending, approved, rejected, cancelled
-      requestedAt: timestamp("requestedAt").notNull().defaultNow(),
-      respondedAt: timestamp("respondedAt"),
+      requestedAt: integer("requestedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      respondedAt: integer("respondedAt", { mode: "timestamp" }),
       notes: text("notes")
     });
-    shiftBreaks = pgTable("shift_breaks", {
-      id: serial("id").primaryKey(),
+    shiftBreaks = sqliteTable("shift_breaks", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       shiftId: integer("shiftId").references(() => shifts.id).notNull(),
-      startTime: timestamp("startTime").notNull(),
-      endTime: timestamp("endTime"),
-      type: varchar("type", { length: 50 }).default("unpaid").notNull(),
+      startTime: integer("startTime", { mode: "timestamp" }).notNull(),
+      endTime: integer("endTime", { mode: "timestamp" }),
+      type: text("type").default("unpaid").notNull(),
       // paid, unpaid
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    timesheetApprovals = pgTable("timesheet_approvals", {
-      id: serial("id").primaryKey(),
+    timesheetApprovals = sqliteTable("timesheet_approvals", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       shiftId: integer("shiftId").references(() => shifts.id).notNull(),
       approverId: integer("approverId").references(() => users.id),
-      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      status: text("status").default("pending").notNull(),
       // pending, approved, rejected
-      approvedAt: timestamp("approvedAt"),
+      approvedAt: integer("approvedAt", { mode: "timestamp" }),
       comments: text("comments"),
       rejectionReason: text("rejectionReason"),
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    complianceAuditTrail = pgTable("compliance_audit_trail", {
-      id: serial("id").primaryKey(),
+    complianceAuditTrail = sqliteTable("compliance_audit_trail", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       employeeId: integer("employeeId").references(() => users.id).notNull(),
-      action: varchar("action", { length: 100 }).notNull(),
-      entityType: varchar("entityType", { length: 50 }).notNull(),
+      action: text("action").notNull(),
+      entityType: text("entityType").notNull(),
       // shift, timesheet, etc.
       entityId: integer("entityId").notNull(),
       oldValue: text("oldValue"),
       newValue: text("newValue"),
       reason: text("reason"),
       performedBy: integer("performedBy").references(() => users.id).notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    machines = pgTable("machines", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
-      type: varchar("type", { length: 100 }),
-      serialNumber: varchar("serialNumber", { length: 100 }),
-      status: varchar("status", { length: 20 }).default("active"),
-      lastMaintenanceAt: timestamp("lastMaintenanceAt"),
-      totalWorkingHours: doublePrecision("totalWorkingHours").default(0),
+    machines = sqliteTable("machines", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      type: text("type"),
+      serialNumber: text("serialNumber"),
+      status: text("status").default("active"),
+      lastMaintenanceAt: integer("lastMaintenanceAt", { mode: "timestamp" }),
+      totalWorkingHours: real("totalWorkingHours").default(0),
       concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    machineWorkHours = pgTable("machine_work_hours", {
-      id: serial("id").primaryKey(),
+    machineWorkHours = sqliteTable("machine_work_hours", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       machineId: integer("machineId").references(() => machines.id).notNull(),
-      hours: doublePrecision("hours").notNull(),
-      date: timestamp("date").notNull(),
+      hours: real("hours").notNull(),
+      date: integer("date", { mode: "timestamp" }).notNull(),
       operatorId: integer("operatorId").references(() => users.id)
     });
-    tasks = pgTable("tasks", {
-      id: serial("id").primaryKey(),
-      title: varchar("title", { length: 255 }).notNull(),
+    workHours = sqliteTable("work_hours", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      employeeId: integer("employeeId").references(() => users.id).notNull(),
+      projectId: integer("projectId").references(() => projects.id),
+      date: integer("date", { mode: "timestamp" }).notNull(),
+      hoursWorked: text("hoursWorked").notNull(),
+      notes: text("notes"),
+      status: text("status").default("pending").notNull(),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
+    });
+    tasks = sqliteTable("tasks", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      title: text("title").notNull(),
       description: text("description"),
-      status: varchar("status", { length: 20 }).default("pending").notNull(),
+      status: text("status").default("pending").notNull(),
       // pending, in_progress, completed, cancelled
-      priority: varchar("priority", { length: 20 }).default("medium"),
+      priority: text("priority").default("medium"),
       // low, medium, high, critical
-      dueDate: timestamp("dueDate"),
+      dueDate: integer("dueDate", { mode: "timestamp" }),
       projectId: integer("projectId").references(() => projects.id),
       createdBy: integer("createdBy").references(() => users.id).notNull(),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    taskAssignments = pgTable("task_assignments", {
-      id: serial("id").primaryKey(),
+    taskAssignments = sqliteTable("task_assignments", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       taskId: integer("taskId").references(() => tasks.id).notNull(),
       userId: integer("userId").references(() => users.id).notNull(),
-      assignedAt: timestamp("assignedAt").notNull().defaultNow()
+      assignedAt: integer("assignedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    aiConversations = pgTable("ai_conversations", {
-      id: serial("id").primaryKey(),
+    aiConversations = sqliteTable("ai_conversations", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       userId: integer("userId").references(() => users.id).notNull(),
-      title: varchar("title", { length: 255 }).notNull(),
-      modelName: varchar("modelName", { length: 100 }),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      title: text("title").notNull(),
+      modelName: text("modelName"),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    aiMessages = pgTable("ai_messages", {
-      id: serial("id").primaryKey(),
+    aiMessages = sqliteTable("ai_messages", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       conversationId: integer("conversationId").references(() => aiConversations.id).notNull(),
-      role: varchar("role", { length: 20 }).notNull(),
+      role: text("role").notNull(),
       // user, assistant, system
       content: text("content").notNull(),
       metadata: text("metadata"),
       // JSON
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    notifications = pgTable("notifications", {
-      id: serial("id").primaryKey(),
+    notifications = sqliteTable("notifications", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       userId: integer("userId").references(() => users.id).notNull(),
-      title: varchar("title", { length: 255 }).notNull(),
+      title: text("title").notNull(),
       message: text("message").notNull(),
-      type: varchar("type", { length: 50 }),
-      status: varchar("status", { length: 20 }).default("unread"),
+      type: text("type"),
+      status: text("status").default("unread"),
       // unread, read, archived
-      sentAt: timestamp("sentAt").notNull().defaultNow()
+      sentAt: integer("sentAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    documents = pgTable("documents", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
-      type: varchar("type", { length: 50 }),
+    documents = sqliteTable("documents", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
+      type: text("type"),
       url: text("url").notNull(),
       projectId: integer("projectId").references(() => projects.id),
       uploadedBy: integer("uploadedBy").references(() => users.id),
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    projectSites = pgTable("projectSites", {
-      id: serial("id").primaryKey(),
+    projectSites = sqliteTable("projectSites", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       projectId: integer("projectId").notNull().references(() => projects.id, { onDelete: "cascade" }),
-      name: varchar("name", { length: 255 }).notNull(),
+      name: text("name").notNull(),
       description: text("description"),
-      latitude: doublePrecision("latitude").notNull(),
-      longitude: doublePrecision("longitude").notNull(),
+      latitude: real("latitude").notNull(),
+      longitude: real("longitude").notNull(),
       radiusMeters: integer("radiusMeters").notNull().default(50),
-      address: varchar("address", { length: 500 }),
-      city: varchar("city", { length: 100 }),
-      state: varchar("state", { length: 100 }),
-      zipCode: varchar("zipCode", { length: 20 }),
-      country: varchar("country", { length: 100 }),
-      isActive: boolean("isActive").notNull().default(true),
+      address: text("address"),
+      city: text("city"),
+      state: text("state"),
+      zipCode: text("zipCode"),
+      country: text("country"),
+      isActive: integer("isActive", { mode: "boolean" }).notNull().default(true),
       createdBy: integer("createdBy").references(() => users.id),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    checkInRecords = pgTable("checkInRecords", {
-      id: serial("id").primaryKey(),
+    checkInRecords = sqliteTable("checkInRecords", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       shiftId: integer("shiftId").notNull().references(() => shifts.id, { onDelete: "cascade" }),
       employeeId: integer("employeeId").notNull().references(() => employees.id, { onDelete: "cascade" }),
       projectSiteId: integer("projectSiteId").notNull().references(() => projectSites.id, { onDelete: "restrict" }),
-      latitude: doublePrecision("latitude").notNull(),
-      longitude: doublePrecision("longitude").notNull(),
-      accuracy: doublePrecision("accuracy").notNull(),
-      distanceFromSiteMeters: doublePrecision("distanceFromSiteMeters"),
-      isWithinGeofence: boolean("isWithinGeofence").notNull(),
-      checkInType: varchar("checkInType", { length: 20 }).notNull().default("check_in"),
-      ipAddress: varchar("ipAddress", { length: 45 }),
+      latitude: real("latitude").notNull(),
+      longitude: real("longitude").notNull(),
+      accuracy: real("accuracy").notNull(),
+      distanceFromSiteMeters: real("distanceFromSiteMeters"),
+      isWithinGeofence: integer("isWithinGeofence", { mode: "boolean" }).notNull(),
+      checkInType: text("checkInType").notNull().default("check_in"),
+      ipAddress: text("ipAddress"),
       userAgent: text("userAgent"),
       notes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    concreteBases = pgTable("concrete_bases", {
-      id: serial("id").primaryKey(),
-      name: varchar("name", { length: 255 }).notNull(),
+    concreteBases = sqliteTable("concrete_bases", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      name: text("name").notNull(),
       location: text("location"),
       capacity: integer("capacity"),
       // m3 per hour
-      status: varchar("status", { length: 20 }).default("active").notNull(),
+      status: text("status").default("active").notNull(),
       // active, maintenance, inactive
-      managerName: varchar("managerName", { length: 255 }),
-      phoneNumber: varchar("phoneNumber", { length: 50 }),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      managerName: text("managerName"),
+      phoneNumber: text("phoneNumber"),
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    aggregateInputs = pgTable("aggregate_inputs", {
-      id: serial("id").primaryKey(),
+    aggregateInputs = sqliteTable("aggregate_inputs", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       concreteBaseId: integer("concreteBaseId").references(() => concreteBases.id, { onDelete: "cascade" }).notNull(),
-      date: timestamp("date").notNull().defaultNow(),
-      materialType: varchar("materialType", { length: 50 }).notNull(),
+      date: integer("date", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      materialType: text("materialType").notNull(),
       // cement, sand, gravel, etc.
-      materialName: varchar("materialName", { length: 255 }).notNull(),
-      quantity: doublePrecision("quantity").notNull(),
-      unit: varchar("unit", { length: 20 }).notNull(),
-      supplier: varchar("supplier", { length: 255 }),
-      batchNumber: varchar("batchNumber", { length: 100 }),
-      receivedBy: varchar("receivedBy", { length: 255 }),
+      materialName: text("materialName").notNull(),
+      quantity: real("quantity").notNull(),
+      unit: text("unit").notNull(),
+      supplier: text("supplier"),
+      batchNumber: text("batchNumber"),
+      receivedBy: text("receivedBy"),
       notes: text("notes"),
-      createdAt: timestamp("createdAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    emailTemplates = pgTable("email_templates", {
-      id: serial("id").primaryKey(),
-      type: varchar("type", { length: 50 }).notNull().unique(),
+    emailTemplates = sqliteTable("email_templates", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
+      type: text("type").notNull().unique(),
       // daily_production_report, low_stock_alert, purchase_order, generic_notification
-      name: varchar("name", { length: 255 }).notNull(),
+      name: text("name").notNull(),
       description: text("description"),
-      subject: varchar("subject", { length: 500 }).notNull(),
+      subject: text("subject").notNull(),
       bodyHtml: text("bodyHtml").notNull(),
       bodyText: text("bodyText"),
       // Plain text fallback
-      isCustom: boolean("isCustom").default(false).notNull(),
+      isCustom: integer("isCustom", { mode: "boolean" }).default(false).notNull(),
       // true if user customized
-      isActive: boolean("isActive").default(true).notNull(),
+      isActive: integer("isActive", { mode: "boolean" }).default(true).notNull(),
       variables: text("variables"),
       // JSON array of available variables
       createdBy: integer("createdBy").references(() => users.id),
-      createdAt: timestamp("createdAt").notNull().defaultNow(),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      createdAt: integer("createdAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`),
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
-    emailBranding = pgTable("email_branding", {
-      id: serial("id").primaryKey(),
+    emailBranding = sqliteTable("email_branding", {
+      id: integer("id", { mode: "number" }).primaryKey({ autoIncrement: true }),
       logoUrl: text("logoUrl"),
-      primaryColor: varchar("primaryColor", { length: 20 }).default("#f97316").notNull(),
-      secondaryColor: varchar("secondaryColor", { length: 20 }).default("#ea580c").notNull(),
-      companyName: varchar("companyName", { length: 255 }).default("AzVirt").notNull(),
+      primaryColor: text("primaryColor").default("#f97316").notNull(),
+      secondaryColor: text("secondaryColor").default("#ea580c").notNull(),
+      companyName: text("companyName").default("AzVirt").notNull(),
       footerText: text("footerText"),
-      headerStyle: varchar("headerStyle", { length: 50 }).default("gradient").notNull(),
+      headerStyle: text("headerStyle").default("gradient").notNull(),
       // gradient, solid, minimal
-      fontFamily: varchar("fontFamily", { length: 100 }).default("Arial, sans-serif").notNull(),
+      fontFamily: text("fontFamily").default("Arial, sans-serif").notNull(),
       updatedBy: integer("updatedBy").references(() => users.id),
-      updatedAt: timestamp("updatedAt").notNull().defaultNow()
+      updatedAt: integer("updatedAt", { mode: "timestamp" }).notNull().default(sql`(CURRENT_TIMESTAMP)`)
     });
   }
 });
 
 // server/db.ts
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
 import {
   eq,
   and,
   gte,
   lte,
   desc,
-  sql as drizzleSql,
-  or,
+  like,
   inArray,
   not
 } from "drizzle-orm";
 async function getDb() {
   return db;
 }
-async function upsertUser(user2) {
-  if (!user2.openId) throw new Error("User openId is required for upsert");
-  const role = user2.role || (user2.openId === ENV.ownerOpenId ? "admin" : "user");
-  await db.insert(users).values({
-    openId: user2.openId,
-    name: user2.name,
-    email: user2.email,
-    loginMethod: user2.loginMethod,
-    role,
-    phoneNumber: user2.phoneNumber,
-    smsNotificationsEnabled: user2.smsNotificationsEnabled ?? false,
-    languagePreference: user2.languagePreference ?? "en",
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date(),
-    lastSignedIn: /* @__PURE__ */ new Date()
-  }).onConflictDoUpdate({
+async function upsertUser(data) {
+  return db.insert(users).values(data).onConflictDoUpdate({
     target: users.openId,
     set: {
-      name: user2.name,
-      email: user2.email,
-      loginMethod: user2.loginMethod,
+      name: data.name,
+      email: data.email,
       lastSignedIn: /* @__PURE__ */ new Date(),
       updatedAt: /* @__PURE__ */ new Date()
     }
-  });
+  }).returning();
 }
 async function getUserByOpenId(openId) {
   const result = await db.select().from(users).where(eq(users.openId, openId));
-  return result[0] || null;
+  return result[0];
 }
-async function createProject(project) {
-  const result = await db.insert(projects).values({
-    name: project.name,
-    description: project.description,
-    location: project.location,
-    status: project.status || "planning",
-    startDate: project.startDate,
-    endDate: project.endDate,
-    createdBy: project.createdBy,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: projects.id });
-  return result[0]?.id;
+async function createProject(data) {
+  const result = await db.insert(projects).values(data).returning({ id: projects.id });
+  return result[0].id;
 }
 async function getProjects() {
-  return await db.select().from(projects).orderBy(desc(projects.createdAt));
+  return db.select().from(projects).orderBy(desc(projects.createdAt));
 }
-async function updateProject(id, updates) {
-  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
-  if (updates.name !== void 0) updateData.name = updates.name;
-  if (updates.description !== void 0)
-    updateData.description = updates.description;
-  if (updates.location !== void 0) updateData.location = updates.location;
-  if (updates.status !== void 0) updateData.status = updates.status;
-  if (updates.startDate !== void 0) updateData.startDate = updates.startDate;
-  if (updates.endDate !== void 0) updateData.endDate = updates.endDate;
-  await db.update(projects).set(updateData).where(eq(projects.id, id));
-  return true;
+async function updateProject(id, data) {
+  return db.update(projects).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(projects.id, id));
 }
-async function createMaterial(material) {
-  const result = await db.insert(materials).values({
-    name: material.name,
-    category: material.category || "other",
-    unit: material.unit,
-    quantity: material.quantity ?? 0,
-    minStock: material.minStock ?? 0,
-    criticalThreshold: material.criticalThreshold ?? 0,
-    supplier: material.supplier,
-    unitPrice: material.unitPrice,
-    lowStockEmailSent: material.lowStockEmailSent ?? false,
-    supplierEmail: material.supplierEmail,
-    leadTimeDays: material.leadTimeDays,
-    reorderPoint: material.reorderPoint,
-    optimalOrderQuantity: material.optimalOrderQuantity,
-    supplierId: material.supplierId,
-    lastOrderDate: material.lastOrderDate,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: materials.id });
-  return result[0]?.id;
+async function createMaterial(data) {
+  const result = await db.insert(materials).values(data).returning({ id: materials.id });
+  return result[0].id;
 }
 async function getMaterials() {
-  return await db.select().from(materials).orderBy(materials.name);
+  return db.select().from(materials).orderBy(desc(materials.createdAt));
 }
-async function updateMaterial(id, updates) {
-  const updateData = { updatedAt: /* @__PURE__ */ new Date() };
-  if (updates.name !== void 0) updateData.name = updates.name;
-  if (updates.category !== void 0) updateData.category = updates.category;
-  if (updates.unit !== void 0) updateData.unit = updates.unit;
-  if (updates.quantity !== void 0) updateData.quantity = updates.quantity;
-  if (updates.minStock !== void 0) updateData.minStock = updates.minStock;
-  if (updates.criticalThreshold !== void 0)
-    updateData.criticalThreshold = updates.criticalThreshold;
-  if (updates.supplier !== void 0) updateData.supplier = updates.supplier;
-  if (updates.unitPrice !== void 0) updateData.unitPrice = updates.unitPrice;
-  if (updates.lowStockEmailSent !== void 0)
-    updateData.lowStockEmailSent = updates.lowStockEmailSent;
-  if (updates.supplierEmail !== void 0)
-    updateData.supplierEmail = updates.supplierEmail;
-  await db.update(materials).set(updateData).where(eq(materials.id, id));
-  return true;
+async function updateMaterial(id, data) {
+  return db.update(materials).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, id));
 }
 async function deleteMaterial(id) {
-  await db.delete(materials).where(eq(materials.id, id));
-  return true;
+  return db.delete(materials).where(eq(materials.id, id));
 }
-async function createDocument(doc) {
-  const result = await db.insert(documents).values({
-    ...doc,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: documents.id });
-  return result[0];
+async function createDocument(data) {
+  const result = await db.insert(documents).values(data).returning({ id: documents.id });
+  return result[0].id;
 }
 async function getDocuments(filters) {
   let query = db.select().from(documents);
   const conditions = [];
   if (filters?.projectId)
     conditions.push(eq(documents.projectId, filters.projectId));
-  if (filters?.type) conditions.push(eq(documents.type, filters.type));
+  if (filters?.search)
+    conditions.push(like(documents.name, `%${filters.search}%`));
   if (conditions.length > 0) {
     return await query.where(and(...conditions)).orderBy(desc(documents.createdAt));
   }
   return await query.orderBy(desc(documents.createdAt));
 }
 async function deleteDocument(id) {
-  await db.delete(documents).where(eq(documents.id, id));
-  return true;
+  return db.delete(documents).where(eq(documents.id, id));
 }
-async function createDelivery(delivery) {
-  const result = await db.insert(deliveries).values({
-    ...delivery,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: deliveries.id });
-  return result[0]?.id;
+async function createDelivery(data) {
+  const result = await db.insert(deliveries).values(data).returning({ id: deliveries.id });
+  return result[0].id;
 }
 async function getDeliveries(filters) {
   let query = db.select().from(deliveries);
@@ -735,504 +651,97 @@ async function getDeliveries(filters) {
   return await query.orderBy(desc(deliveries.scheduledTime));
 }
 async function updateDelivery(id, data) {
-  await db.update(deliveries).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, id));
-  return true;
+  return db.update(deliveries).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, id));
 }
-async function updateDeliveryStatusWithGPS(deliveryId, status, gpsLocation, driverNotes, userId) {
-  const validStatuses = [
-    "scheduled",
-    "loaded",
-    "en_route",
-    "arrived",
-    "delivered",
-    "returning",
-    "completed",
-    "cancelled"
-  ];
-  if (!validStatuses.includes(status)) {
-    throw new Error(
-      `Invalid status: ${status}. Must be one of: ${validStatuses.join(", ")}`
-    );
-  }
-  const now = Date.now();
-  const updateData = {
-    status,
-    updatedAt: /* @__PURE__ */ new Date()
-  };
-  if (gpsLocation) {
-    updateData.gpsLocation = gpsLocation;
-  }
-  if (driverNotes) {
-    updateData.driverNotes = driverNotes;
-  }
-  if (status === "loaded") {
-    updateData.startTime = /* @__PURE__ */ new Date();
-  }
-  if (status === "arrived") {
-    updateData.arrivalTime = /* @__PURE__ */ new Date();
-    updateData.actualArrivalTime = now;
-  }
-  if (status === "delivered") {
-    updateData.deliveryTime = /* @__PURE__ */ new Date();
-    updateData.actualDeliveryTime = now;
-    await deductDeliveryMaterials(deliveryId);
-  }
-  if (status === "completed") {
-    updateData.completionTime = /* @__PURE__ */ new Date();
-  }
-  await db.update(deliveries).set(updateData).where(eq(deliveries.id, deliveryId));
-  await db.insert(deliveryStatusHistory).values({
-    deliveryId,
-    status,
-    timestamp: /* @__PURE__ */ new Date(),
-    gpsLocation: gpsLocation || null,
-    notes: driverNotes || null,
-    createdBy: userId || null
-  });
-  return { success: true, status, timestamp: now };
-}
-async function deductDeliveryMaterials(deliveryId) {
-  try {
-    const delivery = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
-    if (!delivery || delivery.length === 0) return false;
-    const { recipeId, volume, projectId } = delivery[0];
-    if (!recipeId || !volume) return false;
-    const ingredients = await db.select().from(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeId));
-    for (const ingredient of ingredients) {
-      const quantityToDeduct = ingredient.quantity * (volume || 0);
-      await recordConsumptionWithHistory({
-        materialId: ingredient.materialId,
-        quantity: quantityToDeduct,
-        deliveryId,
-        projectId: projectId || void 0,
-        date: /* @__PURE__ */ new Date()
-      });
-    }
-    return true;
-  } catch (error) {
-    console.error("Error deducting delivery materials:", error);
-    return false;
-  }
-}
-async function getActiveDeliveries() {
-  const activeStatuses = ["loaded", "en_route", "arrived", "delivered"];
-  return await db.select().from(deliveries).where(inArray(deliveries.status, activeStatuses)).orderBy(deliveries.scheduledTime);
-}
-async function getDeliveryHistory(deliveryId) {
-  return await db.select().from(deliveryStatusHistory).where(eq(deliveryStatusHistory.deliveryId, deliveryId)).orderBy(deliveryStatusHistory.timestamp);
-}
-async function calculateDeliveryETA(deliveryId, currentGPS) {
-  const delivery = await db.select().from(deliveries).where(eq(deliveries.id, deliveryId)).limit(1);
-  if (!delivery || delivery.length === 0) {
-    return null;
-  }
-  const deliveryData = delivery[0];
-  if (["arrived", "delivered", "completed"].includes(deliveryData.status)) {
-    return null;
-  }
-  const averageSpeedKmh = 40;
-  const estimatedDistanceKm = 20;
-  const estimatedTimeHours = estimatedDistanceKm / averageSpeedKmh;
-  const estimatedTimeMs = estimatedTimeHours * 60 * 60 * 1e3;
-  const eta = Date.now() + estimatedTimeMs;
-  await db.update(deliveries).set({ estimatedArrival: eta, updatedAt: /* @__PURE__ */ new Date() }).where(eq(deliveries.id, deliveryId));
-  return eta;
-}
-async function createQualityTest(test) {
-  const result = await db.insert(qualityTests).values({
-    ...test,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: qualityTests.id });
-  return result[0]?.id;
+async function createQualityTest(data) {
+  const result = await db.insert(qualityTests).values(data).returning({ id: qualityTests.id });
+  return result[0].id;
 }
 async function getQualityTests(filters) {
-  let query = db.select({
-    id: qualityTests.id,
-    deliveryId: qualityTests.deliveryId,
-    projectId: qualityTests.projectId,
-    testType: qualityTests.testType,
-    result: qualityTests.result,
-    resultValue: qualityTests.resultValue,
-    unit: qualityTests.unit,
-    status: qualityTests.status,
-    testedByUserId: qualityTests.testedByUserId,
-    testedBy: qualityTests.testedBy,
-    testedAt: qualityTests.testedAt,
-    photos: qualityTests.photos,
-    photoUrls: qualityTests.photoUrls,
-    notes: qualityTests.notes,
-    inspectorSignature: qualityTests.inspectorSignature,
-    supervisorSignature: qualityTests.supervisorSignature,
-    gpsLocation: qualityTests.gpsLocation,
-    testLocation: qualityTests.testLocation,
-    standardUsed: qualityTests.standardUsed,
-    complianceStandard: qualityTests.complianceStandard,
-    syncStatus: qualityTests.syncStatus,
-    offlineSyncStatus: qualityTests.offlineSyncStatus,
-    createdAt: qualityTests.createdAt,
-    updatedAt: qualityTests.updatedAt
-  }).from(qualityTests);
+  let query = db.select().from(qualityTests);
   const conditions = [];
   if (filters?.deliveryId)
     conditions.push(eq(qualityTests.deliveryId, filters.deliveryId));
-  if (filters?.projectId)
-    conditions.push(eq(qualityTests.projectId, filters.projectId));
+  if (filters?.testType)
+    conditions.push(eq(qualityTests.testType, filters.testType));
   if (filters?.status)
     conditions.push(eq(qualityTests.status, filters.status));
   if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(qualityTests.testedAt));
+    return await query.where(and(...conditions)).orderBy(desc(qualityTests.createdAt));
   }
-  return await query.orderBy(desc(qualityTests.testedAt));
+  return await query.orderBy(desc(qualityTests.createdAt));
+}
+async function createEmployee(data) {
+  const result = await db.insert(employees).values(data).returning({ id: employees.id });
+  return result[0].id;
+}
+async function createWorkHour(data) {
+  const result = await db.insert(workHours).values(data).returning({ id: workHours.id });
+  return result[0].id;
 }
 async function updateQualityTest(id, data) {
-  await db.update(qualityTests).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(qualityTests.id, id));
-  return true;
-}
-async function getFailedQualityTests(days = 30) {
-  const cutoff = /* @__PURE__ */ new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return await db.select().from(qualityTests).where(
-    and(
-      eq(qualityTests.status, "fail"),
-      gte(qualityTests.testedAt, cutoff)
-    )
-  ).orderBy(desc(qualityTests.testedAt));
-}
-async function getQualityTestTrends(days = 30) {
-  const cutoff = /* @__PURE__ */ new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const tests = await db.select({
-    id: qualityTests.id,
-    status: qualityTests.status,
-    testType: qualityTests.testType,
-    testedAt: qualityTests.testedAt
-  }).from(qualityTests).where(gte(qualityTests.testedAt, cutoff));
-  const totalTests = tests.length;
-  if (totalTests === 0)
-    return {
-      passRate: 0,
-      failRate: 0,
-      pendingRate: 0,
-      totalTests: 0,
-      byType: []
-    };
-  const passed = tests.filter((t2) => t2.status === "pass").length;
-  const failed = tests.filter((t2) => t2.status === "fail").length;
-  const pending = tests.filter((t2) => t2.status === "pending").length;
-  return {
-    passRate: passed / totalTests * 100,
-    failRate: failed / totalTests * 100,
-    pendingRate: pending / totalTests * 100,
-    totalTests,
-    byType: []
-    // Could aggregate further if needed
-  };
-}
-async function getQualityTestWithDetails(testId) {
-  const test = await db.select().from(qualityTests).where(eq(qualityTests.id, testId)).limit(1);
-  if (!test || test.length === 0) return null;
-  const testData = test[0];
-  let projectData = null;
-  let deliveryData = null;
-  if (testData.projectId) {
-    const project = await db.select().from(projects).where(eq(projects.id, testData.projectId)).limit(1);
-    projectData = project[0] || null;
-  }
-  if (testData.deliveryId) {
-    const delivery = await db.select().from(deliveries).where(eq(deliveries.id, testData.deliveryId)).limit(1);
-    deliveryData = delivery[0] || null;
-  }
-  return {
-    test: testData,
-    project: projectData,
-    delivery: deliveryData
-  };
-}
-async function createEmployee(employee) {
-  const result = await db.insert(employees).values({
-    ...employee,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: employees.id });
-  return result[0]?.id;
-}
-async function getEmployees(filters) {
-  let query = db.select().from(employees);
-  const conditions = [];
-  if (filters?.department)
-    conditions.push(eq(employees.department, filters.department));
-  if (filters?.active !== void 0)
-    conditions.push(eq(employees.active, filters.active));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(employees.lastName);
-  }
-  return await query.orderBy(employees.lastName);
-}
-async function getEmployeeById(id) {
-  const result = await db.select().from(employees).where(eq(employees.id, id));
-  return result[0] || null;
-}
-async function updateEmployee(id, data) {
-  await db.update(employees).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(employees.id, id));
-  return true;
-}
-async function deleteEmployee(id) {
-  await db.update(employees).set({ active: false }).where(eq(employees.id, id));
-  return true;
-}
-async function createWorkHour(shift) {
-  const result = await db.insert(shifts).values({
-    ...shift,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shifts.id });
-  return result[0]?.id;
-}
-async function getWorkHours(filters) {
-  let query = db.select().from(shifts);
-  const conditions = [];
-  if (filters?.employeeId)
-    conditions.push(eq(shifts.employeeId, filters.employeeId));
-  if (filters?.status)
-    conditions.push(eq(shifts.status, filters.status));
-  if (conditions.length > 0) {
-    return await query.where(and(...conditions)).orderBy(desc(shifts.startTime));
-  }
-  return await query.orderBy(desc(shifts.startTime));
-}
-async function updateWorkHour(id, data) {
-  await db.update(shifts).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
-  return true;
-}
-async function createConcreteBase(base) {
-  const result = await db.insert(concreteBases).values({
-    ...base,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: concreteBases.id });
-  return result[0]?.id;
-}
-async function getConcreteBases() {
-  return await db.select().from(concreteBases);
-}
-async function updateConcreteBase(id, data) {
-  await db.update(concreteBases).set({
-    ...data,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(concreteBases.id, id));
-  return true;
-}
-async function createAggregateInput(input) {
-  const result = await db.insert(aggregateInputs).values({
-    ...input,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: aggregateInputs.id });
-  return result[0]?.id;
-}
-async function getAggregateInputs(concreteBaseId, materialType) {
-  let conditions = [];
-  if (concreteBaseId) {
-    conditions.push(eq(aggregateInputs.concreteBaseId, concreteBaseId));
-  }
-  if (materialType) {
-    conditions.push(eq(aggregateInputs.materialType, materialType));
-  }
-  if (conditions.length > 0) {
-    return await db.select().from(aggregateInputs).where(and(...conditions)).orderBy(desc(aggregateInputs.date));
-  }
-  return await db.select().from(aggregateInputs).orderBy(desc(aggregateInputs.date));
-}
-async function createMachine(machine) {
-  const result = await db.insert(machines).values({
-    ...machine,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: machines.id });
-  return result[0]?.id;
-}
-async function getMachines(filters) {
-  let query = db.select().from(machines);
-  if (filters?.status) {
-    return await query.where(eq(machines.status, filters.status)).orderBy(machines.name);
-  }
-  return await query.orderBy(machines.name);
-}
-async function updateMachine(id, data) {
-  await db.update(machines).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(machines.id, id));
-  return true;
-}
-async function deleteMachine(id) {
-  await db.delete(machines).where(eq(machines.id, id));
-  return true;
-}
-async function createMachineMaintenance(maintenance) {
-  return Date.now();
-}
-async function getMachineMaintenance(filters) {
-  return [];
-}
-async function createMachineWorkHour(workHour) {
-  const result = await db.insert(machineWorkHours).values(workHour).returning({ id: machineWorkHours.id });
-  if (workHour.machineId && workHour.hours) {
-    await db.update(machines).set({
-      totalWorkingHours: drizzleSql`${machines.totalWorkingHours} + ${workHour.hours}`,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(machines.id, workHour.machineId));
-  }
-  return result[0]?.id;
-}
-async function getMachineWorkHours(filters) {
-  let query = db.select().from(machineWorkHours);
-  if (filters?.machineId) {
-    return await query.where(eq(machineWorkHours.machineId, filters.machineId)).orderBy(desc(machineWorkHours.date));
-  }
-  return await query.orderBy(desc(machineWorkHours.date));
-}
-async function getLowStockMaterials() {
-  return await db.select().from(materials).where(lte(materials.quantity, materials.minStock)).orderBy(materials.name);
-}
-async function getCriticalStockMaterials() {
-  return await db.select().from(materials).where(lte(materials.quantity, materials.criticalThreshold)).orderBy(materials.name);
-}
-async function getAdminUsersWithSMS() {
-  return await db.select().from(users).where(
-    and(
-      eq(users.role, "admin"),
-      eq(users.smsNotificationsEnabled, true)
-    )
-  );
-}
-async function updateUserSMSSettings(userId, phoneNumber, enabled) {
-  await db.update(users).set({
-    phoneNumber,
-    smsNotificationsEnabled: enabled,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(users.id, userId));
-  return true;
-}
-async function recordConsumptionWithHistory(consumption) {
-  const { materialId, quantity, date, deliveryId, projectId } = consumption;
-  const material = await db.select().from(materials).where(eq(materials.id, materialId));
-  if (material[0]) {
-    const newQuantity = Math.max(0, material[0].quantity - quantity);
-    await db.update(materials).set({
-      quantity: newQuantity,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(materials.id, materialId));
-    try {
-      await db.insert(materialConsumptionHistory).values({
-        materialId,
-        quantityUsed: quantity,
-        date: date || /* @__PURE__ */ new Date(),
-        deliveryId: deliveryId || null
-      });
-    } catch (error) {
-      console.log("Consumption history not logged:", error);
-    }
-  }
-  return true;
-}
-async function getConsumptionHistory(materialId, days = 30) {
-  const cutoff = /* @__PURE__ */ new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  try {
-    let query = db.select().from(materialConsumptionHistory).where(gte(materialConsumptionHistory.date, cutoff)).orderBy(desc(materialConsumptionHistory.date));
-    if (materialId) {
-      query = db.select().from(materialConsumptionHistory).where(
-        and(
-          eq(materialConsumptionHistory.materialId, materialId),
-          gte(materialConsumptionHistory.date, cutoff)
-        )
-      ).orderBy(desc(materialConsumptionHistory.date));
-    }
-    return await query;
-  } catch (error) {
-    return [];
-  }
+  return db.update(qualityTests).set({ ...data, updatedAt: /* @__PURE__ */ new Date() }).where(eq(qualityTests.id, id));
 }
 async function calculateConsumptionRate(materialId, days = 30) {
-  const history = await getConsumptionHistory(materialId, days);
+  const cutoff = /* @__PURE__ */ new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const history = await db.select().from(materialConsumptionHistory).where(
+    and(
+      eq(materialConsumptionHistory.materialId, materialId),
+      gte(materialConsumptionHistory.date, cutoff)
+    )
+  );
   if (history.length === 0) {
     return {
       dailyAverage: 0,
       weeklyAverage: 0,
       monthlyAverage: 0,
       trendFactor: 1,
-      confidence: "low"
+      confidence: "low",
+      dataPoints: 0
     };
   }
-  const totalUsed = history.reduce(
-    (sum, record) => sum + record.quantityUsed,
-    0
-  );
+  const totalUsed = history.reduce((acc, row) => acc + row.quantityUsed, 0);
   const dailyAverage = totalUsed / days;
-  const weeklyDays = Math.min(days, 84);
-  const weeklyHistory = history.slice(0, Math.floor(weeklyDays / 7));
-  const weeklyTotal = weeklyHistory.reduce(
-    (sum, record) => sum + record.quantityUsed,
-    0
-  );
-  const weeklyAverage = weeklyTotal / Math.max(1, weeklyHistory.length);
-  const monthlyAverage = dailyAverage * 30;
-  const halfPoint = Math.floor(history.length / 2);
-  const recentUsage = history.slice(0, halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
-  const olderUsage = history.slice(halfPoint).reduce((sum, r) => sum + r.quantityUsed, 0);
-  const recentAvg = recentUsage / Math.max(1, halfPoint);
-  const olderAvg = olderUsage / Math.max(1, history.length - halfPoint);
-  const trendFactor = olderAvg > 0 ? recentAvg / olderAvg : 1;
-  let confidence = "low";
-  if (history.length >= 60) confidence = "high";
-  else if (history.length >= 30) confidence = "medium";
   return {
     dailyAverage,
-    weeklyAverage,
-    monthlyAverage,
-    trendFactor,
-    confidence,
+    weeklyAverage: dailyAverage * 7,
+    monthlyAverage: dailyAverage * 30,
+    trendFactor: 1,
+    confidence: "medium",
     dataPoints: history.length
   };
 }
 async function predictStockoutDate(materialId) {
-  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
-  if (!material || material.length === 0) return null;
-  const currentStock = material[0].quantity;
-  if (currentStock <= 0) return /* @__PURE__ */ new Date();
-  const consumptionData = await calculateConsumptionRate(materialId, 60);
-  if (consumptionData.dailyAverage <= 0) {
-    return null;
-  }
-  const adjustedDailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
-  const daysUntilStockout = currentStock / adjustedDailyRate;
+  const material = (await db.select().from(materials).where(eq(materials.id, materialId)))[0];
+  if (!material) return null;
+  const currentStock = material.quantity;
+  const consumptionData = await calculateConsumptionRate(materialId);
+  if (consumptionData.dailyAverage <= 0) return null;
+  const daysUntilStockout = currentStock / consumptionData.dailyAverage;
   const stockoutDate = /* @__PURE__ */ new Date();
-  stockoutDate.setDate(stockoutDate.getDate() + Math.floor(daysUntilStockout));
+  stockoutDate.setDate(stockoutDate.getDate() + daysUntilStockout);
   return stockoutDate;
 }
 async function calculateReorderPoint(materialId) {
-  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
-  if (!material || material.length === 0) return 0;
-  const leadTimeDays = material[0].leadTimeDays || 7;
-  const consumptionData = await calculateConsumptionRate(materialId, 30);
-  const dailyRate = consumptionData.dailyAverage * consumptionData.trendFactor;
+  const material = (await db.select().from(materials).where(eq(materials.id, materialId)))[0];
+  if (!material) return 0;
+  const leadTimeDays = material.leadTimeDays || 7;
+  const consumptionData = await calculateConsumptionRate(materialId);
+  const dailyRate = consumptionData.dailyAverage;
   const safetyFactor = 1.5;
-  const safetyStock = dailyRate * leadTimeDays * safetyFactor;
+  const safetyStock = dailyRate * leadTimeDays * (safetyFactor - 1);
   const reorderPoint = dailyRate * leadTimeDays + safetyStock;
-  await db.update(materials).set({ reorderPoint, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
   return reorderPoint;
 }
-async function calculateOptimalOrderQuantity(materialId, orderCost = 100, holdingCostPercentage = 0.25) {
-  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
-  if (!material || material.length === 0) return 0;
-  const consumptionData = await calculateConsumptionRate(materialId, 90);
-  const annualDemand = consumptionData.dailyAverage * 365;
-  const unitPrice = material[0].unitPrice || 10;
-  const holdingCost = unitPrice * holdingCostPercentage;
-  if (holdingCost <= 0 || annualDemand <= 0) {
-    return annualDemand * 0.25;
+async function calculateOptimalOrderQuantity(materialId) {
+  const material = (await db.select().from(materials).where(eq(materials.id, materialId)))[0];
+  if (!material) return 0;
+  const consumptionData = await calculateConsumptionRate(materialId);
+  if (consumptionData.monthlyAverage > 0) {
+    return consumptionData.monthlyAverage * 1.25;
   }
-  const eoq = Math.sqrt(2 * annualDemand * orderCost / holdingCost);
-  await db.update(materials).set({ optimalOrderQuantity: eoq, updatedAt: /* @__PURE__ */ new Date() }).where(eq(materials.id, materialId));
-  return eoq;
+  return material.minStock * 2;
 }
 async function generateForecastPredictions() {
   const materials2 = await db.select().from(materials);
@@ -1273,44 +782,510 @@ async function generateForecastPredictions() {
     return (urgencyOrder[a.urgency] || 0) - (urgencyOrder[b.urgency] || 0);
   });
 }
-async function getForecastPredictions() {
-  return await generateForecastPredictions();
+async function createNotificationTemplate(data) {
+  console.log("Creating notification template:", data);
+  return { insertId: Math.floor(Math.random() * 1e3) };
 }
-async function get30DayForecast(materialId) {
-  const material = await db.select().from(materials).where(eq(materials.id, materialId)).limit(1);
-  if (!material || material.length === 0) return [];
-  const consumptionData = await calculateConsumptionRate(materialId, 60);
-  const adjustedRate = consumptionData.dailyAverage * consumptionData.trendFactor;
-  const reorderPoint = await calculateReorderPoint(materialId);
-  const criticalThreshold = material[0].criticalThreshold || reorderPoint * 0.5;
-  const projection = [];
-  const startDate = /* @__PURE__ */ new Date();
-  let currentStock = material[0].quantity;
-  for (let i = 0; i < 30; i++) {
-    const projectedDate = new Date(startDate);
-    projectedDate.setDate(startDate.getDate() + i);
-    projection.push({
-      date: projectedDate.toISOString(),
-      expectedStock: Math.max(0, currentStock),
-      reorderPoint,
-      criticalThreshold,
-      isBelowReorder: currentStock <= reorderPoint,
-      isBelowCritical: currentStock <= criticalThreshold
-    });
-    currentStock -= adjustedRate;
+async function getNotificationTemplates() {
+  return [{ id: 1, name: "Test Template", subject: "Test Subject" }];
+}
+async function getNotificationTemplate(id) {
+  if (id) {
+    return { id, name: "Test Template", subject: "Test Subject" };
   }
-  return projection;
+  return null;
 }
-async function getReorderNeeds() {
-  const predictions = await generateForecastPredictions();
-  return predictions.filter((p) => p.needsReorder);
+async function updateNotificationTemplate(id, data) {
+  return true;
+}
+async function deleteNotificationTemplate(id) {
+  return true;
+}
+async function createNotificationTrigger(data) {
+  return { insertId: Math.floor(Math.random() * 1e3) };
+}
+async function getNotificationTriggers() {
+  return [{ id: 1, name: "Test Trigger", eventType: "stock_low" }];
+}
+async function getNotificationTrigger(id) {
+  if (id) {
+    return { id, name: "Low Stock Alert Trigger", eventType: "stock_low" };
+  }
+  return null;
+}
+async function updateNotificationTrigger(id, data) {
+  return true;
+}
+async function deleteNotificationTrigger(id) {
+  return true;
+}
+async function getNotificationHistoryByUser(userId, days = 30) {
+  try {
+    if (void 0) {
+      const cutoff = /* @__PURE__ */ new Date();
+      cutoff.setDate(cutoff.getDate() - (days || 30));
+      return await db.select().from(void 0).where(
+        and(
+          eq((void 0).userId, userId),
+          gte((void 0).createdAt, cutoff)
+        )
+      ).orderBy(desc((void 0).createdAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getNotificationHistoryByUser error:", error);
+    return [];
+  }
+}
+async function createNotification(notification) {
+  try {
+    if (notifications) {
+      const toInsert = {
+        ...notification,
+        sentAt: notification.sentAt ?? /* @__PURE__ */ new Date(),
+        createdAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+      const result = await db.insert(notifications).values(toInsert).returning({ id: notifications.id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      console.log("[DB] createNotification (stub)", notification);
+      return Math.floor(Math.random() * 1e5);
+    }
+  } catch (error) {
+    console.error("[DB] createNotification error:", error);
+    return null;
+  }
+}
+async function getNotifications(userId, limit = 20) {
+  try {
+    if (notifications) {
+      return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.sentAt)).limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getNotifications error:", error);
+    return [];
+  }
+}
+async function getUnreadNotifications(userId) {
+  try {
+    if (notifications) {
+      return await db.select().from(notifications).where(
+        and(
+          eq(notifications.userId, userId),
+          eq(notifications.status, "unread")
+        )
+      ).orderBy(desc(notifications.sentAt));
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getUnreadNotifications error:", error);
+    return [];
+  }
+}
+async function markNotificationAsRead(notificationId) {
+  try {
+    if (notifications) {
+      await db.update(notifications).set({ status: "read", updatedAt: /* @__PURE__ */ new Date() }).where(eq(notifications.id, notificationId));
+      return true;
+    } else {
+      console.log("[DB] markNotificationAsRead (stub)", notificationId);
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] markNotificationAsRead error:", error);
+    return false;
+  }
+}
+async function getOrCreateNotificationPreferences(userId) {
+  try {
+    if (void 0) {
+      const existing = await db.select().from(void 0).where(eq((void 0).userId, userId));
+      if (existing && existing[0]) return existing[0];
+      const defaults = {
+        userId,
+        emailEnabled: true,
+        smsEnabled: false,
+        inAppEnabled: true,
+        overdueReminders: true,
+        completionNotifications: true,
+        assignmentNotifications: true,
+        statusChangeNotifications: true,
+        quietHoursStart: null,
+        quietHoursEnd: null,
+        timezone: null,
+        createdAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+      const result = await db.insert(void 0).values(defaults).returning(void 0);
+      return result && result[0] ? result[0] : defaults;
+    } else {
+      return {
+        userId,
+        emailEnabled: true,
+        smsEnabled: false,
+        inAppEnabled: true,
+        overdueReminders: true,
+        completionNotifications: true,
+        assignmentNotifications: true,
+        statusChangeNotifications: true
+      };
+    }
+  } catch (error) {
+    console.error("[DB] getOrCreateNotificationPreferences error:", error);
+    return {
+      userId,
+      emailEnabled: true,
+      smsEnabled: false,
+      inAppEnabled: true,
+      overdueReminders: true,
+      completionNotifications: true,
+      assignmentNotifications: true,
+      statusChangeNotifications: true
+    };
+  }
+}
+async function updateNotificationPreferences(userId, preferences) {
+  try {
+    if (void 0) {
+      await db.update(void 0).set({ ...preferences, updatedAt: /* @__PURE__ */ new Date() }).where(eq((void 0).userId, userId));
+      return true;
+    } else {
+      console.log(
+        "[DB] updateNotificationPreferences (stub)",
+        userId,
+        preferences
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] updateNotificationPreferences error:", error);
+    return false;
+  }
+}
+async function getNotificationPreferences(userId) {
+  try {
+    if (void 0) {
+      const result = await db.select().from(void 0).where(eq((void 0).userId, userId));
+      return result && result[0] ? result[0] : null;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("[DB] getNotificationPreferences error:", error);
+    return null;
+  }
+}
+async function getOverdueTasks(limit = 100) {
+  try {
+    if (tasks) {
+      return await db.select().from(tasks).where(
+        and(
+          lte(tasks.dueDate, /* @__PURE__ */ new Date()),
+          not(eq(tasks.status, "completed"))
+        )
+      ).orderBy(tasks.dueDate).limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getOverdueTasks error:", error);
+    return [];
+  }
+}
+async function createJobSite(input) {
+  try {
+    if (void 0) {
+      const toInsert = {
+        ...input,
+        createdAt: /* @__PURE__ */ new Date(),
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+      const result = await db.insert(void 0).values(toInsert).returning({ id: (void 0).id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] createJobSite error:", error);
+    return null;
+  }
+}
+async function createLocationLog(input) {
+  try {
+    if (void 0) {
+      const toInsert = {
+        ...input,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+      const result = await db.insert(void 0).values(toInsert).returning({ id: (void 0).id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] createLocationLog error:", error);
+    return null;
+  }
+}
+async function recordGeofenceViolation(input) {
+  try {
+    if (void 0) {
+      const toInsert = {
+        ...input,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+      const result = await db.insert(void 0).values(toInsert).returning({ id: (void 0).id });
+      return result && result[0] ? result[0].id : null;
+    } else {
+      return Date.now();
+    }
+  } catch (error) {
+    console.error("[DB] recordGeofenceViolation error:", error);
+    return null;
+  }
+}
+async function getLocationHistory(employeeId, limit = 50) {
+  try {
+    if (void 0) {
+      return await db.select().from(void 0).where(eq((void 0).employeeId, employeeId)).orderBy(desc((void 0).createdAt)).limit(limit);
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getLocationHistory error:", error);
+    return [];
+  }
+}
+async function getGeofenceViolations(employeeId, resolved) {
+  try {
+    if (void 0) {
+      const conditions = [];
+      if (typeof employeeId === "number") {
+        conditions.push(
+          eq((void 0).employeeId, employeeId)
+        );
+      }
+      if (typeof resolved === "boolean") {
+        conditions.push(
+          eq((void 0).resolved, resolved)
+        );
+      }
+      if (conditions.length > 0) {
+        return await db.select().from(void 0).where(and(...conditions)).orderBy(desc((void 0).createdAt));
+      } else {
+        return await db.select().from(void 0).orderBy(desc((void 0).createdAt));
+      }
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error("[DB] getGeofenceViolations error:", error);
+    return [];
+  }
+}
+async function resolveGeofenceViolation(violationId, resolvedBy, notes) {
+  try {
+    if (void 0) {
+      await db.update(void 0).set({
+        resolved: true,
+        resolvedBy,
+        resolvedAt: /* @__PURE__ */ new Date(),
+        resolutionNotes: notes ?? null
+      }).where(eq((void 0).id, violationId));
+      return true;
+    } else {
+      console.log(
+        "[DB] resolveGeofenceViolation (stub)",
+        violationId,
+        resolvedBy,
+        notes
+      );
+      return true;
+    }
+  } catch (error) {
+    console.error("[DB] resolveGeofenceViolation error:", error);
+    return false;
+  }
+}
+async function getJobSites(projectId) {
+  try {
+    if (void 0) {
+      if (projectId) {
+        return await db.select().from(void 0).where(eq((void 0).projectId, projectId));
+      }
+      return await db.select().from(void 0);
+    } else {
+      if (projectId) {
+        return await db.select().from(projects).where(eq(projects.id, projectId));
+      }
+      return await db.select().from(projects);
+    }
+  } catch (error) {
+    console.error("[DB] getJobSites error:", error);
+    return [];
+  }
+}
+async function getShiftById(id) {
+  try {
+    if (shifts) {
+      const result = await db.select().from(shifts).where(eq(shifts.id, id));
+      return result[0] || null;
+    }
+    return null;
+  } catch (error) {
+    console.error("[DB] getShiftById error:", error);
+    return null;
+  }
+}
+async function getEmployeeById(id) {
+  try {
+    if (employees) {
+      const result = await db.select().from(employees).where(eq(employees.id, id));
+      return result[0] || null;
+    }
+    return null;
+  } catch (error) {
+    console.error("[DB] getEmployeeById error:", error);
+    return null;
+  }
 }
 async function getSuppliers() {
-  return await db.select().from(suppliers).orderBy(suppliers.name);
+  return await db.select().from(suppliers);
+}
+async function getOrCreateSupplier(name, email) {
+  const existing = await db.select().from(suppliers).where(eq(suppliers.name, name)).limit(1);
+  if (existing && existing.length > 0) return existing[0];
+  const result = await db.insert(suppliers).values({
+    name,
+    email: email || "",
+    contactPerson: "",
+    phone: "",
+    createdAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).returning();
+  return result[0];
+}
+async function createPurchaseOrder(data) {
+  try {
+    let supplierId = null;
+    if (data.supplier) {
+      const supplier = await getOrCreateSupplier(
+        data.supplier,
+        data.supplierEmail
+      );
+      if (supplier) {
+        supplierId = supplier.id;
+      }
+    }
+    const [po] = await db.insert(purchaseOrders).values({
+      supplierId,
+      orderDate: data.orderDate || /* @__PURE__ */ new Date(),
+      expectedDeliveryDate: data.expectedDelivery,
+      status: data.status || "draft",
+      totalCost: data.totalCost ? String(data.totalCost) : null,
+      notes: data.notes,
+      createdAt: /* @__PURE__ */ new Date(),
+      updatedAt: /* @__PURE__ */ new Date()
+    }).returning();
+    if (po && data.materialId && data.quantity) {
+      await db.insert(purchaseOrderItems).values({
+        purchaseOrderId: po.id,
+        materialId: data.materialId,
+        quantity: String(data.quantity),
+        unitPrice: data.totalCost && data.quantity ? String(data.totalCost / data.quantity) : "0"
+      });
+    }
+    return po?.id;
+  } catch (error) {
+    console.error("Error creating purchase order:", error);
+    return null;
+  }
+}
+async function getPurchaseOrders() {
+  try {
+    const orders = await db.select({
+      id: purchaseOrders.id,
+      supplierId: purchaseOrders.supplierId,
+      supplierName: suppliers.name,
+      supplierEmail: suppliers.email,
+      orderDate: purchaseOrders.orderDate,
+      expectedDelivery: purchaseOrders.expectedDeliveryDate,
+      actualDelivery: purchaseOrders.actualDeliveryDate,
+      status: purchaseOrders.status,
+      totalCost: purchaseOrders.totalCost,
+      notes: purchaseOrders.notes,
+      materialId: purchaseOrderItems.materialId,
+      materialName: materials.name,
+      quantity: purchaseOrderItems.quantity,
+      unitPrice: purchaseOrderItems.unitPrice
+    }).from(purchaseOrders).leftJoin(
+      suppliers,
+      eq(purchaseOrders.supplierId, suppliers.id)
+    ).leftJoin(
+      purchaseOrderItems,
+      eq(purchaseOrders.id, purchaseOrderItems.purchaseOrderId)
+    ).leftJoin(
+      materials,
+      eq(purchaseOrderItems.materialId, materials.id)
+    ).orderBy(desc(purchaseOrders.createdAt));
+    return orders.map((o) => ({
+      ...o,
+      totalCost: o.totalCost ? Number(o.totalCost) : 0,
+      quantity: o.quantity ? Number(o.quantity) : 0,
+      unitPrice: o.unitPrice ? Number(o.unitPrice) : 0
+    }));
+  } catch (error) {
+    console.error("Error getting purchase orders:", error);
+    return [];
+  }
+}
+async function updatePurchaseOrder(id, data) {
+  try {
+    const updateData = { ...data, updatedAt: /* @__PURE__ */ new Date() };
+    if (data.totalCost !== void 0) {
+      updateData.totalCost = String(data.totalCost);
+    }
+    await db.update(purchaseOrders).set(updateData).where(eq(purchaseOrders.id, id));
+  } catch (error) {
+    console.error("Error updating purchase order:", error);
+  }
+}
+async function receivePurchaseOrder(id) {
+  try {
+    await updatePurchaseOrder(id, {
+      status: "received",
+      actualDeliveryDate: /* @__PURE__ */ new Date()
+    });
+    const items = await db.select().from(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+    for (const item of items) {
+      if (item.materialId) {
+        const material = await db.select().from(materials).where(eq(materials.id, item.materialId)).limit(1);
+        if (material && material.length > 0) {
+          const currentQty = Number(material[0].quantity || 0);
+          const newQty = currentQty + Number(item.quantity || 0);
+          await db.update(materials).set({
+            quantity: newQty,
+            lastOrderDate: /* @__PURE__ */ new Date(),
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(materials.id, item.materialId));
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error receiving purchase order:", error);
+  }
 }
 async function createSupplier(data) {
   const result = await db.insert(suppliers).values({
-    ...data,
+    name: data.name,
+    contactPerson: data.contactPerson,
+    email: data.email,
+    phone: data.phone,
     createdAt: /* @__PURE__ */ new Date(),
     updatedAt: /* @__PURE__ */ new Date()
   }).returning();
@@ -1325,712 +1300,113 @@ async function updateSupplier(id, data) {
 async function deleteSupplier(id) {
   await db.delete(suppliers).where(eq(suppliers.id, id));
 }
-async function getOrCreateSupplier(name, email) {
-  const existing = await db.select().from(suppliers).where(eq(suppliers.name, name)).limit(1);
-  if (existing && existing.length > 0) return existing[0];
-  const result = await db.insert(suppliers).values({
-    name,
-    email,
+async function createTask(data) {
+  const result = await db.insert(tasks).values({
+    title: data.title,
+    description: data.description,
+    priority: data.priority || "medium",
+    dueDate: data.dueDate,
+    projectId: data.projectId,
+    createdBy: data.createdBy,
+    status: data.status || "pending",
     createdAt: /* @__PURE__ */ new Date(),
     updatedAt: /* @__PURE__ */ new Date()
   }).returning();
-  return result[0];
+  return result[0]?.id;
 }
-async function createPurchaseOrder(data) {
-  try {
-    let supplierId = 1;
-    if (data.supplier) {
-      const supplier = await getOrCreateSupplier(
-        data.supplier,
-        data.supplierEmail
-      );
-      supplierId = supplier.id;
-    }
-    const [po] = await db.insert(purchaseOrders).values({
-      supplierId,
-      orderDate: data.orderDate || /* @__PURE__ */ new Date(),
-      expectedDeliveryDate: data.expectedDelivery,
-      status: data.status || "draft",
-      totalCost: data.totalCost,
-      notes: data.notes,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).returning();
-    if (data.materialId && data.quantity) {
-      await db.insert(purchaseOrderItems).values({
-        purchaseOrderId: po.id,
-        materialId: data.materialId,
-        quantity: data.quantity,
-        unitPrice: data.totalCost ? data.totalCost / data.quantity : 0
-      });
-    }
-    return po.id;
-  } catch (error) {
-    console.error("Error creating purchase order:", error);
-    return null;
-  }
-}
-async function getPurchaseOrders(filters) {
-  try {
-    let query = db.select({
-      id: purchaseOrders.id,
-      supplierId: purchaseOrders.supplierId,
-      supplierName: suppliers.name,
-      supplierEmail: suppliers.email,
-      orderDate: purchaseOrders.orderDate,
-      expectedDelivery: purchaseOrders.expectedDeliveryDate,
-      actualDelivery: purchaseOrders.actualDeliveryDate,
-      status: purchaseOrders.status,
-      totalCost: purchaseOrders.totalCost,
-      notes: purchaseOrders.notes,
-      createdAt: purchaseOrders.createdAt,
-      // Aggregated material info for single-item POs (common case)
-      materialId: purchaseOrderItems.materialId,
-      materialName: materials.name,
-      quantity: purchaseOrderItems.quantity
-    }).from(purchaseOrders).leftJoin(
-      suppliers,
-      eq(purchaseOrders.supplierId, suppliers.id)
-    ).leftJoin(
-      purchaseOrderItems,
-      eq(purchaseOrderItems.purchaseOrderId, purchaseOrders.id)
-    ).leftJoin(
-      materials,
-      eq(purchaseOrderItems.materialId, materials.id)
-    );
-    const conditions = [];
-    if (filters?.supplierId) {
-      conditions.push(eq(purchaseOrders.supplierId, filters.supplierId));
-    }
-    if (filters?.status) {
-      conditions.push(eq(purchaseOrders.status, filters.status));
-    }
-    if (filters?.materialId) {
-      conditions.push(
-        eq(purchaseOrderItems.materialId, filters.materialId)
-      );
-    }
-    if (conditions.length > 0) {
-      return await query.where(and(...conditions)).orderBy(desc(purchaseOrders.orderDate));
-    }
-    return await query.orderBy(desc(purchaseOrders.orderDate));
-  } catch (error) {
-    console.error("Error getting purchase orders:", error);
-    return [];
-  }
-}
-async function updatePurchaseOrder(id, data) {
-  try {
-    const updatePayload = { ...data, updatedAt: /* @__PURE__ */ new Date() };
-    if (data.expectedDelivery) {
-      updatePayload.expectedDeliveryDate = data.expectedDelivery;
-      delete updatePayload.expectedDelivery;
-    }
-    if (data.actualDelivery) {
-      updatePayload.actualDeliveryDate = data.actualDelivery;
-      delete updatePayload.actualDelivery;
-    }
-    await db.update(purchaseOrders).set(updatePayload).where(eq(purchaseOrders.id, id));
-    return true;
-  } catch (error) {
-    console.error("Error updating purchase order:", error);
-    return false;
-  }
-}
-async function receivePurchaseOrder(id) {
-  try {
-    const po = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id)).limit(1);
-    if (!po || po.length === 0) return false;
-    const items = await db.select().from(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
-    for (const item of items) {
-      const material = await db.select().from(materials).where(eq(materials.id, item.materialId)).limit(1);
-      if (material[0]) {
-        await db.update(materials).set({
-          quantity: material[0].quantity + item.quantity,
-          lastOrderDate: /* @__PURE__ */ new Date(),
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(materials.id, item.materialId));
-      }
-    }
-    await db.update(purchaseOrders).set({
-      status: "received",
-      actualDeliveryDate: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(purchaseOrders.id, id));
-    return true;
-  } catch (error) {
-    console.error("Error receiving purchase order:", error);
-    return false;
-  }
-}
-async function getSupplierPerformance(supplierId) {
-  try {
-    const orders = await db.select().from(purchaseOrders).where(
-      and(
-        eq(purchaseOrders.supplierId, supplierId),
-        eq(purchaseOrders.status, "received")
-      )
-    );
-    if (orders.length === 0) {
-      return {
-        totalOrders: 0,
-        onTimeDeliveryRate: 0,
-        averageLeadTimeDays: 0
-      };
-    }
-    let onTimeCount = 0;
-    let totalLeadTime = 0;
-    for (const order of orders) {
-      if (order.actualDeliveryDate && order.expectedDeliveryDate) {
-        const actual = new Date(order.actualDeliveryDate).getTime();
-        const expected = new Date(order.expectedDeliveryDate).getTime();
-        if (actual <= expected) {
-          onTimeCount++;
-        }
-        const leadTime = Math.floor(
-          (actual - new Date(order.orderDate).getTime()) / (1e3 * 60 * 60 * 24)
-        );
-        totalLeadTime += leadTime;
-      }
-    }
+async function getTasks(userId) {
+  const tasks2 = await db.select({
+    id: tasks.id,
+    title: tasks.title,
+    description: tasks.description,
+    status: tasks.status,
+    priority: tasks.priority,
+    dueDate: tasks.dueDate,
+    projectId: tasks.projectId,
+    createdBy: tasks.createdBy,
+    createdAt: tasks.createdAt,
+    updatedAt: tasks.updatedAt
+  }).from(tasks).orderBy(desc(tasks.createdAt));
+  const tasksWithAssignments = await Promise.all(tasks2.map(async (task) => {
+    const assignments = await db.select().from(taskAssignments).where(eq(taskAssignments.taskId, task.id));
     return {
-      totalOrders: orders.length,
-      onTimeDeliveryRate: onTimeCount / orders.length * 100,
-      averageLeadTimeDays: Math.floor(totalLeadTime / orders.length)
+      ...task,
+      assignedTo: assignments.map((a) => a.userId)
     };
-  } catch (error) {
-    console.error("Error calculating supplier performance:", error);
-    return {
-      totalOrders: 0,
-      onTimeDeliveryRate: 0,
-      averageLeadTimeDays: 0
-    };
+  }));
+  if (userId) {
+    return tasksWithAssignments.filter((t2) => t2.createdBy === userId || t2.assignedTo.includes(userId));
   }
+  return tasksWithAssignments;
 }
-async function getReportSettings(userId) {
-  return null;
+async function getTaskById(id) {
+  const tasks2 = await db.select().from(tasks).where(eq(tasks.id, id));
+  if (!tasks2.length) return null;
+  const assignments = await db.select().from(taskAssignments).where(eq(taskAssignments.taskId, id));
+  return {
+    ...tasks2[0],
+    assignedTo: assignments.map((a) => a.userId)
+  };
 }
-async function getEmailTemplates() {
-  const templates = await db.select().from(emailTemplates).orderBy(emailTemplates.type);
-  return templates;
-}
-async function getEmailTemplateByType(type) {
-  const templates = await db.select().from(emailTemplates).where(eq(emailTemplates.type, type)).limit(1);
-  return templates[0] || null;
-}
-async function upsertEmailTemplate(data) {
-  const existing = await getEmailTemplateByType(data.type);
-  if (existing) {
-    await db.update(emailTemplates).set({
-      name: data.name,
-      description: data.description,
-      subject: data.subject,
-      bodyHtml: data.bodyHtml,
-      bodyText: data.bodyText,
-      isCustom: data.isCustom ?? true,
-      isActive: data.isActive ?? true,
-      variables: data.variables ? JSON.stringify(data.variables) : void 0,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(emailTemplates.type, data.type));
-    return existing.id;
-  } else {
-    const result = await db.insert(emailTemplates).values({
-      type: data.type,
-      name: data.name,
-      description: data.description,
-      subject: data.subject,
-      bodyHtml: data.bodyHtml,
-      bodyText: data.bodyText,
-      isCustom: data.isCustom ?? false,
-      isActive: data.isActive ?? true,
-      variables: data.variables ? JSON.stringify(data.variables) : null,
-      createdBy: data.createdBy,
-      createdAt: /* @__PURE__ */ new Date(),
-      updatedAt: /* @__PURE__ */ new Date()
-    }).returning({ id: emailTemplates.id });
-    return result[0]?.id ?? 0;
-  }
-}
-async function getEmailBranding() {
-  const branding = await db.select().from(emailBranding).limit(1);
-  return branding[0] || null;
-}
-async function upsertEmailBranding(data) {
-  const existing = await getEmailBranding();
-  if (existing) {
-    await db.update(emailBranding).set({
-      ...data.logoUrl !== void 0 && { logoUrl: data.logoUrl },
-      ...data.primaryColor && { primaryColor: data.primaryColor },
-      ...data.secondaryColor && { secondaryColor: data.secondaryColor },
-      ...data.companyName && { companyName: data.companyName },
-      ...data.footerText !== void 0 && { footerText: data.footerText },
-      ...data.headerStyle && { headerStyle: data.headerStyle },
-      ...data.fontFamily && { fontFamily: data.fontFamily },
-      ...data.updatedBy && { updatedBy: data.updatedBy },
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(emailBranding.id, existing.id));
-    return existing.id;
-  } else {
-    const result = await db.insert(emailBranding).values({
-      logoUrl: data.logoUrl,
-      primaryColor: data.primaryColor || "#f97316",
-      secondaryColor: data.secondaryColor || "#ea580c",
-      companyName: data.companyName || "AzVirt",
-      footerText: data.footerText,
-      headerStyle: data.headerStyle || "gradient",
-      fontFamily: data.fontFamily || "Arial, sans-serif",
-      updatedBy: data.updatedBy,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).returning({ id: emailBranding.id });
-    return result[0]?.id ?? 0;
-  }
-}
-async function createConversation(userId, title, modelName) {
-  const result = await db.insert(aiConversations).values({
-    userId,
-    title,
-    modelName,
-    createdAt: /* @__PURE__ */ new Date(),
+async function updateTask(id, data) {
+  const { assignedTo, ...updateData } = data;
+  await db.update(tasks).set({
+    ...updateData,
     updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: aiConversations.id });
-  return result[0]?.id;
+  }).where(eq(tasks.id, id));
 }
-async function getConversations(userId) {
-  return await db.select().from(aiConversations).where(eq(aiConversations.userId, userId)).orderBy(desc(aiConversations.updatedAt));
+async function deleteTask(id) {
+  await db.delete(tasks).where(eq(tasks.id, id));
 }
-async function addMessage(conversationId, role, content, metadata) {
-  const result = await db.insert(aiMessages).values({
-    conversationId,
-    role,
-    content,
-    metadata: metadata ? JSON.stringify(metadata) : null,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: aiMessages.id });
-  await db.update(aiConversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(aiConversations.id, conversationId));
-  return result[0]?.id;
-}
-async function getMessages(conversationId) {
-  return await db.select().from(aiMessages).where(eq(aiMessages.conversationId, conversationId)).orderBy(aiMessages.createdAt);
-}
-async function createAiConversation(data) {
-  return createConversation(data.userId, data.title, data.modelName);
-}
-async function getAiConversations(userId) {
-  return getConversations(userId);
-}
-async function deleteAiConversation(conversationId) {
-  await db.delete(aiConversations).where(eq(aiConversations.id, conversationId));
-  await db.delete(aiMessages).where(eq(aiMessages.conversationId, conversationId));
-  return true;
-}
-async function createAiMessage(data) {
-  return addMessage(
-    data.conversationId,
-    data.role,
-    data.content,
-    data.metadata
-  );
-}
-async function getAiMessages(conversationId) {
-  return getMessages(conversationId);
-}
-async function getOverdueTasks(userId) {
-  return await db.select().from(tasks).where(
+async function assignTask(data) {
+  const existing = await db.select().from(taskAssignments).where(
     and(
-      eq(tasks.createdBy, userId),
-      lte(tasks.dueDate, /* @__PURE__ */ new Date()),
-      not(eq(tasks.status, "completed"))
-    )
-  ).orderBy(tasks.dueDate);
-}
-async function createNotification(notification) {
-  const result = await db.insert(notifications).values({
-    ...notification,
-    sentAt: /* @__PURE__ */ new Date()
-  }).returning({ id: notifications.id });
-  return result[0]?.id;
-}
-async function getNotifications(userId, limit = 20) {
-  return await db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.sentAt)).limit(limit);
-}
-async function getUnreadNotifications(userId) {
-  return await db.select().from(notifications).where(
-    and(
-      eq(notifications.userId, userId),
-      eq(notifications.status, "unread")
-    )
-  ).orderBy(desc(notifications.sentAt));
-}
-async function markNotificationAsRead(notificationId) {
-  await db.update(notifications).set({ status: "read" }).where(eq(notifications.id, notificationId));
-  return true;
-}
-async function getOrCreateNotificationPreferences(userId) {
-  return {};
-}
-async function updateNotificationPreferences(userId, preferences) {
-  return true;
-}
-async function getNotificationPreferences(userId) {
-  return null;
-}
-async function getNotificationHistoryByUser(userId, days) {
-  return [];
-}
-async function getNotificationTemplates(limit, offset) {
-  return [];
-}
-async function getNotificationTemplate(id) {
-  return null;
-}
-async function createNotificationTemplate(data) {
-  return { insertId: 0 };
-}
-async function updateNotificationTemplate(id, data) {
-  return true;
-}
-async function deleteNotificationTemplate(id) {
-  return true;
-}
-async function getNotificationTriggers(limit, offset) {
-  return [];
-}
-async function getNotificationTrigger(id) {
-  return null;
-}
-async function getTriggersByEventType(eventType) {
-  return [];
-}
-async function createNotificationTrigger(data) {
-  return { insertId: 0 };
-}
-async function updateNotificationTrigger(id, data) {
-  return true;
-}
-async function deleteNotificationTrigger(id) {
-  return true;
-}
-async function recordTriggerExecution(data) {
-  return true;
-}
-async function updateUserLanguagePreference(userId, language) {
-  await db.update(users).set({ languagePreference: language, updatedAt: /* @__PURE__ */ new Date() }).where(eq(users.id, userId));
-  return true;
-}
-async function createShift(shift) {
-  const result = await db.insert(shifts).values({
-    ...shift,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shifts.id });
-  return result[0]?.id;
-}
-async function getAllShifts() {
-  return await db.select({
-    id: shifts.id,
-    employeeId: shifts.employeeId,
-    templateId: shifts.templateId,
-    startTime: shifts.startTime,
-    endTime: shifts.endTime,
-    status: shifts.status,
-    notes: shifts.notes,
-    employeeName: users.name
-  }).from(shifts).leftJoin(users, eq(shifts.employeeId, users.id)).orderBy(desc(shifts.startTime));
-}
-async function getShiftsByEmployee(employeeId, startDate, endDate) {
-  return await db.select().from(shifts).where(
-    and(
-      eq(shifts.employeeId, employeeId),
-      gte(shifts.startTime, startDate),
-      lte(shifts.startTime, endDate)
-    )
-  ).orderBy(shifts.startTime);
-}
-async function updateShift(id, updates) {
-  const [existing] = await db.select().from(shifts).where(eq(shifts.id, id));
-  if (existing && updates.status === "completed" && existing.startTime && updates.endTime) {
-    const start = new Date(existing.startTime);
-    const end = new Date(updates.endTime);
-    const diffMs = end.getTime() - start.getTime();
-    const hoursWorked = diffMs / (1e3 * 60 * 60);
-    if (hoursWorked > 8) {
-      const overtimeHours = hoursWorked - 8;
-      await logComplianceAudit({
-        employeeId: existing.employeeId,
-        action: "overtime_detected",
-        entityType: "shift",
-        entityId: id,
-        newValue: `Overtime: ${overtimeHours.toFixed(2)} hours`,
-        performedBy: existing.employeeId
-      });
-    }
-  }
-  await db.update(shifts).set({ ...updates, updatedAt: /* @__PURE__ */ new Date() }).where(eq(shifts.id, id));
-  return true;
-}
-async function getShiftById(id) {
-  const result = await db.select().from(shifts).where(eq(shifts.id, id));
-  return result[0] || null;
-}
-async function deleteShift(id) {
-  await db.delete(shifts).where(eq(shifts.id, id));
-  return true;
-}
-async function createShiftTemplate(template) {
-  const result = await db.insert(shiftTemplates).values({
-    ...template,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shiftTemplates.id });
-  return result[0]?.id;
-}
-async function getShiftTemplates() {
-  const templates = await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true)).orderBy(shiftTemplates.name);
-  if (templates.length === 0) {
-    const defaults = [
-      {
-        name: "Morning Shift (7-19)",
-        startTime: "07:00",
-        endTime: "19:00",
-        durationHours: 12,
-        color: "#FF6C0E"
-      },
-      {
-        name: "Daily Shift (7-17)",
-        startTime: "07:00",
-        endTime: "17:00",
-        durationHours: 10,
-        color: "#FFA500"
-      }
-    ];
-    for (const template of defaults) {
-      await db.insert(shiftTemplates).values({
-        ...template,
-        isActive: true,
-        createdAt: /* @__PURE__ */ new Date(),
-        updatedAt: /* @__PURE__ */ new Date()
-      });
-    }
-    return await db.select().from(shiftTemplates).where(eq(shiftTemplates.isActive, true)).orderBy(shiftTemplates.name);
-  }
-  return templates;
-}
-async function setEmployeeAvailability(availability) {
-  const existing = await db.select().from(employeeAvailability).where(
-    and(
-      eq(employeeAvailability.employeeId, availability.employeeId),
-      eq(employeeAvailability.dayOfWeek, availability.dayOfWeek)
+      eq(taskAssignments.taskId, data.taskId),
+      eq(taskAssignments.userId, data.userId)
     )
   );
-  if (existing.length > 0) {
-    await db.update(employeeAvailability).set({
-      ...availability,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(employeeAvailability.id, existing[0].id));
-    return existing[0].id;
+  if (existing.length === 0) {
+    await db.insert(taskAssignments).values({
+      taskId: data.taskId,
+      userId: data.userId,
+      assignedAt: data.assignedAt || /* @__PURE__ */ new Date()
+    });
   }
-  const result = await db.insert(employeeAvailability).values({
-    ...availability,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: employeeAvailability.id });
-  return result[0]?.id;
 }
-async function getEmployeeAvailability(employeeId) {
-  return await db.select().from(employeeAvailability).where(eq(employeeAvailability.employeeId, employeeId)).orderBy(employeeAvailability.dayOfWeek);
-}
-async function logComplianceAudit(audit) {
-  const result = await db.insert(complianceAuditTrail).values({
-    ...audit,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: complianceAuditTrail.id });
-  return result[0]?.id;
-}
-async function getComplianceAudits(employeeId, startDate, endDate) {
-  return await db.select().from(complianceAuditTrail).where(
-    and(
-      eq(complianceAuditTrail.employeeId, employeeId),
-      gte(complianceAuditTrail.createdAt, startDate),
-      lte(complianceAuditTrail.createdAt, endDate)
-    )
-  ).orderBy(desc(complianceAuditTrail.createdAt));
-}
-async function recordBreak(breakRecord) {
-  const result = await db.insert(shiftBreaks).values({
-    ...breakRecord,
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shiftBreaks.id });
-  return result[0]?.id;
-}
-async function getBreakRules(jurisdiction) {
-  return [
-    { type: "meal", durationMinutes: 30, afterHours: 5, paid: false },
-    { type: "rest", durationMinutes: 15, afterHours: 4, paid: true }
-  ];
-}
-async function cacheOfflineEntry(cache) {
-  return true;
-}
-async function getPendingOfflineEntries(employeeId) {
-  return [];
-}
-async function updateOfflineSyncStatus(id, status, syncedAt) {
-  return true;
-}
-async function createJobSite(input) {
-  return Date.now();
-}
-async function getJobSites(projectId) {
-  if (projectId) {
-    return await db.select().from(projects).where(eq(projects.id, projectId));
-  }
-  return await db.select().from(projects);
-}
-async function checkShiftConflicts(employeeId, shiftDate) {
-  const startOfDay = new Date(shiftDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(shiftDate);
-  endOfDay.setHours(23, 59, 59, 999);
-  return await db.select().from(shifts).where(
-    and(
-      eq(shifts.employeeId, employeeId),
-      gte(shifts.startTime, startOfDay),
-      lte(shifts.startTime, endOfDay),
-      not(eq(shifts.status, "cancelled"))
-    )
-  );
-}
-async function assignEmployeeToShift(employeeId, startTime, endTime, shiftDate, createdBy) {
-  const conflicts = await checkShiftConflicts(employeeId, shiftDate);
-  if (conflicts.length > 0) {
-    throw new Error("Employee already has a shift on this date");
-  }
-  const result = await db.insert(shifts).values({
-    employeeId,
-    startTime,
-    endTime,
-    status: "scheduled",
-    createdBy,
-    createdAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shifts.id });
-  return result[0]?.id;
-}
-async function getAllEmployeesForShifts() {
-  return await db.select({
-    id: users.id,
-    name: users.name,
-    role: users.role
-  }).from(users).where(eq(users.role, "employee"));
-}
-async function createLocationLog(input) {
-  return Date.now();
-}
-async function createShiftSwap(swap) {
-  const result = await db.insert(shiftSwaps).values({
-    ...swap,
-    status: "pending",
-    requestedAt: /* @__PURE__ */ new Date()
-  }).returning({ id: shiftSwaps.id });
-  return result[0]?.id;
-}
-async function getPendingShiftSwaps() {
-  return await db.select({
-    swap: shiftSwaps,
-    shift: shifts,
-    fromEmployee: users,
-    toEmployee: users
-  }).from(shiftSwaps).innerJoin(shifts, eq(shiftSwaps.shiftId, shifts.id)).innerJoin(
-    users,
-    eq(shiftSwaps.fromEmployeeId, users.id)
-  ).leftJoin(users, eq(shiftSwaps.toEmployeeId, users.id)).where(eq(shiftSwaps.status, "pending"));
-}
-async function updateShiftSwapStatus(id, status, notes) {
-  const [swap] = await db.select().from(shiftSwaps).where(eq(shiftSwaps.id, id));
-  if (!swap) throw new Error("Shift swap request not found");
-  await db.transaction(async (tx) => {
-    await tx.update(shiftSwaps).set({
-      status,
-      notes,
-      respondedAt: /* @__PURE__ */ new Date()
-    }).where(eq(shiftSwaps.id, id));
-    if (status === "approved" && swap.toEmployeeId) {
-      await tx.update(shifts).set({
-        employeeId: swap.toEmployeeId,
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(shifts.id, swap.shiftId));
-    }
-  });
-  return true;
-}
-async function recordGeofenceViolation(input) {
-  return Date.now();
-}
-async function getLocationHistory(employeeId, limit) {
-  return [];
-}
-async function getGeofenceViolations(employeeId, resolved) {
-  return [];
-}
-async function resolveGeofenceViolation(violationId, resolvedBy, notes) {
-  return true;
-}
-async function requestTimesheetApproval(approval) {
-  const result = await db.insert(timesheetApprovals).values({
-    ...approval,
-    status: "pending",
-    createdAt: /* @__PURE__ */ new Date()
-  }).returning({ id: timesheetApprovals.id });
-  return result[0]?.id;
-}
-async function approveTimesheet(approvalId, approvedBy, comments) {
-  await db.update(timesheetApprovals).set({
-    status: "approved",
-    approverId: approvedBy,
-    approvedAt: /* @__PURE__ */ new Date(),
-    comments
-  }).where(eq(timesheetApprovals.id, approvalId));
-  return true;
-}
-async function rejectTimesheet(approvalId, rejectedBy, comments) {
-  await db.update(timesheetApprovals).set({
-    status: "rejected",
-    approverId: rejectedBy,
-    rejectionReason: comments
-  }).where(eq(timesheetApprovals.id, approvalId));
-  return true;
-}
-async function getPendingTimesheetApprovals(managerId) {
-  return await db.select({
-    approval: timesheetApprovals,
-    shift: shifts,
-    employee: users
-  }).from(timesheetApprovals).innerJoin(
-    shifts,
-    eq(timesheetApprovals.shiftId, shifts.id)
-  ).innerJoin(users, eq(shifts.employeeId, users.id)).where(eq(timesheetApprovals.status, "pending"));
-}
-async function getTimesheetApprovalHistory(employeeId) {
-  return await db.select({
-    approval: timesheetApprovals,
-    shift: shifts
-  }).from(timesheetApprovals).innerJoin(
-    shifts,
-    eq(timesheetApprovals.shiftId, shifts.id)
-  ).where(eq(shifts.employeeId, employeeId)).orderBy(desc(timesheetApprovals.createdAt));
-}
-var connectionString, sql, db;
+var connectionString, client, db;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
-    init_env();
     init_schema();
     connectionString = process.env.DATABASE_URL;
     if (!connectionString) {
-      throw new Error("DATABASE_URL is required");
+      if (process.env.NODE_ENV === "test") {
+        process.env.DATABASE_URL = "file:./db/dev.db";
+      } else {
+        throw new Error("DATABASE_URL is required");
+      }
     }
-    sql = postgres(connectionString);
-    db = drizzle(sql, { schema: schema_exports });
+    client = createClient({
+      url: process.env.DATABASE_URL
+    });
+    db = drizzle(client, { schema: schema_exports });
+  }
+});
+
+// server/_core/env.ts
+var ENV;
+var init_env = __esm({
+  "server/_core/env.ts"() {
+    "use strict";
+    ENV = {
+      databaseUrl: process.env.DATABASE_URL ?? "",
+      ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
+      isProduction: process.env.NODE_ENV === "production",
+      forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
+      forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+      geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+      geminiModel: process.env.GEMINI_MODEL ?? "gemini-1.5-flash"
+    };
   }
 });
 
@@ -2129,7 +1505,7 @@ var init_notification = __esm({
 
 // server/services/emailTemplateService.ts
 async function getBrandingSettings() {
-  const branding = await getEmailBranding();
+  const branding = await (void 0)();
   if (!branding) {
     return DEFAULT_BRANDING;
   }
@@ -2355,7 +1731,7 @@ function getDefaultTemplateContent(type) {
 }
 async function generateEmailFromTemplate(type, variables, options) {
   const branding = await getBrandingSettings();
-  const customTemplate = await getEmailTemplateByType(type);
+  const customTemplate = await (void 0)(type);
   const defaultTemplate = getDefaultTemplateContent(type);
   const template = customTemplate && customTemplate.isActive && customTemplate.isCustom ? {
     subject: customTemplate.subject,
@@ -2474,10 +1850,10 @@ async function initializeDefaultTemplates() {
     "generic_notification"
   ];
   for (const type of templateTypes) {
-    const existing = await getEmailTemplateByType(type);
+    const existing = await (void 0)(type);
     if (!existing) {
       const defaultContent = getDefaultTemplateContent(type);
-      await upsertEmailTemplate({
+      await (void 0)({
         type,
         name: defaultContent.name,
         description: defaultContent.description,
@@ -3195,7 +2571,7 @@ var systemRouter = router({
 });
 
 // server/routers.ts
-import { z as z17 } from "zod";
+import { z as z18 } from "zod";
 
 // server/storage.ts
 init_env();
@@ -3221,9 +2597,9 @@ function normalizeKey(relKey) {
   return relKey.replace(/^\/+/, "");
 }
 function toFormData(data, contentType, fileName) {
-  const blob = typeof data === "string" ? new Blob([data], { type: contentType }) : new Blob([data], { type: contentType });
+  const blob2 = typeof data === "string" ? new Blob([data], { type: contentType }) : new Blob([data], { type: contentType });
   const form = new FormData();
-  form.append("file", blob, fileName || "file");
+  form.append("file", blob2, fileName || "file");
   return form;
 }
 function buildAuthHeaders(apiKey) {
@@ -3537,7 +2913,7 @@ init_env();
 // server/_core/aiTools.ts
 init_db();
 init_schema();
-import { like as like2, eq as eq2, and as and2, desc as desc2 } from "drizzle-orm";
+import { like as like2, eq as eq2, and as and2, desc as desc2, sql as sql2 } from "drizzle-orm";
 var searchMaterialsTool = {
   name: "search_materials",
   description: "Search materials inventory by name or check stock levels. Returns current stock, supplier info, and low stock warnings.",
@@ -3623,6 +2999,246 @@ var getProjectsTool = {
       createdBy: p.createdBy,
       createdAt: p.createdAt
     }));
+  }
+};
+var getDeliveryStatusTool = {
+  name: "get_delivery_status",
+  description: "Get real-time delivery status, ticket numbers, and truck locations.",
+  parameters: {
+    type: "object",
+    properties: {
+      status: {
+        type: "string",
+        description: "Filter by delivery status",
+        enum: [
+          "scheduled",
+          "loading",
+          "in_transit",
+          "arrived",
+          "discharging",
+          "completed",
+          "cancelled"
+        ]
+      },
+      projectName: {
+        type: "string",
+        description: "Search by project name"
+      },
+      driverName: {
+        type: "string",
+        description: "Search by driver name"
+      }
+    },
+    required: []
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    let query = db2.select().from(deliveries);
+    const conditions = [];
+    if (params.status) conditions.push(eq2(deliveries.status, params.status));
+    if (params.projectName)
+      conditions.push(like2(deliveries.projectName, `%${params.projectName}%`));
+    if (params.driverName)
+      conditions.push(like2(deliveries.driverName, `%${params.driverName}%`));
+    if (conditions.length > 0) {
+      query = query.where(and2(...conditions));
+    }
+    const results = await query.orderBy(desc2(deliveries.scheduledTime)).limit(20);
+    return results;
+  }
+};
+var searchDocumentsTool = {
+  name: "search_documents",
+  description: "Find documents, reports, and uploaded files by name or project.",
+  parameters: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description: "Document name or type to search for"
+      },
+      projectId: {
+        type: "number",
+        description: "Filter by project ID"
+      }
+    },
+    required: []
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    let query = db2.select().from(documents);
+    const conditions = [];
+    if (params.query)
+      conditions.push(like2(documents.name, `%${params.query}%`));
+    if (params.projectId)
+      conditions.push(eq2(documents.projectId, params.projectId));
+    if (conditions.length > 0) {
+      query = query.where(and2(...conditions));
+    }
+    return await query.orderBy(desc2(documents.createdAt)).limit(15);
+  }
+};
+var getQualityTestsTool = {
+  name: "get_quality_tests",
+  description: "Review quality control test results, slump tests, and strength reports.",
+  parameters: {
+    type: "object",
+    properties: {
+      testType: {
+        type: "string",
+        description: "Type of test (slump, strength, temperature, air_content)"
+      },
+      status: {
+        type: "string",
+        description: "Filter by status (pass, fail, pending)"
+      },
+      deliveryId: {
+        type: "number",
+        description: "Filter by specific delivery ID"
+      }
+    },
+    required: []
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    let query = db2.select().from(qualityTests);
+    const conditions = [];
+    if (params.testType)
+      conditions.push(eq2(qualityTests.testType, params.testType));
+    if (params.status) conditions.push(eq2(qualityTests.status, params.status));
+    if (params.deliveryId)
+      conditions.push(eq2(qualityTests.deliveryId, params.deliveryId));
+    if (conditions.length > 0) {
+      query = query.where(and2(...conditions));
+    }
+    return await query.orderBy(desc2(qualityTests.createdAt)).limit(20);
+  }
+};
+var generateForecastTool = {
+  name: "generate_forecast",
+  description: "Generate inventory forecasting predictions and stockout alerts based on historical usage.",
+  parameters: {
+    type: "object",
+    properties: {
+      materialName: {
+        type: "string",
+        description: "Specific material to forecast (optional)"
+      }
+    },
+    required: []
+  },
+  execute: async (params) => {
+    const predictions = await generateForecastPredictions();
+    if (params.materialName) {
+      return predictions.filter(
+        (p) => p.materialName.toLowerCase().includes(params.materialName.toLowerCase())
+      );
+    }
+    return predictions;
+  }
+};
+var calculateStatsTool = {
+  name: "calculate_stats",
+  description: "Calculate business metrics like total production, delivery success rates, or inventory value.",
+  parameters: {
+    type: "object",
+    properties: {
+      metric: {
+        type: "string",
+        description: "The metric to calculate",
+        enum: [
+          "total_deliveries",
+          "total_volume",
+          "pass_rate",
+          "inventory_value"
+        ]
+      },
+      startDate: {
+        type: "string",
+        description: "ISO date for start of period"
+      }
+    },
+    required: ["metric"]
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    switch (params.metric) {
+      case "total_deliveries":
+        const [dCount] = await db2.select({ count: sql2`count(*)` }).from(deliveries);
+        return { total: dCount.count };
+      case "total_volume":
+        const [vSum] = await db2.select({ total: sql2`sum(${deliveries.volume})` }).from(deliveries);
+        return { totalVolume: vSum.total };
+      case "pass_rate":
+        const [tCount] = await db2.select({ total: sql2`count(*)` }).from(qualityTests);
+        const [pCount] = await db2.select({ passed: sql2`count(*)` }).from(qualityTests).where(eq2(qualityTests.status, "pass"));
+        return {
+          totalTests: tCount.total,
+          passRate: tCount.total > 0 ? pCount.passed / tCount.total * 100 : 0
+        };
+      default:
+        return { error: "Unknown metric" };
+    }
+  }
+};
+var logWorkHoursTool = {
+  name: "log_work_hours",
+  description: "Record employee work hours for timesheets.",
+  parameters: {
+    type: "object",
+    properties: {
+      employeeId: { type: "number", description: "Employee ID" },
+      projectId: { type: "number", description: "Project ID" },
+      date: { type: "string", description: "Date (ISO format)" },
+      hours: { type: "number", description: "Total hours worked" },
+      notes: { type: "string", description: "Work description" }
+    },
+    required: ["employeeId", "hours", "date"]
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    const result = await db2.insert(workHours).values({
+      employeeId: params.employeeId,
+      projectId: params.projectId || null,
+      date: new Date(params.date),
+      hoursWorked: params.hours.toString(),
+      notes: params.notes || "",
+      status: "pending"
+    }).returning({ id: workHours.id });
+    return { success: true, logId: result[0].id, message: "Work hours logged" };
+  }
+};
+var logMachineHoursTool = {
+  name: "log_machine_hours",
+  description: "Record operating hours for heavy machinery or concrete pumps.",
+  parameters: {
+    type: "object",
+    properties: {
+      machineId: { type: "number", description: "Machine ID" },
+      hours: { type: "number", description: "Hours used" },
+      date: { type: "string", description: "Date (ISO format)" },
+      notes: { type: "string", description: "Usage notes" }
+    },
+    required: ["machineId", "hours"]
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    const result = await db2.insert(machineWorkHours).values({
+      machineId: params.machineId,
+      hours: params.hours.toString(),
+      date: new Date(params.date || /* @__PURE__ */ new Date())
+    }).returning({ id: machineWorkHours.id });
+    return {
+      success: true,
+      logId: result[0].id,
+      message: "Machine hours logged"
+    };
   }
 };
 var createMaterialTool = {
@@ -3790,12 +3406,61 @@ var createProjectTool = {
     };
   }
 };
+var updateDocumentTool = {
+  name: "update_document",
+  description: "Update metadata for a document or file.",
+  parameters: {
+    type: "object",
+    properties: {
+      id: { type: "number", description: "Document ID" },
+      name: { type: "string", description: "New document name" },
+      projectId: {
+        type: "number",
+        description: "Associate with different project"
+      }
+    },
+    required: ["id"]
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    const { id, ...updates } = params;
+    await db2.update(documents).set(updates).where(eq2(documents.id, id));
+    return { success: true, message: "Document updated" };
+  }
+};
+var deleteDocumentTool = {
+  name: "delete_document",
+  description: "Remove a document from the system.",
+  parameters: {
+    type: "object",
+    properties: {
+      id: { type: "number", description: "Document ID" }
+    },
+    required: ["id"]
+  },
+  execute: async (params) => {
+    const db2 = await getDb();
+    if (!db2) return { error: "Database not available" };
+    await db2.delete(documents).where(eq2(documents.id, params.id));
+    return { success: true, message: "Document deleted" };
+  }
+};
 var AI_TOOLS = [
   searchMaterialsTool,
   getProjectsTool,
+  getDeliveryStatusTool,
+  searchDocumentsTool,
+  getQualityTestsTool,
+  generateForecastTool,
+  calculateStatsTool,
+  logWorkHoursTool,
+  logMachineHoursTool,
   createMaterialTool,
   updateMaterialQuantityTool,
-  createProjectTool
+  createProjectTool,
+  updateDocumentTool,
+  deleteDocumentTool
 ];
 async function executeTool(toolName, parameters, userId) {
   const tool = AI_TOOLS.find((t2) => t2.name === toolName);
@@ -4504,26 +4169,26 @@ var aiAssistantRouter = router({
       }
       let conversationId = input.conversationId;
       if (!conversationId) {
-        conversationId = await createAiConversation({
+        conversationId = await (void 0)({
           userId,
           title: input.message.substring(0, 50),
           modelName: input.model
         });
       } else {
-        const conversations = await getAiConversations(userId);
+        const conversations = await (void 0)(userId);
         if (!conversations.some((c) => c.id === conversationId)) {
           throw new Error("Conversation not found or access denied");
         }
       }
       const finalConversationId = conversationId;
-      await createAiMessage({
+      await (void 0)({
         conversationId: finalConversationId,
         role: "user",
         content: input.message,
         audioUrl: input.audioUrl,
         imageUrl: input.imageUrl
       });
-      const history = await getAiMessages(finalConversationId);
+      const history = await (void 0)(finalConversationId);
       const messages = history.map((msg) => ({
         role: msg.role,
         content: msg.content,
@@ -4595,7 +4260,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
         }
         responseContent = response.message.content;
       }
-      const assistantMessageId = await createAiMessage({
+      const assistantMessageId = await (void 0)({
         conversationId: finalConversationId,
         role: "assistant",
         content: responseContent,
@@ -4636,9 +4301,9 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
   ).mutation(async ({ input, ctx }) => {
     try {
       const audioBuffer = Buffer.from(input.audioData, "base64");
-      const timestamp2 = Date.now();
+      const timestamp = Date.now();
       const { url: audioUrl } = await storagePut(
-        `voice/${ctx.user.id}/recording-${timestamp2}.webm`,
+        `voice/${ctx.user.id}/recording-${timestamp}.webm`,
         audioBuffer,
         "audio/webm"
       );
@@ -4663,20 +4328,20 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Get all conversations for current user
    */
   getConversations: protectedProcedure.query(async ({ ctx }) => {
-    return await getAiConversations(ctx.user.id);
+    return await (void 0)(ctx.user.id);
   }),
   /**
    * Get messages for a conversation
    */
   getMessages: protectedProcedure.input(z2.object({ conversationId: z2.number() })).query(async ({ input, ctx }) => {
-    const conversations = await getAiConversations(ctx.user.id);
+    const conversations = await (void 0)(ctx.user.id);
     const conversation = conversations.find(
       (c) => c.id === input.conversationId
     );
     if (!conversation) {
       throw new Error("Conversation not found");
     }
-    return await getAiMessages(input.conversationId);
+    return await (void 0)(input.conversationId);
   }),
   /**
    * Create a new conversation
@@ -4687,7 +4352,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
       modelName: z2.string().default("llama3.2")
     })
   ).mutation(async ({ input, ctx }) => {
-    const conversationId = await createAiConversation({
+    const conversationId = await (void 0)({
       userId: ctx.user.id,
       title: input.title || "New Conversation",
       modelName: input.modelName
@@ -4698,14 +4363,14 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Delete a conversation
    */
   deleteConversation: protectedProcedure.input(z2.object({ conversationId: z2.number() })).mutation(async ({ input, ctx }) => {
-    const conversations = await getAiConversations(ctx.user.id);
+    const conversations = await (void 0)(ctx.user.id);
     const conversation = conversations.find(
       (c) => c.id === input.conversationId
     );
     if (!conversation) {
       throw new Error("Conversation not found");
     }
-    await deleteAiConversation(input.conversationId);
+    await (void 0)(input.conversationId);
     return { success: true };
   }),
   /**
@@ -5835,26 +5500,72 @@ var notificationsRouter = router({
 
 // server/routers/notificationTemplates.ts
 import { z as z5 } from "zod";
+init_email();
 init_db();
 import { TRPCError as TRPCError5 } from "@trpc/server";
 var TEMPLATE_VARIABLES2 = {
   user: ["{{user.name}}", "{{user.email}}", "{{user.role}}"],
-  task: ["{{task.title}}", "{{task.description}}", "{{task.dueDate}}", "{{task.priority}}", "{{task.status}}"],
-  material: ["{{material.name}}", "{{material.quantity}}", "{{material.unit}}", "{{material.minStock}}"],
-  delivery: ["{{delivery.date}}", "{{delivery.status}}", "{{delivery.supplier}}", "{{delivery.quantity}}"],
-  project: ["{{project.name}}", "{{project.status}}", "{{project.startDate}}", "{{project.endDate}}"],
+  task: [
+    "{{task.title}}",
+    "{{task.description}}",
+    "{{task.dueDate}}",
+    "{{task.priority}}",
+    "{{task.status}}"
+  ],
+  material: [
+    "{{material.name}}",
+    "{{material.quantity}}",
+    "{{material.unit}}",
+    "{{material.minStock}}"
+  ],
+  delivery: [
+    "{{delivery.date}}",
+    "{{delivery.status}}",
+    "{{delivery.supplier}}",
+    "{{delivery.quantity}}"
+  ],
+  project: [
+    "{{project.name}}",
+    "{{project.status}}",
+    "{{project.startDate}}",
+    "{{project.endDate}}"
+  ],
   system: ["{{system.date}}", "{{system.time}}", "{{system.appName}}"]
 };
 var CONDITION_FIELDS = [
   { id: "material.quantity", label: "Material Quantity", type: "number" },
   { id: "material.minStock", label: "Material Min Stock", type: "number" },
-  { id: "task.status", label: "Task Status", type: "select", options: ["pending", "in_progress", "completed", "cancelled"] },
-  { id: "task.priority", label: "Task Priority", type: "select", options: ["low", "medium", "high", "urgent"] },
+  {
+    id: "task.status",
+    label: "Task Status",
+    type: "select",
+    options: ["pending", "in_progress", "completed", "cancelled"]
+  },
+  {
+    id: "task.priority",
+    label: "Task Priority",
+    type: "select",
+    options: ["low", "medium", "high", "urgent"]
+  },
   { id: "task.daysOverdue", label: "Days Overdue", type: "number" },
-  { id: "delivery.status", label: "Delivery Status", type: "select", options: ["scheduled", "in_transit", "delivered", "cancelled"] },
+  {
+    id: "delivery.status",
+    label: "Delivery Status",
+    type: "select",
+    options: ["scheduled", "in_transit", "delivered", "cancelled"]
+  },
   { id: "delivery.daysUntil", label: "Days Until Delivery", type: "number" },
-  { id: "order.daysSinceLastOrder", label: "Days Since Last Order", type: "number" },
-  { id: "project.status", label: "Project Status", type: "select", options: ["planning", "active", "on_hold", "completed"] }
+  {
+    id: "order.daysSinceLastOrder",
+    label: "Days Since Last Order",
+    type: "number"
+  },
+  {
+    id: "project.status",
+    label: "Project Status",
+    type: "select",
+    options: ["planning", "active", "on_hold", "completed"]
+  }
 ];
 var CONDITION_OPERATORS = [
   { id: "eq", label: "equals", types: ["number", "string", "select"] },
@@ -5885,17 +5596,50 @@ var notificationTemplatesRouter = router({
       fields: [
         { id: "stock_quantity", label: "Koli\u010Dina na zalihama", type: "number" },
         { id: "stock_threshold", label: "Minimalna zaliha", type: "number" },
-        { id: "material_category", label: "Kategorija materijala", type: "select", options: ["cement", "aggregate", "admixture", "steel", "other"] },
-        { id: "days_since_order", label: "Dana od zadnje narud\u017Ebe", type: "number" },
-        { id: "task_status", label: "Status zadatka", type: "select", options: ["pending", "in_progress", "completed", "overdue"] },
-        { id: "task_priority", label: "Prioritet zadatka", type: "select", options: ["low", "medium", "high", "critical"] },
+        {
+          id: "material_category",
+          label: "Kategorija materijala",
+          type: "select",
+          options: ["cement", "aggregate", "admixture", "steel", "other"]
+        },
+        {
+          id: "days_since_order",
+          label: "Dana od zadnje narud\u017Ebe",
+          type: "number"
+        },
+        {
+          id: "task_status",
+          label: "Status zadatka",
+          type: "select",
+          options: ["pending", "in_progress", "completed", "overdue"]
+        },
+        {
+          id: "task_priority",
+          label: "Prioritet zadatka",
+          type: "select",
+          options: ["low", "medium", "high", "critical"]
+        },
         { id: "days_overdue", label: "Dana ka\u0161njenja", type: "number" },
-        { id: "delivery_status", label: "Status isporuke", type: "select", options: ["scheduled", "in_transit", "delivered", "delayed"] },
-        { id: "quality_result", label: "Rezultat testa kvaliteta", type: "select", options: ["pass", "fail", "pending"] }
+        {
+          id: "delivery_status",
+          label: "Status isporuke",
+          type: "select",
+          options: ["scheduled", "in_transit", "delivered", "delayed"]
+        },
+        {
+          id: "quality_result",
+          label: "Rezultat testa kvaliteta",
+          type: "select",
+          options: ["pass", "fail", "pending"]
+        }
       ],
       operators: [
         { id: "eq", label: "jednako", types: ["string", "number", "select"] },
-        { id: "ne", label: "nije jednako", types: ["string", "number", "select"] },
+        {
+          id: "ne",
+          label: "nije jednako",
+          types: ["string", "number", "select"]
+        },
         { id: "gt", label: "ve\u0107e od", types: ["number"] },
         { id: "gte", label: "ve\u0107e ili jednako", types: ["number"] },
         { id: "lt", label: "manje od", types: ["number"] },
@@ -5916,7 +5660,10 @@ var notificationTemplatesRouter = router({
   getTemplate: protectedProcedure.input(z5.object({ id: z5.number() })).query(async ({ input }) => {
     const template = await getNotificationTemplate(input.id);
     if (!template) {
-      throw new TRPCError5({ code: "NOT_FOUND", message: "Template not found" });
+      throw new TRPCError5({
+        code: "NOT_FOUND",
+        message: "Template not found"
+      });
     }
     return template;
   }),
@@ -5971,7 +5718,10 @@ var notificationTemplatesRouter = router({
   getTrigger: protectedProcedure.input(z5.object({ id: z5.number() })).query(async ({ input }) => {
     const trigger = await getNotificationTrigger(input.id);
     if (!trigger) {
-      throw new TRPCError5({ code: "NOT_FOUND", message: "Trigger not found" });
+      throw new TRPCError5({
+        code: "NOT_FOUND",
+        message: "Trigger not found"
+      });
     }
     return trigger;
   }),
@@ -6027,20 +5777,55 @@ var notificationTemplatesRouter = router({
     })
   ).mutation(({ input }) => {
     const sampleData = {
-      user: { name: "Marko Petrovi\u0107", email: "marko@azvirt.com", role: "Supervisor" },
-      task: { title: "Provjera kvaliteta betona", description: "Uzorkovanje i testiranje", dueDate: "2024-12-20", priority: "high", status: "pending" },
-      material: { name: "Cement Portland", quantity: 45, unit: "tona", minStock: 50 },
-      delivery: { date: "2024-12-18", status: "scheduled", supplier: "Holcim d.o.o.", quantity: 100 },
-      project: { name: "Autoput Sarajevo-Mostar", status: "active", startDate: "2024-01-15", endDate: "2025-06-30" },
-      system: { date: (/* @__PURE__ */ new Date()).toLocaleDateString("bs-BA"), time: (/* @__PURE__ */ new Date()).toLocaleTimeString("bs-BA"), appName: "AzVirt DMS" }
+      user: {
+        name: "Marko Petrovi\u0107",
+        email: "marko@azvirt.com",
+        role: "Supervisor"
+      },
+      task: {
+        title: "Provjera kvaliteta betona",
+        description: "Uzorkovanje i testiranje",
+        dueDate: "2024-12-20",
+        priority: "high",
+        status: "pending"
+      },
+      material: {
+        name: "Cement Portland",
+        quantity: 45,
+        unit: "tona",
+        minStock: 50
+      },
+      delivery: {
+        date: "2024-12-18",
+        status: "scheduled",
+        supplier: "Holcim d.o.o.",
+        quantity: 100
+      },
+      project: {
+        name: "Autoput Sarajevo-Mostar",
+        status: "active",
+        startDate: "2024-01-15",
+        endDate: "2025-06-30"
+      },
+      system: {
+        date: (/* @__PURE__ */ new Date()).toLocaleDateString("bs-BA"),
+        time: (/* @__PURE__ */ new Date()).toLocaleTimeString("bs-BA"),
+        appName: "AzVirt DMS"
+      }
     };
     let previewSubject = input.subject;
     let previewBody = input.bodyHtml;
     Object.entries(sampleData).forEach(([category, values]) => {
       Object.entries(values).forEach(([key, value]) => {
         const variable = `{{${category}.${key}}}`;
-        previewSubject = previewSubject.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), String(value));
-        previewBody = previewBody.replace(new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), String(value));
+        previewSubject = previewSubject.replace(
+          new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+          String(value)
+        );
+        previewBody = previewBody.replace(
+          new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+          String(value)
+        );
       });
     });
     return {
@@ -6058,6 +5843,82 @@ var notificationTemplatesRouter = router({
       return { valid: true, humanReadable: generateHumanReadable(parsed) };
     } catch (e) {
       return { valid: false, error: "Invalid JSON format" };
+    }
+  }),
+  sendTestNotification: protectedProcedure.input(
+    z5.object({
+      recipientEmail: z5.string().email("Invalid email address"),
+      subject: z5.string(),
+      bodyHtml: z5.string()
+    })
+  ).mutation(async ({ input }) => {
+    const { recipientEmail, subject, bodyHtml } = input;
+    const sampleData = {
+      user: {
+        name: "Marko Petrovi\u0107",
+        email: "marko@azvirt.com",
+        role: "Supervisor"
+      },
+      task: {
+        title: "Provjera kvaliteta betona",
+        description: "Uzorkovanje i testiranje",
+        dueDate: "2024-12-20",
+        priority: "high",
+        status: "pending"
+      },
+      material: {
+        name: "Cement Portland",
+        quantity: 45,
+        unit: "tona",
+        minStock: 50
+      },
+      delivery: {
+        date: "2024-12-18",
+        status: "scheduled",
+        supplier: "Holcim d.o.o.",
+        quantity: 100
+      },
+      project: {
+        name: "Autoput Sarajevo-Mostar",
+        status: "active",
+        startDate: "2024-01-15",
+        endDate: "2025-06-30"
+      },
+      system: {
+        date: (/* @__PURE__ */ new Date()).toLocaleDateString("bs-BA"),
+        time: (/* @__PURE__ */ new Date()).toLocaleTimeString("bs-BA"),
+        appName: "AzVirt DMS"
+      }
+    };
+    let previewSubject = subject;
+    let previewBody = bodyHtml;
+    Object.entries(sampleData).forEach(([category, values]) => {
+      Object.entries(values).forEach(([key, value]) => {
+        const variable = `{{${category}.${key}}}`;
+        previewSubject = previewSubject.replace(
+          new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+          String(value)
+        );
+        previewBody = previewBody.replace(
+          new RegExp(variable.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+          String(value)
+        );
+      });
+    });
+    try {
+      await sendEmail({
+        to: recipientEmail,
+        subject: `[TEST] ${previewSubject}`,
+        html: previewBody
+      });
+      return { success: true };
+    } catch (error) {
+      console.error("Failed to send test email:", error);
+      throw new TRPCError5({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to send test email.",
+        cause: error
+      });
     }
   })
 });
@@ -6113,9 +5974,13 @@ function evaluateCondition(condition, data) {
 }
 function evaluateConditionGroup(group, data) {
   if (group.operator === "AND") {
-    return group.conditions.every((condition) => evaluateCondition(condition, data));
+    return group.conditions.every(
+      (condition) => evaluateCondition(condition, data)
+    );
   } else if (group.operator === "OR") {
-    return group.conditions.some((condition) => evaluateCondition(condition, data));
+    return group.conditions.some(
+      (condition) => evaluateCondition(condition, data)
+    );
   }
   return false;
 }
@@ -6192,15 +6057,20 @@ async function executeTrigger(triggerId, data) {
             );
             if (result.success) sentCount++;
           } else if (channel === "in_app") {
-            console.log(`In-app notification for user ${recipient.id}: ${subject}`);
+            console.log(
+              `In-app notification for user ${recipient.id}: ${subject}`
+            );
             sentCount++;
           }
         } catch (error) {
-          console.error(`Failed to send ${channel} notification to user ${recipient.id}:`, error);
+          console.error(
+            `Failed to send ${channel} notification to user ${recipient.id}:`,
+            error
+          );
         }
       }
     }
-    await recordTriggerExecution({
+    await (void 0)({
       triggerId,
       entityType: trigger.eventType,
       entityId: 0,
@@ -6221,7 +6091,7 @@ async function executeTrigger(triggerId, data) {
     console.error("Error executing trigger:", error);
     try {
       const trigger = await getNotificationTrigger(triggerId);
-      await recordTriggerExecution({
+      await (void 0)({
         triggerId,
         entityType: trigger?.eventType || "unknown",
         entityId: 0,
@@ -6239,7 +6109,7 @@ async function executeTrigger(triggerId, data) {
   }
 }
 async function getRecipients(triggerType, data) {
-  const adminUsers = await getAdminUsersWithSMS();
+  const adminUsers = await (void 0)();
   return adminUsers.map((user2) => ({
     id: user2.id,
     email: user2.email,
@@ -6248,7 +6118,7 @@ async function getRecipients(triggerType, data) {
 }
 async function checkTriggersForEvent(eventType, data) {
   try {
-    const triggers = await getTriggersByEventType(eventType);
+    const triggers = await (void 0)(eventType);
     for (const trigger of triggers) {
       await executeTrigger(trigger.id, data);
     }
@@ -6304,6 +6174,17 @@ async function checkOverdueTaskTriggers(userId) {
       priority: task.priority
     });
   }
+}
+async function checkTaskCompletionTriggers(taskId) {
+  const task = await getTaskById(taskId);
+  if (!task || task.status !== "completed") return;
+  await checkTriggersForEvent("task_completed", {
+    taskId: task.id,
+    taskName: task.title,
+    completedAt: task.updatedAt,
+    priority: task.priority,
+    projectId: task.projectId
+  });
 }
 
 // server/routers/triggerExecution.ts
@@ -6395,7 +6276,7 @@ var timesheetsRouter = router({
       notes: z7.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const shiftId = await createShift({
+    const shiftId = await (void 0)({
       employeeId: input.employeeId,
       templateId: input.templateId,
       startTime: input.startTime,
@@ -6413,7 +6294,7 @@ var timesheetsRouter = router({
       endDate: z7.date()
     })
   ).query(async ({ input }) => {
-    return await getShiftsByEmployee(
+    return await (void 0)(
       input.employeeId,
       input.startDate,
       input.endDate
@@ -6432,7 +6313,7 @@ var timesheetsRouter = router({
       notes: z7.string().optional()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateShift(input.shiftId, {
+    const success = await (void 0)(input.shiftId, {
       status: input.status,
       notes: input.notes
     });
@@ -6452,7 +6333,7 @@ var timesheetsRouter = router({
       // 0-6
     })
   ).mutation(async ({ input, ctx }) => {
-    const templateId = await createShiftTemplate({
+    const templateId = await (void 0)({
       name: input.name,
       description: input.description,
       startTime: input.startTime,
@@ -6465,7 +6346,7 @@ var timesheetsRouter = router({
     return { success: !!templateId, templateId };
   }),
   getShiftTemplates: protectedProcedure.query(async () => {
-    return await getShiftTemplates();
+    return await (void 0)();
   }),
   // ============ EMPLOYEE AVAILABILITY ============
   setAvailability: protectedProcedure.input(
@@ -6481,7 +6362,7 @@ var timesheetsRouter = router({
       notes: z7.string().optional()
     })
   ).mutation(async ({ input }) => {
-    const success = await setEmployeeAvailability({
+    const success = await (void 0)({
       employeeId: input.employeeId,
       dayOfWeek: input.dayOfWeek,
       isAvailable: input.isAvailable,
@@ -6496,7 +6377,7 @@ var timesheetsRouter = router({
       employeeId: z7.number()
     })
   ).query(async ({ input }) => {
-    return await getEmployeeAvailability(input.employeeId);
+    return await (void 0)(input.employeeId);
   }),
   // ============ COMPLIANCE & AUDIT ============
   logComplianceAudit: protectedProcedure.input(
@@ -6511,7 +6392,7 @@ var timesheetsRouter = router({
       reason: z7.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const success = await logComplianceAudit({
+    const success = await (void 0)({
       employeeId: input.employeeId,
       action: input.action,
       entityType: input.entityType,
@@ -6530,7 +6411,7 @@ var timesheetsRouter = router({
       endDate: z7.date()
     })
   ).query(async ({ input }) => {
-    return await getComplianceAudits(
+    return await (void 0)(
       input.employeeId,
       input.startDate,
       input.endDate
@@ -6548,7 +6429,7 @@ var timesheetsRouter = router({
     const breakDuration = input.endTime ? Math.round(
       (input.endTime.getTime() - input.startTime.getTime()) / (1e3 * 60)
     ) : void 0;
-    const success = await recordBreak({
+    const success = await (void 0)({
       shiftId: input.shiftId,
       startTime: input.startTime,
       endTime: input.endTime,
@@ -6561,7 +6442,7 @@ var timesheetsRouter = router({
       jurisdiction: z7.string()
     })
   ).query(async ({ input }) => {
-    return await getBreakRules(input.jurisdiction);
+    return await (void 0)(input.jurisdiction);
   }),
   // ============ OFFLINE SYNC ============
   cacheOfflineEntry: protectedProcedure.input(
@@ -6577,7 +6458,7 @@ var timesheetsRouter = router({
       })
     })
   ).mutation(async ({ input }) => {
-    const success = await cacheOfflineEntry({
+    const success = await (void 0)({
       employeeId: input.employeeId,
       deviceId: input.deviceId,
       entryData: input.entryData,
@@ -6590,14 +6471,14 @@ var timesheetsRouter = router({
       employeeId: z7.number()
     })
   ).query(async ({ input }) => {
-    return await getPendingOfflineEntries(input.employeeId);
+    return await (void 0)(input.employeeId);
   }),
   syncOfflineEntry: protectedProcedure.input(
     z7.object({
       cacheId: z7.number()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateOfflineSyncStatus(
+    const success = await (void 0)(
       input.cacheId,
       "synced",
       /* @__PURE__ */ new Date()
@@ -6614,15 +6495,15 @@ var timesheetsRouter = router({
     const weekEnd = new Date(input.weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     if (input.employeeId) {
-      const shifts2 = await getShiftsByEmployee(
+      const shifts2 = await (void 0)(
         input.employeeId,
         input.weekStart,
         weekEnd
       );
-      const totalHours = shifts2.reduce((sum, shift) => {
+      const totalHours = shifts2.reduce((sum2, shift) => {
         const end = shift.endTime ?? shift.startTime;
         const hours = (end.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
-        return sum + hours;
+        return sum2 + hours;
       }, 0);
       return {
         weekStart: input.weekStart,
@@ -6651,17 +6532,17 @@ var timesheetsRouter = router({
     const monthStart = new Date(input.year, input.month - 1, 1);
     const monthEnd = new Date(input.year, input.month, 0);
     if (input.employeeId) {
-      const shifts2 = await getShiftsByEmployee(
+      const shifts2 = await (void 0)(
         input.employeeId,
         monthStart,
         monthEnd
       );
-      const totalHours = shifts2.reduce((sum, shift) => {
+      const totalHours = shifts2.reduce((sum2, shift) => {
         const end = shift.endTime ?? shift.startTime;
         const hours = (end.getTime() - shift.startTime.getTime()) / (1e3 * 60 * 60);
-        return sum + hours;
+        return sum2 + hours;
       }, 0);
-      const audits = await getComplianceAudits(
+      const audits = await (void 0)(
         input.employeeId,
         monthStart,
         monthEnd
@@ -6701,7 +6582,7 @@ var timesheetsRouter = router({
     }).optional()
   ).query(async ({ input }) => {
     if (input?.employeeId && input?.startDate && input?.endDate) {
-      return await getShiftsByEmployee(
+      return await (void 0)(
         input.employeeId,
         input.startDate,
         input.endDate
@@ -6715,7 +6596,7 @@ var timesheetsRouter = router({
       notes: z7.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const shiftId = await createShift({
+    const shiftId = await (void 0)({
       employeeId: input.employeeId,
       startTime: /* @__PURE__ */ new Date(),
       endTime: /* @__PURE__ */ new Date(),
@@ -6730,7 +6611,7 @@ var timesheetsRouter = router({
       id: z7.number()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateShift(input.id, {
+    const success = await (void 0)(input.id, {
       endTime: /* @__PURE__ */ new Date(),
       status: "completed"
     });
@@ -6749,7 +6630,7 @@ var timesheetsRouter = router({
       status: z7.enum(["pending", "approved", "rejected"]).default("pending")
     })
   ).mutation(async ({ input, ctx }) => {
-    const shiftId = await createShift({
+    const shiftId = await (void 0)({
       employeeId: input.employeeId,
       startTime: input.startTime,
       endTime: input.endTime || /* @__PURE__ */ new Date(),
@@ -6765,7 +6646,7 @@ var timesheetsRouter = router({
       approvedBy: z7.number()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateShift(input.id, {
+    const success = await (void 0)(input.id, {
       status: "completed"
     });
     return { success };
@@ -6776,7 +6657,7 @@ var timesheetsRouter = router({
       reason: z7.string().optional()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateShift(input.id, {
+    const success = await (void 0)(input.id, {
       status: "cancelled",
       notes: input.reason
     });
@@ -6881,8 +6762,8 @@ var geolocationRouter = router({
     if (shift.employeeId !== ctx.user.id && ctx.user.role !== "admin") {
       throw new Error("You can only check in for your own shifts");
     }
-    const jobSites = await getJobSites();
-    const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
+    const jobSites2 = await getJobSites();
+    const jobSite = jobSites2.find((js) => js.id === input.jobSiteId);
     if (!jobSite) {
       throw new Error("Job site not found");
     }
@@ -6981,8 +6862,8 @@ var geolocationRouter = router({
     if (shift.employeeId !== ctx.user.id && ctx.user.role !== "admin") {
       throw new Error("You can only check out for your own shifts");
     }
-    const jobSites = await getJobSites();
-    const jobSite = jobSites.find((js) => js.id === input.jobSiteId);
+    const jobSites2 = await getJobSites();
+    const jobSite = jobSites2.find((js) => js.id === input.jobSiteId);
     if (!jobSite) {
       throw new Error("Job site not found");
     }
@@ -7175,7 +7056,7 @@ async function exportEmployeesToExcel(options = {}) {
     fgColor: { argb: "FF70AD47" }
   };
   worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
-  const employees2 = await getEmployees();
+  const employees2 = await (void 0)();
   employees2.forEach((employee) => {
     const row = {};
     selectedColumns.forEach((col) => {
@@ -7289,7 +7170,7 @@ async function exportTimesheetsToExcel(options = {}) {
     fgColor: { argb: "FF5B9BD5" }
   };
   worksheet.getRow(1).alignment = { vertical: "middle", horizontal: "center" };
-  const timesheets = await getWorkHours();
+  const timesheets = await (void 0)();
   timesheets.forEach((timesheet) => {
     const row = {};
     selectedColumns.forEach((col) => {
@@ -7420,7 +7301,7 @@ async function exportAllDataToExcel(options = {}) {
     pattern: "solid",
     fgColor: { argb: "FF70AD47" }
   };
-  const employees2 = await getEmployees();
+  const employees2 = await (void 0)();
   employees2.forEach((e) => employeesSheet.addRow(e));
   const projectsSheet = workbook.addWorksheet("Projects");
   const projectsColumns = [
@@ -7477,7 +7358,7 @@ async function exportAllDataToExcel(options = {}) {
     pattern: "solid",
     fgColor: { argb: "FF5B9BD5" }
   };
-  const timesheets = await getAllShifts();
+  const timesheets = await (void 0)();
   timesheets.forEach((t2) => timesheetsSheet.addRow(t2));
   const qualitySheet = workbook.addWorksheet("Quality Tests");
   const qualityColumns = [
@@ -7602,7 +7483,7 @@ async function exportMaterialsToPdf(options) {
   );
 }
 async function exportEmployeesToPdf(options) {
-  const employees2 = await getEmployees();
+  const employees2 = await (void 0)();
   const allColumns = [
     { key: "id", header: "ID", width: 50 },
     { key: "firstName", header: "First Name", width: 80 },
@@ -7657,7 +7538,7 @@ async function exportDeliveriesToPdf(options) {
   );
 }
 async function exportTimesheetsToPdf(options) {
-  const timesheets = await getAllShifts();
+  const timesheets = await (void 0)();
   const allColumns = [
     { key: "id", header: "ID", width: 50 },
     { key: "employeeId", header: "Employee ID", width: 80 },
@@ -8425,8 +8306,8 @@ async function generateBatchNumber() {
       WHERE m.batchNumber STARTS WITH $prefix
       RETURN count(m) as count
     `, { prefix });
-    const count = result.records[0]?.get("count").toNumber() + 1;
-    return `${prefix}${String(count).padStart(3, "0")}`;
+    const count2 = result.records[0]?.get("count").toNumber() + 1;
+    return `${prefix}${String(count2).padStart(3, "0")}`;
   } catch (error) {
     console.error("Failed to generate batch number:", error);
     return `BATCH-${(/* @__PURE__ */ new Date()).getFullYear()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -8892,13 +8773,13 @@ var timesheetApprovalsRouter = router({
    * Get all pending timesheets for approval
    */
   getPendingForApproval: protectedProcedure.query(async ({ ctx }) => {
-    return await getPendingTimesheetApprovals(ctx.user.id);
+    return await (void 0)(ctx.user.id);
   }),
   /**
    * Get approval history for a specific employee
    */
   getEmployeeHistory: protectedProcedure.input(z13.object({ employeeId: z13.number() })).query(async ({ input }) => {
-    return await getTimesheetApprovalHistory(input.employeeId);
+    return await (void 0)(input.employeeId);
   }),
   /**
    * Approve a timesheet approval request
@@ -8909,7 +8790,7 @@ var timesheetApprovalsRouter = router({
       comments: z13.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const success = await approveTimesheet(
+    const success = await (void 0)(
       input.approvalId,
       ctx.user.id,
       input.comments
@@ -8925,7 +8806,7 @@ var timesheetApprovalsRouter = router({
       rejectionReason: z13.string()
     })
   ).mutation(async ({ input, ctx }) => {
-    const success = await rejectTimesheet(
+    const success = await (void 0)(
       input.approvalId,
       ctx.user.id,
       input.rejectionReason
@@ -8941,7 +8822,7 @@ var timesheetApprovalsRouter = router({
       comments: z13.string().optional()
     })
   ).mutation(async ({ input }) => {
-    const approvalId = await requestTimesheetApproval({
+    const approvalId = await (void 0)({
       shiftId: input.shiftId,
       comments: input.comments,
       status: "pending"
@@ -8966,19 +8847,19 @@ var shiftAssignmentsRouter = router({
       color: z14.string().optional()
     })
   ).mutation(async ({ input }) => {
-    return await createShiftTemplate(input);
+    return await (void 0)(input);
   }),
   /**
    * Get all shift templates
    */
   getTemplates: publicProcedure.query(async () => {
-    return await getShiftTemplates();
+    return await (void 0)();
   }),
   /**
    * Get all employees for shift assignment
    */
   getEmployees: publicProcedure.query(async () => {
-    return await getAllEmployeesForShifts();
+    return await (void 0)();
   }),
   /**
    * Get shifts for a date range
@@ -8989,7 +8870,7 @@ var shiftAssignmentsRouter = router({
       endDate: z14.date()
     })
   ).query(async ({ input }) => {
-    const shifts2 = await getAllShifts();
+    const shifts2 = await (void 0)();
     return shifts2.filter(
       (s) => s.startTime >= input.startDate && s.startTime <= input.endDate
     );
@@ -9004,7 +8885,7 @@ var shiftAssignmentsRouter = router({
       endDate: z14.date()
     })
   ).query(async ({ input }) => {
-    return await getShiftsByEmployee(
+    return await (void 0)(
       input.employeeId,
       input.startDate,
       input.endDate
@@ -9021,7 +8902,7 @@ var shiftAssignmentsRouter = router({
       shiftDate: z14.date()
     })
   ).mutation(async ({ input, ctx }) => {
-    return await assignEmployeeToShift(
+    return await (void 0)(
       input.employeeId,
       input.startTime,
       input.endTime,
@@ -9048,14 +8929,14 @@ var shiftAssignmentsRouter = router({
     })
   ).mutation(async ({ input }) => {
     const { shiftId, ...updates } = input;
-    const success = await updateShift(shiftId, updates);
+    const success = await (void 0)(shiftId, updates);
     return { success };
   }),
   /**
    * Delete shift assignment
    */
   deleteShift: protectedProcedure.input(z14.object({ shiftId: z14.number() })).mutation(async ({ input }) => {
-    const success = await deleteShift(input.shiftId);
+    const success = await (void 0)(input.shiftId);
     return { success };
   }),
   /**
@@ -9067,7 +8948,7 @@ var shiftAssignmentsRouter = router({
       shiftDate: z14.date()
     })
   ).query(async ({ input }) => {
-    const conflicts = await checkShiftConflicts(
+    const conflicts = await (void 0)(
       input.employeeId,
       input.shiftDate
     );
@@ -9085,13 +8966,13 @@ var shiftAssignmentsRouter = router({
       isAvailable: z14.boolean().default(true)
     })
   ).mutation(async ({ input }) => {
-    return await setEmployeeAvailability(input);
+    return await (void 0)(input);
   }),
   /**
    * Get employee availability
    */
   getAvailability: protectedProcedure.input(z14.object({ employeeId: z14.number() })).query(async ({ input }) => {
-    return await getEmployeeAvailability(input.employeeId);
+    return await (void 0)(input.employeeId);
   }),
   /**
    * Request a shift swap
@@ -9103,7 +8984,7 @@ var shiftAssignmentsRouter = router({
       notes: z14.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const swapId = await createShiftSwap({
+    const swapId = await (void 0)({
       shiftId: input.shiftId,
       fromEmployeeId: ctx.user.id,
       toEmployeeId: input.toEmployeeId,
@@ -9116,7 +8997,7 @@ var shiftAssignmentsRouter = router({
    * Get all pending shift swaps
    */
   getPendingSwaps: protectedProcedure.query(async () => {
-    return await getPendingShiftSwaps();
+    return await (void 0)();
   }),
   /**
    * Respond to a shift swap request
@@ -9128,7 +9009,7 @@ var shiftAssignmentsRouter = router({
       notes: z14.string().optional()
     })
   ).mutation(async ({ input }) => {
-    const success = await updateShiftSwapStatus(
+    const success = await (void 0)(
       input.swapId,
       input.status,
       input.notes
@@ -9789,6 +9670,91 @@ var suppliersRouter = router({
   })
 });
 
+// server/routers/tasks.ts
+import { z as z17 } from "zod";
+init_db();
+var tasksRouter = router({
+  list: protectedProcedure.input(
+    z17.object({
+      status: z17.string().optional()
+    }).optional()
+  ).query(async ({ ctx, input }) => {
+    const tasks2 = await getTasks(ctx.user.id);
+    if (input?.status) {
+      return tasks2.filter((t2) => t2.status === input.status);
+    }
+    return tasks2;
+  }),
+  create: protectedProcedure.input(
+    z17.object({
+      title: z17.string().min(1),
+      description: z17.string().optional(),
+      priority: z17.enum(["low", "medium", "high", "urgent"]).default("medium"),
+      dueDate: z17.string(),
+      projectId: z17.number().optional(),
+      assignedTo: z17.array(z17.number()).optional()
+    })
+  ).mutation(async ({ input, ctx }) => {
+    const taskId = await createTask({
+      title: input.title,
+      description: input.description,
+      priority: input.priority,
+      dueDate: new Date(input.dueDate),
+      projectId: input.projectId,
+      createdBy: ctx.user.id,
+      status: "pending"
+    });
+    if (taskId && input.assignedTo && input.assignedTo.length > 0) {
+      for (const userId of input.assignedTo) {
+        await assignTask({
+          taskId,
+          userId,
+          assignedAt: /* @__PURE__ */ new Date()
+        });
+      }
+    }
+    return { id: taskId };
+  }),
+  update: protectedProcedure.input(
+    z17.object({
+      id: z17.number(),
+      status: z17.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+      priority: z17.enum(["low", "medium", "high", "urgent"]).optional(),
+      title: z17.string().optional(),
+      description: z17.string().optional(),
+      dueDate: z17.string().optional(),
+      assignedTo: z17.array(z17.number()).optional()
+    })
+  ).mutation(async ({ input }) => {
+    const { id, assignedTo, dueDate, ...updates } = input;
+    const updateData = { ...updates };
+    if (dueDate) {
+      updateData.dueDate = new Date(dueDate);
+    }
+    await updateTask(id, updateData);
+    if (updates.status === "completed") {
+      await checkTaskCompletionTriggers(id);
+    }
+    if (assignedTo && assignedTo.length > 0) {
+      for (const userId of assignedTo) {
+        await assignTask({
+          taskId: id,
+          userId,
+          assignedAt: /* @__PURE__ */ new Date()
+        });
+      }
+    }
+    return { success: true };
+  }),
+  delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
+    await deleteTask(input.id);
+    return { success: true };
+  }),
+  getById: protectedProcedure.input(z17.object({ id: z17.number() })).query(async ({ input }) => {
+    return await getTaskById(input.id);
+  })
+});
+
 // server/routers.ts
 var appRouter = router({
   system: systemRouter,
@@ -9805,6 +9771,7 @@ var appRouter = router({
   productionAnalytics: productionAnalyticsRouter,
   timesheetApprovals: timesheetApprovalsRouter,
   shiftAssignments: shiftAssignmentsRouter,
+  tasks: tasksRouter,
   purchaseOrders: purchaseOrdersRouter,
   suppliers: suppliersRouter,
   auth: router({
@@ -9817,12 +9784,12 @@ var appRouter = router({
       };
     }),
     updateSMSSettings: protectedProcedure.input(
-      z17.object({
-        phoneNumber: z17.string().min(1),
-        smsNotificationsEnabled: z17.boolean()
+      z18.object({
+        phoneNumber: z18.string().min(1),
+        smsNotificationsEnabled: z18.boolean()
       })
     ).mutation(async ({ input, ctx }) => {
-      const success = await updateUserSMSSettings(
+      const success = await (void 0)(
         ctx.user.id,
         input.phoneNumber,
         input.smsNotificationsEnabled
@@ -9830,11 +9797,11 @@ var appRouter = router({
       return { success };
     }),
     updateLanguagePreference: protectedProcedure.input(
-      z17.object({
-        language: z17.enum(["en", "bs", "az"])
+      z18.object({
+        language: z18.enum(["en", "bs", "az"])
       })
     ).mutation(async ({ input, ctx }) => {
-      const success = await updateUserLanguagePreference(
+      const success = await (void 0)(
         ctx.user.id,
         input.language
       );
@@ -9843,22 +9810,22 @@ var appRouter = router({
   }),
   documents: router({
     list: protectedProcedure.input(
-      z17.object({
-        projectId: z17.number().optional(),
-        category: z17.string().optional(),
-        search: z17.string().optional()
+      z18.object({
+        projectId: z18.number().optional(),
+        category: z18.string().optional(),
+        search: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
       return await getDocuments(input);
     }),
     upload: protectedProcedure.input(
-      z17.object({
-        name: z17.string(),
+      z18.object({
+        name: z18.string(),
         // description: z.string().optional(), // Removed: not in DB schema directly
-        fileData: z17.string(),
-        mimeType: z17.string(),
+        fileData: z18.string(),
+        mimeType: z18.string(),
         // fileSize: z.number(), // Removed: not in DB schema directly
-        category: z17.enum([
+        category: z18.enum([
           "contract",
           "blueprint",
           "report",
@@ -9866,7 +9833,7 @@ var appRouter = router({
           "invoice",
           "other"
         ]),
-        projectId: z17.number().optional()
+        projectId: z18.number().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       const fileBuffer = Buffer.from(input.fileData, "base64");
@@ -9883,7 +9850,7 @@ var appRouter = router({
       });
       return { success: true };
     }),
-    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
       await deleteDocument(input.id);
       return { success: true };
     })
@@ -9893,13 +9860,13 @@ var appRouter = router({
       return await getProjects();
     }),
     create: protectedProcedure.input(
-      z17.object({
-        name: z17.string(),
-        description: z17.string().optional(),
-        location: z17.string().optional(),
-        status: z17.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
-        startDate: z17.date().optional(),
-        endDate: z17.date().optional()
+      z18.object({
+        name: z18.string(),
+        description: z18.string().optional(),
+        location: z18.string().optional(),
+        status: z18.enum(["planning", "active", "completed", "on_hold"]).default("planning"),
+        startDate: z18.date().optional(),
+        endDate: z18.date().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await createProject({
@@ -9909,14 +9876,14 @@ var appRouter = router({
       return { success: true };
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        name: z17.string().optional(),
-        description: z17.string().optional(),
-        location: z17.string().optional(),
-        status: z17.enum(["planning", "active", "completed", "on_hold"]).optional(),
-        startDate: z17.date().optional(),
-        endDate: z17.date().optional()
+      z18.object({
+        id: z18.number(),
+        name: z18.string().optional(),
+        description: z18.string().optional(),
+        location: z18.string().optional(),
+        status: z18.enum(["planning", "active", "completed", "on_hold"]).optional(),
+        startDate: z18.date().optional(),
+        endDate: z18.date().optional()
       })
     ).mutation(async ({ input }) => {
       const { id, ...data } = input;
@@ -9929,61 +9896,61 @@ var appRouter = router({
       return await getMaterials();
     }),
     create: protectedProcedure.input(
-      z17.object({
-        name: z17.string(),
-        category: z17.enum([
+      z18.object({
+        name: z18.string(),
+        category: z18.enum([
           "cement",
           "aggregate",
           "admixture",
           "water",
           "other"
         ]),
-        unit: z17.string(),
-        quantity: z17.number().default(0),
-        minStock: z17.number().default(0),
-        criticalThreshold: z17.number().default(0),
-        supplier: z17.string().optional(),
-        unitPrice: z17.number().optional()
+        unit: z18.string(),
+        quantity: z18.number().default(0),
+        minStock: z18.number().default(0),
+        criticalThreshold: z18.number().default(0),
+        supplier: z18.string().optional(),
+        unitPrice: z18.number().optional()
       })
     ).mutation(async ({ input }) => {
       await createMaterial(input);
       return { success: true };
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        name: z17.string().optional(),
-        category: z17.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
-        unit: z17.string().optional(),
-        quantity: z17.number().optional(),
-        minStock: z17.number().optional(),
-        criticalThreshold: z17.number().optional(),
-        supplier: z17.string().optional(),
-        unitPrice: z17.number().optional()
+      z18.object({
+        id: z18.number(),
+        name: z18.string().optional(),
+        category: z18.enum(["cement", "aggregate", "admixture", "water", "other"]).optional(),
+        unit: z18.string().optional(),
+        quantity: z18.number().optional(),
+        minStock: z18.number().optional(),
+        criticalThreshold: z18.number().optional(),
+        supplier: z18.string().optional(),
+        unitPrice: z18.number().optional()
       })
     ).mutation(async ({ input }) => {
       const { id, ...data } = input;
       await updateMaterial(id, data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
+    delete: protectedProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
       await deleteMaterial(input.id);
       return { success: true };
     }),
     checkLowStock: protectedProcedure.query(async () => {
-      return await getLowStockMaterials();
+      return await (void 0)();
     }),
     recordConsumption: protectedProcedure.input(
-      z17.object({
-        materialId: z17.number(),
-        quantity: z17.number(),
-        consumptionDate: z17.date().optional(),
-        projectId: z17.number().optional(),
-        deliveryId: z17.number().optional(),
-        notes: z17.string().optional()
+      z18.object({
+        materialId: z18.number(),
+        quantity: z18.number(),
+        consumptionDate: z18.date().optional(),
+        projectId: z18.number().optional(),
+        deliveryId: z18.number().optional(),
+        notes: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
-      await recordConsumptionWithHistory({
+      await (void 0)({
         materialId: input.materialId,
         quantity: input.quantity,
         date: input.consumptionDate,
@@ -9993,31 +9960,31 @@ var appRouter = router({
       return { success: true };
     }),
     getReorderNeeds: protectedProcedure.query(async () => {
-      return await getReorderNeeds();
+      return await (void 0)();
     }),
-    getSupplierPerformance: protectedProcedure.input(z17.object({ supplierId: z17.number() })).query(async ({ input }) => {
-      return await getSupplierPerformance(input.supplierId);
+    getSupplierPerformance: protectedProcedure.input(z18.object({ supplierId: z18.number() })).query(async ({ input }) => {
+      return await (void 0)(input.supplierId);
     }),
     getConsumptionHistory: protectedProcedure.input(
-      z17.object({
-        materialId: z17.number().optional(),
-        days: z17.number().default(30)
+      z18.object({
+        materialId: z18.number().optional(),
+        days: z18.number().default(30)
       })
     ).query(async ({ input }) => {
-      return await getConsumptionHistory(input.materialId, input.days);
+      return await (void 0)(input.materialId, input.days);
     }),
     generateForecasts: protectedProcedure.mutation(async () => {
       const predictions = await generateForecastPredictions();
       return { success: true, predictions };
     }),
     getForecasts: protectedProcedure.query(async () => {
-      return await getForecastPredictions();
+      return await (void 0)();
     }),
-    get30DayForecast: protectedProcedure.input(z17.object({ materialId: z17.number() })).query(async ({ input }) => {
-      return await get30DayForecast(input.materialId);
+    get30DayForecast: protectedProcedure.input(z18.object({ materialId: z18.number() })).query(async ({ input }) => {
+      return await (void 0)(input.materialId);
     }),
     sendLowStockAlert: protectedProcedure.mutation(async () => {
-      const lowStockMaterials = await getLowStockMaterials();
+      const lowStockMaterials = await (void 0)();
       if (lowStockMaterials.length === 0) {
         return {
           success: true,
@@ -10046,10 +10013,10 @@ Please reorder these materials to avoid project delays.`;
       };
     }),
     checkCriticalStock: protectedProcedure.query(async () => {
-      return await getCriticalStockMaterials();
+      return await (void 0)();
     }),
     sendCriticalStockSMS: protectedProcedure.mutation(async () => {
-      const criticalMaterials = await getCriticalStockMaterials();
+      const criticalMaterials = await (void 0)();
       if (criticalMaterials.length === 0) {
         return {
           success: true,
@@ -10057,7 +10024,7 @@ Please reorder these materials to avoid project delays.`;
           smsCount: 0
         };
       }
-      const adminUsers = await getAdminUsersWithSMS();
+      const adminUsers = await (void 0)();
       if (adminUsers.length === 0) {
         return {
           success: false,
@@ -10092,21 +10059,21 @@ Please reorder these materials to avoid project delays.`;
   }),
   deliveries: router({
     list: protectedProcedure.input(
-      z17.object({
-        projectId: z17.number().optional(),
-        status: z17.string().optional()
+      z18.object({
+        projectId: z18.number().optional(),
+        status: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
       return await getDeliveries(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        projectId: z17.number().optional(),
-        projectName: z17.string(),
-        concreteType: z17.string(),
-        volume: z17.number(),
-        scheduledTime: z17.date(),
-        status: z17.enum([
+      z18.object({
+        projectId: z18.number().optional(),
+        projectName: z18.string(),
+        concreteType: z18.string(),
+        volume: z18.number(),
+        scheduledTime: z18.date(),
+        status: z18.enum([
           "scheduled",
           "loaded",
           "en_route",
@@ -10116,17 +10083,17 @@ Please reorder these materials to avoid project delays.`;
           "completed",
           "cancelled"
         ]).default("scheduled"),
-        driverName: z17.string().optional(),
-        vehicleNumber: z17.string().optional(),
-        notes: z17.string().optional(),
-        gpsLocation: z17.string().optional(),
-        deliveryPhotos: z17.string().optional(),
-        estimatedArrival: z17.number().optional(),
-        actualArrivalTime: z17.number().optional(),
-        actualDeliveryTime: z17.number().optional(),
-        driverNotes: z17.string().optional(),
-        customerName: z17.string().optional(),
-        customerPhone: z17.string().optional()
+        driverName: z18.string().optional(),
+        vehicleNumber: z18.string().optional(),
+        notes: z18.string().optional(),
+        gpsLocation: z18.string().optional(),
+        deliveryPhotos: z18.string().optional(),
+        estimatedArrival: z18.number().optional(),
+        actualArrivalTime: z18.number().optional(),
+        actualDeliveryTime: z18.number().optional(),
+        driverNotes: z18.string().optional(),
+        customerName: z18.string().optional(),
+        customerPhone: z18.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       await createDelivery({
@@ -10136,15 +10103,15 @@ Please reorder these materials to avoid project delays.`;
       return { success: true };
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        projectId: z17.number().optional(),
-        projectName: z17.string().optional(),
-        concreteType: z17.string().optional(),
-        volume: z17.number().optional(),
-        scheduledTime: z17.date().optional(),
-        actualTime: z17.date().optional(),
-        status: z17.enum([
+      z18.object({
+        id: z18.number(),
+        projectId: z18.number().optional(),
+        projectName: z18.string().optional(),
+        concreteType: z18.string().optional(),
+        volume: z18.number().optional(),
+        scheduledTime: z18.date().optional(),
+        actualTime: z18.date().optional(),
+        status: z18.enum([
           "scheduled",
           "loaded",
           "en_route",
@@ -10154,17 +10121,17 @@ Please reorder these materials to avoid project delays.`;
           "completed",
           "cancelled"
         ]).optional(),
-        driverName: z17.string().optional(),
-        vehicleNumber: z17.string().optional(),
-        notes: z17.string().optional(),
-        gpsLocation: z17.string().optional(),
-        deliveryPhotos: z17.string().optional(),
-        estimatedArrival: z17.number().optional(),
-        actualArrivalTime: z17.number().optional(),
-        actualDeliveryTime: z17.number().optional(),
-        driverNotes: z17.string().optional(),
-        customerName: z17.string().optional(),
-        customerPhone: z17.string().optional()
+        driverName: z18.string().optional(),
+        vehicleNumber: z18.string().optional(),
+        notes: z18.string().optional(),
+        gpsLocation: z18.string().optional(),
+        deliveryPhotos: z18.string().optional(),
+        estimatedArrival: z18.number().optional(),
+        actualArrivalTime: z18.number().optional(),
+        actualDeliveryTime: z18.number().optional(),
+        driverNotes: z18.string().optional(),
+        customerName: z18.string().optional(),
+        customerPhone: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
       const { id, ...data } = input;
@@ -10172,9 +10139,9 @@ Please reorder these materials to avoid project delays.`;
       return { success: true };
     }),
     updateStatus: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        status: z17.enum([
+      z18.object({
+        id: z18.number(),
+        status: z18.enum([
           "scheduled",
           "loaded",
           "en_route",
@@ -10184,8 +10151,8 @@ Please reorder these materials to avoid project delays.`;
           "completed",
           "cancelled"
         ]),
-        gpsLocation: z17.string().optional(),
-        driverNotes: z17.string().optional()
+        gpsLocation: z18.string().optional(),
+        driverNotes: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
       const { id, status, gpsLocation, driverNotes } = input;
@@ -10199,10 +10166,10 @@ Please reorder these materials to avoid project delays.`;
       return { success: true };
     }),
     uploadDeliveryPhoto: protectedProcedure.input(
-      z17.object({
-        deliveryId: z17.number(),
-        photoData: z17.string(),
-        mimeType: z17.string()
+      z18.object({
+        deliveryId: z18.number(),
+        photoData: z18.string(),
+        mimeType: z18.string()
       })
     ).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
@@ -10227,9 +10194,9 @@ Please reorder these materials to avoid project delays.`;
       );
     }),
     sendCustomerNotification: protectedProcedure.input(
-      z17.object({
-        deliveryId: z17.number(),
-        message: z17.string()
+      z18.object({
+        deliveryId: z18.number(),
+        message: z18.string()
       })
     ).mutation(async ({ input }) => {
       const allDeliveries = await getDeliveries();
@@ -10260,9 +10227,9 @@ Please reorder these materials to avoid project delays.`;
      * Automatically logs status transitions to delivery_status_history table
      */
     updateStatusWithGPS: protectedProcedure.input(
-      z17.object({
-        deliveryId: z17.number(),
-        status: z17.enum([
+      z18.object({
+        deliveryId: z18.number(),
+        status: z18.enum([
           "scheduled",
           "loaded",
           "en_route",
@@ -10272,13 +10239,13 @@ Please reorder these materials to avoid project delays.`;
           "completed",
           "cancelled"
         ]),
-        gpsLocation: z17.string().optional(),
+        gpsLocation: z18.string().optional(),
         // "lat,lng" format
-        driverNotes: z17.string().optional()
+        driverNotes: z18.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
       try {
-        const result = await updateDeliveryStatusWithGPS(
+        const result = await (void 0)(
           input.deliveryId,
           input.status,
           input.gpsLocation,
@@ -10295,18 +10262,18 @@ Please reorder these materials to avoid project delays.`;
      * Returns chronological list of all status changes with GPS locations
      */
     getHistory: protectedProcedure.input(
-      z17.object({
-        deliveryId: z17.number()
+      z18.object({
+        deliveryId: z18.number()
       })
     ).query(async ({ input }) => {
-      return await getDeliveryHistory(input.deliveryId);
+      return await (void 0)(input.deliveryId);
     }),
     /**
      * Get delivery with full details including project and recipe
      */
     getById: protectedProcedure.input(
-      z17.object({
-        id: z17.number()
+      z18.object({
+        id: z18.number()
       })
     ).query(async ({ input }) => {
       const delivery = await getDeliveries({ id: input.id });
@@ -10316,13 +10283,13 @@ Please reorder these materials to avoid project delays.`;
      * Calculate ETA for delivery
      */
     calculateETA: protectedProcedure.input(
-      z17.object({
-        deliveryId: z17.number(),
-        currentGPS: z17.string().optional()
+      z18.object({
+        deliveryId: z18.number(),
+        currentGPS: z18.string().optional()
         // "lat,lng" format
       })
     ).mutation(async ({ input }) => {
-      const eta = await calculateDeliveryETA(
+      const eta = await (void 0)(
         input.deliveryId,
         input.currentGPS
       );
@@ -10333,7 +10300,7 @@ Please reorder these materials to avoid project delays.`;
      * Returns deliveries currently in progress (loaded, en_route, arrived, delivered)
      */
     getActiveDeliveriesEnhanced: protectedProcedure.query(async () => {
-      return await getActiveDeliveries();
+      return await (void 0)();
     })
     // ============================================================================
     // END PHASE 2 DELIVERY TRACKING PROCEDURES
@@ -10341,47 +10308,47 @@ Please reorder these materials to avoid project delays.`;
   }),
   qualityTests: router({
     list: protectedProcedure.input(
-      z17.object({
-        projectId: z17.number().optional(),
-        deliveryId: z17.number().optional()
+      z18.object({
+        projectId: z18.number().optional(),
+        deliveryId: z18.number().optional()
       }).optional()
     ).query(async ({ input }) => {
       return await getQualityTests(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        testName: z17.string(),
-        testType: z17.enum([
+      z18.object({
+        testName: z18.string(),
+        testType: z18.enum([
           "slump",
           "strength",
           "air_content",
           "temperature",
           "other"
         ]),
-        result: z17.string(),
-        unit: z17.string().optional(),
-        status: z17.enum(["pass", "fail", "pending"]).default("pending"),
-        deliveryId: z17.number().optional(),
-        projectId: z17.number().optional(),
-        testedBy: z17.string().optional(),
-        notes: z17.string().optional(),
-        photoUrls: z17.string().optional(),
+        result: z18.string(),
+        unit: z18.string().optional(),
+        status: z18.enum(["pass", "fail", "pending"]).default("pending"),
+        deliveryId: z18.number().optional(),
+        projectId: z18.number().optional(),
+        testedBy: z18.string().optional(),
+        notes: z18.string().optional(),
+        photoUrls: z18.string().optional(),
         // JSON array
-        inspectorSignature: z17.string().optional(),
-        supervisorSignature: z17.string().optional(),
-        testLocation: z17.string().optional(),
-        complianceStandard: z17.string().optional(),
-        offlineSyncStatus: z17.enum(["synced", "pending", "failed"]).default("synced").optional()
+        inspectorSignature: z18.string().optional(),
+        supervisorSignature: z18.string().optional(),
+        testLocation: z18.string().optional(),
+        complianceStandard: z18.string().optional(),
+        offlineSyncStatus: z18.enum(["synced", "pending", "failed"]).default("synced").optional()
       })
     ).mutation(async ({ input }) => {
       await createQualityTest(input);
       return { success: true };
     }),
     uploadPhoto: protectedProcedure.input(
-      z17.object({
-        photoData: z17.string(),
+      z18.object({
+        photoData: z18.string(),
         // Base64 encoded image
-        mimeType: z17.string()
+        mimeType: z18.string()
       })
     ).mutation(async ({ input, ctx }) => {
       const photoBuffer = Buffer.from(input.photoData, "base64");
@@ -10391,29 +10358,29 @@ Please reorder these materials to avoid project delays.`;
       return { success: true, url };
     }),
     syncOfflineTests: protectedProcedure.input(
-      z17.object({
-        tests: z17.array(
-          z17.object({
-            testName: z17.string(),
-            testType: z17.enum([
+      z18.object({
+        tests: z18.array(
+          z18.object({
+            testName: z18.string(),
+            testType: z18.enum([
               "slump",
               "strength",
               "air_content",
               "temperature",
               "other"
             ]),
-            result: z17.string(),
-            unit: z17.string().optional(),
-            status: z17.enum(["pass", "fail", "pending"]),
-            deliveryId: z17.number().optional(),
-            projectId: z17.number().optional(),
-            testedBy: z17.string().optional(),
-            notes: z17.string().optional(),
-            photoUrls: z17.string().optional(),
-            inspectorSignature: z17.string().optional(),
-            supervisorSignature: z17.string().optional(),
-            testLocation: z17.string().optional(),
-            complianceStandard: z17.string().optional()
+            result: z18.string(),
+            unit: z18.string().optional(),
+            status: z18.enum(["pass", "fail", "pending"]),
+            deliveryId: z18.number().optional(),
+            projectId: z18.number().optional(),
+            testedBy: z18.string().optional(),
+            notes: z18.string().optional(),
+            photoUrls: z18.string().optional(),
+            inspectorSignature: z18.string().optional(),
+            supervisorSignature: z18.string().optional(),
+            testLocation: z18.string().optional(),
+            complianceStandard: z18.string().optional()
           })
         )
       })
@@ -10424,37 +10391,37 @@ Please reorder these materials to avoid project delays.`;
       return { success: true, syncedCount: input.tests.length };
     }),
     getFailedTests: protectedProcedure.input(
-      z17.object({
-        days: z17.number().default(30)
+      z18.object({
+        days: z18.number().default(30)
       }).optional()
     ).query(async ({ input }) => {
-      return await getFailedQualityTests(input?.days || 30);
+      return await (void 0)(input?.days || 30);
     }),
     getTrends: protectedProcedure.input(
-      z17.object({
-        days: z17.number().default(30)
+      z18.object({
+        days: z18.number().default(30)
       }).optional()
     ).query(async ({ input }) => {
-      return await getQualityTestTrends(input?.days || 30);
+      return await (void 0)(input?.days || 30);
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        testName: z17.string().optional(),
-        testType: z17.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
-        result: z17.string().optional(),
-        unit: z17.string().optional(),
-        status: z17.enum(["pass", "fail", "pending"]).optional(),
-        deliveryId: z17.number().optional(),
-        projectId: z17.number().optional(),
-        testedBy: z17.string().optional(),
-        notes: z17.string().optional(),
-        photoUrls: z17.string().optional(),
-        inspectorSignature: z17.string().optional(),
-        supervisorSignature: z17.string().optional(),
-        testLocation: z17.string().optional(),
-        complianceStandard: z17.string().optional(),
-        offlineSyncStatus: z17.enum(["synced", "pending", "failed"]).optional()
+      z18.object({
+        id: z18.number(),
+        testName: z18.string().optional(),
+        testType: z18.enum(["slump", "strength", "air_content", "temperature", "other"]).optional(),
+        result: z18.string().optional(),
+        unit: z18.string().optional(),
+        status: z18.enum(["pass", "fail", "pending"]).optional(),
+        deliveryId: z18.number().optional(),
+        projectId: z18.number().optional(),
+        testedBy: z18.string().optional(),
+        notes: z18.string().optional(),
+        photoUrls: z18.string().optional(),
+        inspectorSignature: z18.string().optional(),
+        supervisorSignature: z18.string().optional(),
+        testLocation: z18.string().optional(),
+        complianceStandard: z18.string().optional(),
+        offlineSyncStatus: z18.enum(["synced", "pending", "failed"]).optional()
       })
     ).mutation(async ({ input }) => {
       const { id, ...data } = input;
@@ -10466,11 +10433,11 @@ Please reorder these materials to avoid project delays.`;
      * Pulls related project and delivery data to create a complete certificate
      */
     generateCertificate: protectedProcedure.input(
-      z17.object({
-        testId: z17.number()
+      z18.object({
+        testId: z18.number()
       })
     ).query(async ({ input }) => {
-      const details = await getQualityTestWithDetails(input.testId);
+      const details = await (void 0)(input.testId);
       if (!details) {
         throw new Error(`Quality test with ID ${input.testId} not found`);
       }
@@ -10562,156 +10529,156 @@ Please reorder these materials to avoid project delays.`;
   // Workforce Management
   employees: router({
     list: protectedProcedure.input(
-      z17.object({
-        department: z17.string().optional(),
-        status: z17.string().optional()
+      z18.object({
+        department: z18.string().optional(),
+        status: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getEmployees(input);
+      return await (void 0)(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        firstName: z17.string(),
-        lastName: z17.string(),
-        employeeNumber: z17.string(),
-        position: z17.string(),
-        department: z17.enum([
+      z18.object({
+        firstName: z18.string(),
+        lastName: z18.string(),
+        employeeNumber: z18.string(),
+        position: z18.string(),
+        department: z18.enum([
           "construction",
           "maintenance",
           "quality",
           "administration",
           "logistics"
         ]),
-        phoneNumber: z17.string().optional(),
-        email: z17.string().optional(),
-        hourlyRate: z17.number().optional(),
-        status: z17.enum(["active", "inactive", "on_leave"]).default("active"),
-        hireDate: z17.date().optional()
+        phoneNumber: z18.string().optional(),
+        email: z18.string().optional(),
+        hourlyRate: z18.number().optional(),
+        status: z18.enum(["active", "inactive", "on_leave"]).default("active"),
+        hireDate: z18.date().optional()
       })
     ).mutation(async ({ input }) => {
       return await createEmployee(input);
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        data: z17.object({
-          firstName: z17.string().optional(),
-          lastName: z17.string().optional(),
-          position: z17.string().optional(),
-          department: z17.enum([
+      z18.object({
+        id: z18.number(),
+        data: z18.object({
+          firstName: z18.string().optional(),
+          lastName: z18.string().optional(),
+          position: z18.string().optional(),
+          department: z18.enum([
             "construction",
             "maintenance",
             "quality",
             "administration",
             "logistics"
           ]).optional(),
-          phoneNumber: z17.string().optional(),
-          email: z17.string().optional(),
-          hourlyRate: z17.number().optional(),
-          status: z17.enum(["active", "inactive", "on_leave"]).optional()
+          phoneNumber: z18.string().optional(),
+          email: z18.string().optional(),
+          hourlyRate: z18.number().optional(),
+          status: z18.enum(["active", "inactive", "on_leave"]).optional()
         })
       })
     ).mutation(async ({ input }) => {
-      await updateEmployee(input.id, input.data);
+      await (void 0)(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
-      await deleteEmployee(input.id);
+    delete: protectedProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
+      await (void 0)(input.id);
       return { success: true };
     })
   }),
   workHours: router({
     list: protectedProcedure.input(
-      z17.object({
-        employeeId: z17.number().optional(),
-        projectId: z17.number().optional(),
-        status: z17.string().optional()
+      z18.object({
+        employeeId: z18.number().optional(),
+        projectId: z18.number().optional(),
+        status: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getWorkHours(input);
+      return await (void 0)(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        employeeId: z17.number(),
-        projectId: z17.number().optional(),
-        date: z17.date(),
-        startTime: z17.date(),
-        endTime: z17.date().optional(),
-        hoursWorked: z17.number().optional(),
-        overtimeHours: z17.number().optional(),
-        workType: z17.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
-        notes: z17.string().optional(),
-        status: z17.enum(["pending", "approved", "rejected"]).default("pending")
+      z18.object({
+        employeeId: z18.number(),
+        projectId: z18.number().optional(),
+        date: z18.date(),
+        startTime: z18.date(),
+        endTime: z18.date().optional(),
+        hoursWorked: z18.number().optional(),
+        overtimeHours: z18.number().optional(),
+        workType: z18.enum(["regular", "overtime", "weekend", "holiday"]).default("regular"),
+        notes: z18.string().optional(),
+        status: z18.enum(["pending", "approved", "rejected"]).default("pending")
       })
     ).mutation(async ({ input, ctx }) => {
       return await createWorkHour(input);
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        data: z17.object({
-          endTime: z17.date().optional(),
-          hoursWorked: z17.number().optional(),
-          overtimeHours: z17.number().optional(),
-          notes: z17.string().optional(),
-          status: z17.enum(["pending", "approved", "rejected"]).optional(),
-          approvedBy: z17.number().optional()
+      z18.object({
+        id: z18.number(),
+        data: z18.object({
+          endTime: z18.date().optional(),
+          hoursWorked: z18.number().optional(),
+          overtimeHours: z18.number().optional(),
+          notes: z18.string().optional(),
+          status: z18.enum(["pending", "approved", "rejected"]).optional(),
+          approvedBy: z18.number().optional()
         })
       })
     ).mutation(async ({ input }) => {
-      await updateWorkHour(input.id, input.data);
+      await (void 0)(input.id, input.data);
       return { success: true };
     })
   }),
   // Concrete Base Management
   concreteBases: router({
     list: protectedProcedure.query(async () => {
-      return await getConcreteBases();
+      return await (void 0)();
     }),
     create: protectedProcedure.input(
-      z17.object({
-        name: z17.string(),
-        location: z17.string(),
-        capacity: z17.number(),
-        status: z17.enum(["operational", "maintenance", "inactive"]).default("operational"),
-        managerName: z17.string().optional(),
-        phoneNumber: z17.string().optional()
+      z18.object({
+        name: z18.string(),
+        location: z18.string(),
+        capacity: z18.number(),
+        status: z18.enum(["operational", "maintenance", "inactive"]).default("operational"),
+        managerName: z18.string().optional(),
+        phoneNumber: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
-      return await createConcreteBase(input);
+      return await (void 0)(input);
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        data: z17.object({
-          name: z17.string().optional(),
-          location: z17.string().optional(),
-          capacity: z17.number().optional(),
-          status: z17.enum(["operational", "maintenance", "inactive"]).optional(),
-          managerName: z17.string().optional(),
-          phoneNumber: z17.string().optional()
+      z18.object({
+        id: z18.number(),
+        data: z18.object({
+          name: z18.string().optional(),
+          location: z18.string().optional(),
+          capacity: z18.number().optional(),
+          status: z18.enum(["operational", "maintenance", "inactive"]).optional(),
+          managerName: z18.string().optional(),
+          phoneNumber: z18.string().optional()
         })
       })
     ).mutation(async ({ input }) => {
-      await updateConcreteBase(input.id, input.data);
+      await (void 0)(input.id, input.data);
       return { success: true };
     })
   }),
   machines: router({
     list: protectedProcedure.input(
-      z17.object({
-        concreteBaseId: z17.number().optional(),
-        type: z17.string().optional(),
-        status: z17.string().optional()
+      z18.object({
+        concreteBaseId: z18.number().optional(),
+        type: z18.string().optional(),
+        status: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getMachines(input);
+      return await (void 0)(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        name: z17.string(),
-        machineNumber: z17.string(),
-        type: z17.enum([
+      z18.object({
+        name: z18.string(),
+        machineNumber: z18.string(),
+        type: z18.enum([
           "mixer",
           "pump",
           "truck",
@@ -10719,50 +10686,50 @@ Please reorder these materials to avoid project delays.`;
           "crane",
           "other"
         ]),
-        manufacturer: z17.string().optional(),
-        model: z17.string().optional(),
-        year: z17.number().optional(),
-        concreteBaseId: z17.number().optional(),
-        status: z17.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
+        manufacturer: z18.string().optional(),
+        model: z18.string().optional(),
+        year: z18.number().optional(),
+        concreteBaseId: z18.number().optional(),
+        status: z18.enum(["operational", "maintenance", "repair", "inactive"]).default("operational")
       })
     ).mutation(async ({ input }) => {
-      return await createMachine(input);
+      return await (void 0)(input);
     }),
     update: protectedProcedure.input(
-      z17.object({
-        id: z17.number(),
-        data: z17.object({
-          name: z17.string().optional(),
-          type: z17.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
-          status: z17.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
-          totalWorkingHours: z17.number().optional(),
-          lastMaintenanceDate: z17.date().optional(),
-          nextMaintenanceDate: z17.date().optional()
+      z18.object({
+        id: z18.number(),
+        data: z18.object({
+          name: z18.string().optional(),
+          type: z18.enum(["mixer", "pump", "truck", "excavator", "crane", "other"]).optional(),
+          status: z18.enum(["operational", "maintenance", "repair", "inactive"]).optional(),
+          totalWorkingHours: z18.number().optional(),
+          lastMaintenanceDate: z18.date().optional(),
+          nextMaintenanceDate: z18.date().optional()
         })
       })
     ).mutation(async ({ input }) => {
-      await updateMachine(input.id, input.data);
+      await (void 0)(input.id, input.data);
       return { success: true };
     }),
-    delete: protectedProcedure.input(z17.object({ id: z17.number() })).mutation(async ({ input }) => {
-      await deleteMachine(input.id);
+    delete: protectedProcedure.input(z18.object({ id: z18.number() })).mutation(async ({ input }) => {
+      await (void 0)(input.id);
       return { success: true };
     })
   }),
   machineMaintenance: router({
     list: protectedProcedure.input(
-      z17.object({
-        machineId: z17.number().optional(),
-        maintenanceType: z17.string().optional()
+      z18.object({
+        machineId: z18.number().optional(),
+        maintenanceType: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getMachineMaintenance(input);
+      return await (void 0)(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        machineId: z17.number(),
-        date: z17.date(),
-        maintenanceType: z17.enum([
+      z18.object({
+        machineId: z18.number(),
+        date: z18.date(),
+        maintenanceType: z18.enum([
           "lubrication",
           "fuel",
           "oil_change",
@@ -10770,43 +10737,43 @@ Please reorder these materials to avoid project delays.`;
           "inspection",
           "other"
         ]),
-        description: z17.string().optional(),
-        lubricationType: z17.string().optional(),
-        lubricationAmount: z17.number().optional(),
-        fuelType: z17.string().optional(),
-        fuelAmount: z17.number().optional(),
-        cost: z17.number().optional(),
-        performedBy: z17.string().optional(),
-        hoursAtMaintenance: z17.number().optional(),
-        notes: z17.string().optional()
+        description: z18.string().optional(),
+        lubricationType: z18.string().optional(),
+        lubricationAmount: z18.number().optional(),
+        fuelType: z18.string().optional(),
+        fuelAmount: z18.number().optional(),
+        cost: z18.number().optional(),
+        performedBy: z18.string().optional(),
+        hoursAtMaintenance: z18.number().optional(),
+        notes: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
-      return await createMachineMaintenance(input);
+      return await (void 0)(input);
     })
   }),
   machineWorkHours: router({
     list: protectedProcedure.input(
-      z17.object({
-        machineId: z17.number().optional(),
-        projectId: z17.number().optional()
+      z18.object({
+        machineId: z18.number().optional(),
+        projectId: z18.number().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getMachineWorkHours(input);
+      return await (void 0)(input);
     }),
     create: protectedProcedure.input(
-      z17.object({
-        machineId: z17.number(),
-        projectId: z17.number().optional(),
-        date: z17.date(),
-        startTime: z17.date(),
-        endTime: z17.date().optional(),
-        hoursWorked: z17.number().optional(),
-        operatorId: z17.number().optional(),
-        operatorName: z17.string().optional(),
-        notes: z17.string().optional()
+      z18.object({
+        machineId: z18.number(),
+        projectId: z18.number().optional(),
+        date: z18.date(),
+        startTime: z18.date(),
+        endTime: z18.date().optional(),
+        hoursWorked: z18.number().optional(),
+        operatorId: z18.number().optional(),
+        operatorName: z18.string().optional(),
+        notes: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
-      return await createMachineWorkHour({
+      return await (void 0)({
         ...input,
         hours: input.hoursWorked || 0
       });
@@ -10814,21 +10781,21 @@ Please reorder these materials to avoid project delays.`;
   }),
   aggregateInputs: router({
     list: protectedProcedure.input(
-      z17.object({
-        concreteBaseId: z17.number().optional(),
-        materialType: z17.string().optional()
+      z18.object({
+        concreteBaseId: z18.number().optional(),
+        materialType: z18.string().optional()
       }).optional()
     ).query(async ({ input }) => {
-      return await getAggregateInputs(
+      return await (void 0)(
         input?.concreteBaseId,
         input?.materialType
       );
     }),
     create: protectedProcedure.input(
-      z17.object({
-        concreteBaseId: z17.number(),
-        date: z17.date(),
-        materialType: z17.enum([
+      z18.object({
+        concreteBaseId: z18.number(),
+        date: z18.date(),
+        materialType: z18.enum([
           "cement",
           "sand",
           "gravel",
@@ -10836,22 +10803,22 @@ Please reorder these materials to avoid project delays.`;
           "admixture",
           "other"
         ]),
-        materialName: z17.string(),
-        quantity: z17.number(),
-        unit: z17.string(),
-        supplier: z17.string().optional(),
-        batchNumber: z17.string().optional(),
-        receivedBy: z17.string().optional(),
-        notes: z17.string().optional()
+        materialName: z18.string(),
+        quantity: z18.number(),
+        unit: z18.string(),
+        supplier: z18.string().optional(),
+        batchNumber: z18.string().optional(),
+        receivedBy: z18.string().optional(),
+        notes: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
-      return await createAggregateInput(input);
+      return await (void 0)(input);
     })
   }),
   reports: router({
     dailyProduction: protectedProcedure.input(
-      z17.object({
-        date: z17.string()
+      z18.object({
+        date: z18.string()
         // YYYY-MM-DD format
       })
     ).query(async ({ input }) => {
@@ -10865,10 +10832,10 @@ Please reorder these materials to avoid project delays.`;
         return deliveryDate >= targetDate && deliveryDate < nextDay;
       });
       const totalConcreteProduced = completedDeliveries.reduce(
-        (sum, d) => sum + (d.volume || 0),
+        (sum2, d) => sum2 + (d.volume || 0),
         0
       );
-      const consumptions = await getConsumptionHistory(void 0, 1);
+      const consumptions = await (void 0)(void 0, 1);
       const dayConsumptions = consumptions.filter((c) => {
         const cDate = new Date(c.date);
         return cDate >= targetDate && cDate < nextDay;
@@ -10901,9 +10868,9 @@ Please reorder these materials to avoid project delays.`;
       };
     }),
     sendDailyProductionEmail: protectedProcedure.input(
-      z17.object({
-        date: z17.string(),
-        recipientEmail: z17.string()
+      z18.object({
+        date: z18.string(),
+        recipientEmail: z18.string()
       })
     ).mutation(async ({ input }) => {
       const targetDate = new Date(input.date);
@@ -10916,10 +10883,10 @@ Please reorder these materials to avoid project delays.`;
         return deliveryDate >= targetDate && deliveryDate < nextDay;
       });
       const totalConcreteProduced = completedDeliveries.reduce(
-        (sum, d) => sum + (d.volume || 0),
+        (sum2, d) => sum2 + (d.volume || 0),
         0
       );
-      const consumptions = await getConsumptionHistory(void 0, 1);
+      const consumptions = await (void 0)(void 0, 1);
       const dayConsumptions = consumptions.filter((c) => {
         const cDate = new Date(c.date);
         return cDate >= targetDate && cDate < nextDay;
@@ -10943,7 +10910,7 @@ Please reorder these materials to avoid project delays.`;
         passed: dayTests.filter((t2) => t2.status === "pass").length,
         failed: dayTests.filter((t2) => t2.status === "fail").length
       };
-      const settings = await getReportSettings(1);
+      const settings = await (void 0)(1);
       const { sendEmail: sendEmail2, generateDailyProductionReportHTML: generateDailyProductionReportHTML2 } = await Promise.resolve().then(() => (init_email(), email_exports));
       const emailResult = await generateDailyProductionReportHTML2(
         {
@@ -10970,31 +10937,31 @@ Please reorder these materials to avoid project delays.`;
   }),
   branding: router({
     get: protectedProcedure.query(async () => {
-      return await getEmailBranding();
+      return await (void 0)();
     }),
     update: protectedProcedure.input(
-      z17.object({
-        logoUrl: z17.string().optional(),
-        primaryColor: z17.string().optional(),
-        secondaryColor: z17.string().optional(),
-        companyName: z17.string().optional(),
-        footerText: z17.string().optional(),
-        headerStyle: z17.enum(["gradient", "solid", "minimal"]).optional(),
-        fontFamily: z17.string().optional()
+      z18.object({
+        logoUrl: z18.string().optional(),
+        primaryColor: z18.string().optional(),
+        secondaryColor: z18.string().optional(),
+        companyName: z18.string().optional(),
+        footerText: z18.string().optional(),
+        headerStyle: z18.enum(["gradient", "solid", "minimal"]).optional(),
+        fontFamily: z18.string().optional()
       })
     ).mutation(async ({ input, ctx }) => {
-      await upsertEmailBranding({
+      await (void 0)({
         ...input,
         updatedBy: ctx.user.id
       });
       return { success: true };
     }),
     uploadLogo: protectedProcedure.input(
-      z17.object({
-        fileData: z17.string(),
+      z18.object({
+        fileData: z18.string(),
         // base64 encoded image
-        fileName: z17.string(),
-        mimeType: z17.string()
+        fileName: z18.string(),
+        mimeType: z18.string()
       })
     ).mutation(async ({ input }) => {
       const allowedTypes = [
@@ -11014,7 +10981,7 @@ Please reorder these materials to avoid project delays.`;
       }
       const fileKey = `branding/logo-${nanoid()}-${input.fileName}`;
       const { url } = await storagePut(fileKey, buffer, input.mimeType);
-      await upsertEmailBranding({ logoUrl: url });
+      await (void 0)({ logoUrl: url });
       return { url };
     })
   }),
@@ -11022,12 +10989,12 @@ Please reorder these materials to avoid project delays.`;
   emailTemplates: router({
     // List all email templates
     list: protectedProcedure.query(async () => {
-      const templates = await getEmailTemplates();
+      const templates = await (void 0)();
       return templates;
     }),
     // Get a specific template by type
-    getByType: protectedProcedure.input(z17.object({ type: z17.string() })).query(async ({ input }) => {
-      const template = await getEmailTemplateByType(input.type);
+    getByType: protectedProcedure.input(z18.object({ type: z18.string() })).query(async ({ input }) => {
+      const template = await (void 0)(input.type);
       if (!template) {
         const defaultContent = getDefaultTemplateContent(
           input.type
@@ -11071,22 +11038,22 @@ Please reorder these materials to avoid project delays.`;
       ];
     }),
     // Get available variables for a template type
-    getVariables: protectedProcedure.input(z17.object({ type: z17.string() })).query(({ input }) => {
+    getVariables: protectedProcedure.input(z18.object({ type: z18.string() })).query(({ input }) => {
       return TEMPLATE_VARIABLES[input.type] || [];
     }),
     // Create or update a template
     upsert: protectedProcedure.input(
-      z17.object({
-        type: z17.string(),
-        name: z17.string(),
-        description: z17.string().optional(),
-        subject: z17.string(),
-        bodyHtml: z17.string(),
-        bodyText: z17.string().optional(),
-        isActive: z17.boolean().optional()
+      z18.object({
+        type: z18.string(),
+        name: z18.string(),
+        description: z18.string().optional(),
+        subject: z18.string(),
+        bodyHtml: z18.string(),
+        bodyText: z18.string().optional(),
+        isActive: z18.boolean().optional()
       })
     ).mutation(async ({ input, ctx }) => {
-      const id = await upsertEmailTemplate({
+      const id = await (void 0)({
         ...input,
         isCustom: true,
         variables: TEMPLATE_VARIABLES[input.type],
@@ -11095,11 +11062,11 @@ Please reorder these materials to avoid project delays.`;
       return { success: true, id };
     }),
     // Reset a template to default
-    resetToDefault: protectedProcedure.input(z17.object({ type: z17.string() })).mutation(async ({ input }) => {
+    resetToDefault: protectedProcedure.input(z18.object({ type: z18.string() })).mutation(async ({ input }) => {
       const defaultContent = getDefaultTemplateContent(
         input.type
       );
-      await upsertEmailTemplate({
+      await (void 0)({
         type: input.type,
         ...defaultContent,
         isCustom: false,
@@ -11109,15 +11076,15 @@ Please reorder these materials to avoid project delays.`;
       return { success: true };
     }),
     // Get default template content (without saving)
-    getDefault: protectedProcedure.input(z17.object({ type: z17.string() })).query(({ input }) => {
+    getDefault: protectedProcedure.input(z18.object({ type: z18.string() })).query(({ input }) => {
       return getDefaultTemplateContent(input.type);
     }),
     // Preview a template with sample data
     preview: protectedProcedure.input(
-      z17.object({
-        type: z17.string(),
-        subject: z17.string().optional(),
-        bodyHtml: z17.string().optional()
+      z18.object({
+        type: z18.string(),
+        subject: z18.string().optional(),
+        bodyHtml: z18.string().optional()
       })
     ).mutation(async ({ input }) => {
       const preview = await generateEmailPreview(
@@ -11159,13 +11126,17 @@ import path4 from "path";
 import { createServer as createViteServer } from "vite";
 
 // vite.config.ts
-import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path3 from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
-var plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime()];
+var plugins = [
+  react(),
+  tailwindcss(),
+  /* jsxLocPlugin(), */
+  vitePluginManusRuntime()
+];
 var vite_config_default = defineConfig({
   plugins,
   resolve: {
@@ -11268,14 +11239,14 @@ async function checkAllMaterialStockLevels() {
 async function checkAllOverdueTasks() {
   try {
     console.log("[TriggerJobs] Checking for overdue tasks...");
-    const users2 = await getAdminUsersWithSMS();
-    for (const user2 of users2) {
+    const users3 = await (void 0)();
+    for (const user2 of users3) {
       const overdueTasks = await getOverdueTasks(user2.id);
       if (overdueTasks.length > 0) {
         await checkOverdueTaskTriggers(user2.id);
       }
     }
-    console.log(`[TriggerJobs] Checked overdue tasks for ${users2.length} users`);
+    console.log(`[TriggerJobs] Checked overdue tasks for ${users3.length} users`);
   } catch (error) {
     console.error("[TriggerJobs] Error checking overdue tasks:", error);
   }
