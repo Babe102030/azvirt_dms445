@@ -2438,11 +2438,11 @@ async function syncClerkUser(req) {
       lastSignedIn: /* @__PURE__ */ new Date()
     };
     await upsertUser(userData);
-    const user2 = await getUserByOpenId(userId);
-    if (!user2) {
+    const user = await getUserByOpenId(userId);
+    if (!user) {
       throw new Error("Failed to retrieve user after upsert");
     }
-    return user2;
+    return user;
   } catch (error) {
     console.error("[Clerk] Error syncing user:", error);
     throw error;
@@ -2633,6 +2633,14 @@ import { nanoid } from "nanoid";
 // server/routers/aiAssistant.ts
 import { z as z2 } from "zod";
 init_db();
+
+// server/db/ai.ts
+init_db();
+init_schema();
+import { eq as eq2, desc as desc2 } from "drizzle-orm";
+async function getAiConversations(userId) {
+  return await db.select().from(aiConversations).where(eq2(aiConversations.userId, userId)).orderBy(desc2(aiConversations.createdAt));
+}
 
 // server/_core/ollama.ts
 import axios from "axios";
@@ -2913,7 +2921,7 @@ init_env();
 // server/_core/aiTools.ts
 init_db();
 init_schema();
-import { like as like2, eq as eq2, and as and2, desc as desc2, sql as sql2 } from "drizzle-orm";
+import { like as like2, eq as eq3, and as and2, desc as desc3, sql as sql2 } from "drizzle-orm";
 var searchMaterialsTool = {
   name: "search_materials",
   description: "Search materials inventory by name or check stock levels. Returns current stock, supplier info, and low stock warnings.",
@@ -2979,7 +2987,7 @@ var getProjectsTool = {
     let query = db2.select().from(projects);
     const conditions = [];
     if (params.status) {
-      conditions.push(eq2(projects.status, params.status));
+      conditions.push(eq3(projects.status, params.status));
     }
     if (params.query) {
       conditions.push(like2(projects.name, `%${params.query}%`));
@@ -2987,7 +2995,7 @@ var getProjectsTool = {
     if (conditions.length > 0) {
       query = query.where(and2(...conditions));
     }
-    const results = await query.orderBy(desc2(projects.createdAt));
+    const results = await query.orderBy(desc3(projects.createdAt));
     return results.map((p) => ({
       id: p.id,
       name: p.name,
@@ -3036,7 +3044,7 @@ var getDeliveryStatusTool = {
     if (!db2) return { error: "Database not available" };
     let query = db2.select().from(deliveries);
     const conditions = [];
-    if (params.status) conditions.push(eq2(deliveries.status, params.status));
+    if (params.status) conditions.push(eq3(deliveries.status, params.status));
     if (params.projectName)
       conditions.push(like2(deliveries.projectName, `%${params.projectName}%`));
     if (params.driverName)
@@ -3044,7 +3052,7 @@ var getDeliveryStatusTool = {
     if (conditions.length > 0) {
       query = query.where(and2(...conditions));
     }
-    const results = await query.orderBy(desc2(deliveries.scheduledTime)).limit(20);
+    const results = await query.orderBy(desc3(deliveries.scheduledTime)).limit(20);
     return results;
   }
 };
@@ -3073,11 +3081,11 @@ var searchDocumentsTool = {
     if (params.query)
       conditions.push(like2(documents.name, `%${params.query}%`));
     if (params.projectId)
-      conditions.push(eq2(documents.projectId, params.projectId));
+      conditions.push(eq3(documents.projectId, params.projectId));
     if (conditions.length > 0) {
       query = query.where(and2(...conditions));
     }
-    return await query.orderBy(desc2(documents.createdAt)).limit(15);
+    return await query.orderBy(desc3(documents.createdAt)).limit(15);
   }
 };
 var getQualityTestsTool = {
@@ -3107,14 +3115,14 @@ var getQualityTestsTool = {
     let query = db2.select().from(qualityTests);
     const conditions = [];
     if (params.testType)
-      conditions.push(eq2(qualityTests.testType, params.testType));
-    if (params.status) conditions.push(eq2(qualityTests.status, params.status));
+      conditions.push(eq3(qualityTests.testType, params.testType));
+    if (params.status) conditions.push(eq3(qualityTests.status, params.status));
     if (params.deliveryId)
-      conditions.push(eq2(qualityTests.deliveryId, params.deliveryId));
+      conditions.push(eq3(qualityTests.deliveryId, params.deliveryId));
     if (conditions.length > 0) {
       query = query.where(and2(...conditions));
     }
-    return await query.orderBy(desc2(qualityTests.createdAt)).limit(20);
+    return await query.orderBy(desc3(qualityTests.createdAt)).limit(20);
   }
 };
 var generateForecastTool = {
@@ -3175,7 +3183,7 @@ var calculateStatsTool = {
         return { totalVolume: vSum.total };
       case "pass_rate":
         const [tCount] = await db2.select({ total: sql2`count(*)` }).from(qualityTests);
-        const [pCount] = await db2.select({ passed: sql2`count(*)` }).from(qualityTests).where(eq2(qualityTests.status, "pass"));
+        const [pCount] = await db2.select({ passed: sql2`count(*)` }).from(qualityTests).where(eq3(qualityTests.status, "pass"));
         return {
           totalTests: tCount.total,
           passRate: tCount.total > 0 ? pCount.passed / tCount.total * 100 : 0
@@ -3326,7 +3334,7 @@ var updateMaterialQuantityTool = {
     if (!db2) return { error: "Database not available" };
     const { materialId, quantity, adjustment } = params;
     if (quantity !== void 0) {
-      await db2.update(materials).set({ quantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
+      await db2.update(materials).set({ quantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq3(materials.id, materialId));
       return {
         success: true,
         materialId,
@@ -3334,12 +3342,12 @@ var updateMaterialQuantityTool = {
         message: "Material quantity updated"
       };
     } else if (adjustment !== void 0) {
-      const [material] = await db2.select().from(materials).where(eq2(materials.id, materialId));
+      const [material] = await db2.select().from(materials).where(eq3(materials.id, materialId));
       if (!material) {
         return { error: "Material not found" };
       }
       const newQuantity = material.quantity + adjustment;
-      await db2.update(materials).set({ quantity: newQuantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(materials.id, materialId));
+      await db2.update(materials).set({ quantity: newQuantity, updatedAt: /* @__PURE__ */ new Date() }).where(eq3(materials.id, materialId));
       return {
         success: true,
         materialId,
@@ -3425,7 +3433,7 @@ var updateDocumentTool = {
     const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
     const { id, ...updates } = params;
-    await db2.update(documents).set(updates).where(eq2(documents.id, id));
+    await db2.update(documents).set(updates).where(eq3(documents.id, id));
     return { success: true, message: "Document updated" };
   }
 };
@@ -3442,7 +3450,7 @@ var deleteDocumentTool = {
   execute: async (params) => {
     const db2 = await getDb();
     if (!db2) return { error: "Database not available" };
-    await db2.delete(documents).where(eq2(documents.id, params.id));
+    await db2.delete(documents).where(eq3(documents.id, params.id));
     return { success: true, message: "Document deleted" };
   }
 };
@@ -4175,7 +4183,7 @@ var aiAssistantRouter = router({
           modelName: input.model
         });
       } else {
-        const conversations = await (void 0)(userId);
+        const conversations = await getAiConversations(userId);
         if (!conversations.some((c) => c.id === conversationId)) {
           throw new Error("Conversation not found or access denied");
         }
@@ -4328,13 +4336,13 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Get all conversations for current user
    */
   getConversations: protectedProcedure.query(async ({ ctx }) => {
-    return await (void 0)(ctx.user.id);
+    return await getAiConversations(ctx.user.id);
   }),
   /**
    * Get messages for a conversation
    */
   getMessages: protectedProcedure.input(z2.object({ conversationId: z2.number() })).query(async ({ input, ctx }) => {
-    const conversations = await (void 0)(ctx.user.id);
+    const conversations = await getAiConversations(ctx.user.id);
     const conversation = conversations.find(
       (c) => c.id === input.conversationId
     );
@@ -4363,7 +4371,7 @@ Be helpful, accurate, and professional. Use tools to fetch real data and perform
    * Delete a conversation
    */
   deleteConversation: protectedProcedure.input(z2.object({ conversationId: z2.number() })).mutation(async ({ input, ctx }) => {
-    const conversations = await (void 0)(ctx.user.id);
+    const conversations = await getAiConversations(ctx.user.id);
     const conversation = conversations.find(
       (c) => c.id === input.conversationId
     );
@@ -4680,7 +4688,7 @@ import { TRPCError as TRPCError3 } from "@trpc/server";
 // server/_core/fileParser.ts
 import * as fs from "fs";
 import * as path from "path";
-import * as XLSX from "xlsx";
+import XLSX from "xlsx";
 import { parse } from "csv-parse/sync";
 function parseCSV(filePath) {
   try {
@@ -5424,14 +5432,14 @@ var notificationsRouter = router({
     })
   ).mutation(async ({ ctx, input }) => {
     try {
-      const user2 = ctx.user;
-      if (input.channel === "email" && !user2.email) {
+      const user = ctx.user;
+      if (input.channel === "email" && !user.email) {
         throw new TRPCError4({
           code: "BAD_REQUEST",
           message: "User email not configured"
         });
       }
-      if (input.channel === "sms" && !user2.phoneNumber) {
+      if (input.channel === "sms" && !user.phoneNumber) {
         throw new TRPCError4({
           code: "BAD_REQUEST",
           message: "User phone number not configured"
@@ -5442,14 +5450,14 @@ var notificationsRouter = router({
       let result = { success: false };
       if (input.channel === "email") {
         result = await sendEmailNotification(
-          user2.email,
+          user.email,
           testTitle,
           testMessage,
           0,
           "test"
         );
       } else if (input.channel === "sms") {
-        result = await sendSmsNotification(user2.phoneNumber, testMessage);
+        result = await sendSmsNotification(user.phoneNumber, testMessage);
       }
       if (!result.success) {
         throw new TRPCError4({
@@ -6110,10 +6118,10 @@ async function executeTrigger(triggerId, data) {
 }
 async function getRecipients(triggerType, data) {
   const adminUsers = await (void 0)();
-  return adminUsers.map((user2) => ({
-    id: user2.id,
-    email: user2.email,
-    phoneNumber: user2.phoneNumber || void 0
+  return adminUsers.map((user) => ({
+    id: user.id,
+    email: user.email,
+    phoneNumber: user.phoneNumber || void 0
   }));
 }
 async function checkTriggersForEvent(eventType, data) {
@@ -7950,210 +7958,20 @@ var exportRouter = router({
 
 // server/routers/recipes.ts
 import { z as z10 } from "zod";
-
-// server/db/neo4j.ts
-import neo4j from "neo4j-driver";
-import dotenv from "dotenv";
-dotenv.config();
-var uri = process.env.NEO4J_URI || "neo4j+s://placeholder.databases.neo4j.io";
-var user = process.env.NEO4J_USER || "neo4j";
-var password = process.env.NEO4J_PASSWORD || "";
-var driver = neo4j.driver(uri, neo4j.auth.basic(user, password));
-var getSession = () => {
-  return driver.session();
-};
-var toNativeTypes = (v) => {
-  if (v === null || v === void 0) return v;
-  if (neo4j.isInt(v)) {
-    return v.toNumber();
-  }
-  if (neo4j.isDate(v) || neo4j.isDateTime(v) || neo4j.isLocalDateTime(v) || neo4j.isTime(v) || neo4j.isLocalTime(v) || neo4j.isDuration(v)) {
-    return v.toString();
-  }
-  if (Array.isArray(v)) {
-    return v.map(toNativeTypes);
-  }
-  if (typeof v === "object") {
-    if (v.properties) {
-      const obj2 = {};
-      for (const key in v.properties) {
-        obj2[key] = toNativeTypes(v.properties[key]);
-      }
-      return obj2;
-    }
-    const obj = {};
-    for (const key in v) {
-      obj[key] = toNativeTypes(v[key]);
-    }
-    return obj;
-  }
-  return v;
-};
-var recordToNative = (record, key = "n") => {
-  if (!record || !record.has(key)) return null;
-  const item = record.get(key);
-  return toNativeTypes(item);
-};
-
-// server/db/recipes.ts
-var recordToObj = recordToNative;
-async function getAllRecipes() {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (r:ConcreteRecipe)
-      RETURN r
-      ORDER BY r.name
-    `);
-    return result.records.map((r) => recordToObj(r, "r"));
-  } catch (error) {
-    console.error("Failed to get recipes:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getRecipeById(id) {
-  const session = getSession();
-  try {
-    const result = await session.run("MATCH (r:ConcreteRecipe {id: $id}) RETURN r", { id });
-    if (result.records.length === 0) return null;
-    return recordToObj(result.records[0], "r");
-  } catch (error) {
-    console.error("Failed to get recipe:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-async function getRecipeIngredients(recipeId) {
-  const session = getSession();
-  try {
-    const result = await session.run(`
-      MATCH (r:ConcreteRecipe {id: $recipeId})-[rel:REQUIRES]->(m:Material)
-      RETURN m, rel
-    `, { recipeId });
-    return result.records.map((r) => {
-      const material = recordToObj(r, "m");
-      const rel = r.get("rel");
-      return {
-        id: rel.properties.id,
-        recipeId,
-        materialId: material.id,
-        materialName: material.name,
-        quantity: rel.properties.quantity,
-        unit: rel.properties.unit
-      };
-    });
-  } catch (error) {
-    console.error("Failed to get recipe ingredients:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function createRecipe(recipe) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (r:ConcreteRecipe {
-        id: toInteger(timestamp()),
-        name: $name,
-        description: $description,
-        targetStrength: $targetStrength,
-        slump: $slump,
-        maxAggregateSize: $maxAggregateSize,
-        yieldVolume: $yieldVolume,
-        notes: $notes,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      RETURN r.id as id
-    `;
-    const result = await session.run(query, {
-      name: recipe.name,
-      description: recipe.description || null,
-      targetStrength: recipe.targetStrength || null,
-      slump: recipe.slump || null,
-      maxAggregateSize: recipe.maxAggregateSize || null,
-      yieldVolume: recipe.yieldVolume || 1,
-      notes: recipe.notes || null
-    });
-    return result.records[0]?.get("id").toNumber();
-  } catch (error) {
-    console.error("Failed to create recipe:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-async function addRecipeIngredient(ingredient) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (r:ConcreteRecipe {id: $recipeId})
-      MATCH (m:Material {id: $materialId})
-      MERGE (r)-[rel:REQUIRES]->(m)
-      SET rel.quantity = $quantity, rel.unit = $unit
-    `;
-    await session.run(query, {
-      recipeId: ingredient.recipeId,
-      materialId: ingredient.materialId,
-      quantity: ingredient.quantity,
-      unit: ingredient.unit
-    });
-    return true;
-  } catch (error) {
-    console.error("Failed to add recipe ingredient:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
-}
-async function calculateRecipeQuantities(recipeId, targetVolume) {
-  const recipe = await getRecipeById(recipeId);
-  if (!recipe) return null;
-  const ingredients = await getRecipeIngredients(recipeId);
-  if (ingredients.length === 0) return null;
-  const multiplier = targetVolume / (recipe.yieldVolume || 1);
-  return {
-    recipe,
-    targetVolume,
-    ingredients: ingredients.map((ingredient) => ({
-      ...ingredient,
-      calculatedQuantity: Math.ceil(ingredient.quantity * multiplier)
-      // Round up to avoid shortages
-    }))
-  };
-}
-async function deleteRecipe(id) {
-  const session = getSession();
-  try {
-    await session.run("MATCH (r:ConcreteRecipe {id: $id}) DETACH DELETE r", { id });
-    return true;
-  } catch (error) {
-    console.error("Failed to delete recipe:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
-}
-
-// server/routers/recipes.ts
 var recipesRouter = router({
   /**
    * Get all concrete recipes
    */
   list: publicProcedure.query(async () => {
-    return await getAllRecipes();
+    return await (void 0)();
   }),
   /**
    * Get a single recipe with its ingredients
    */
   getById: publicProcedure.input(z10.object({ id: z10.number() })).query(async ({ input }) => {
-    const recipe = await getRecipeById(input.id);
+    const recipe = await (void 0)(input.id);
     if (!recipe) return null;
-    const ingredients = await getRecipeIngredients(input.id);
+    const ingredients = await (void 0)(input.id);
     return {
       ...recipe,
       ingredients
@@ -8170,7 +7988,7 @@ var recipesRouter = router({
     })
   ).query(async ({ input }) => {
     const volumeInLiters = input.volume * 1e3;
-    return await calculateRecipeQuantities(input.recipeId, volumeInLiters);
+    return await (void 0)(input.recipeId, volumeInLiters);
   }),
   /**
    * Create a new concrete recipe
@@ -8191,7 +8009,7 @@ var recipesRouter = router({
       )
     })
   ).mutation(async ({ input, ctx }) => {
-    const recipeId = await createRecipe({
+    const recipeId = await (void 0)({
       name: input.name,
       description: input.description,
       concreteType: input.concreteType,
@@ -8202,7 +8020,7 @@ var recipesRouter = router({
       throw new Error("Failed to create recipe");
     }
     for (const ingredient of input.ingredients) {
-      await addRecipeIngredient({
+      await (void 0)({
         recipeId,
         materialId: ingredient.materialId,
         materialName: ingredient.materialName,
@@ -8216,253 +8034,13 @@ var recipesRouter = router({
    * Delete a recipe
    */
   delete: protectedProcedure.input(z10.object({ id: z10.number() })).mutation(async ({ input }) => {
-    const success = await deleteRecipe(input.id);
+    const success = await (void 0)(input.id);
     return { success };
   })
 });
 
 // server/routers/mixingLogs.ts
 import { z as z11 } from "zod";
-
-// server/db/mixingLogs.ts
-var recordToObj2 = recordToNative;
-async function getAllMixingLogs(filters) {
-  const session = getSession();
-  try {
-    let query = `MATCH (m:MixingLog)`;
-    let whereClauses = [];
-    let params = {};
-    if (filters?.status) {
-      whereClauses.push(`m.status = $status`);
-      params.status = filters.status;
-    }
-    if (filters?.projectId) {
-      whereClauses.push(`m.projectId = $projectId`);
-      params.projectId = filters.projectId;
-    }
-    if (filters?.deliveryId) {
-      whereClauses.push(`m.deliveryId = $deliveryId`);
-      params.deliveryId = filters.deliveryId;
-    }
-    if (whereClauses.length > 0) {
-      query += ` WHERE ${whereClauses.join(" AND ")}`;
-    }
-    query += ` RETURN m ORDER BY m.createdAt DESC`;
-    const result = await session.run(query, params);
-    return result.records.map((r) => recordToObj2(r, "m"));
-  } catch (error) {
-    console.error("Failed to get mixing logs:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getMixingLogById(id) {
-  const session = getSession();
-  try {
-    const logResult = await session.run(`MATCH (m:MixingLog {id: $id}) RETURN m`, { id });
-    if (logResult.records.length === 0) return null;
-    const log = recordToObj2(logResult.records[0], "m");
-    const ingredientsResult = await session.run(`
-      MATCH (m:MixingLog {id: $id})-[rel:USED_INGREDIENT]->(mat:Material)
-      RETURN mat, rel
-    `, { id });
-    const ingredients = ingredientsResult.records.map((r) => {
-      const mat = recordToObj2(r, "mat");
-      const rel = r.get("rel");
-      return {
-        id: rel.properties.id,
-        // Relationship property?
-        batchId: id,
-        materialId: mat.id,
-        materialName: mat.name,
-        plannedQuantity: rel.properties.plannedQuantity,
-        actualQuantity: rel.properties.actualQuantity,
-        unit: rel.properties.unit,
-        inventoryDeducted: rel.properties.inventoryDeducted || false
-      };
-    });
-    return {
-      ...log,
-      ingredients
-    };
-  } catch (error) {
-    console.error("Failed to get mixing log:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-async function generateBatchNumber() {
-  const session = getSession();
-  try {
-    const today = /* @__PURE__ */ new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    const prefix = `BATCH-${year}${month}${day}-`;
-    const result = await session.run(`
-      MATCH (m:MixingLog)
-      WHERE m.batchNumber STARTS WITH $prefix
-      RETURN count(m) as count
-    `, { prefix });
-    const count2 = result.records[0]?.get("count").toNumber() + 1;
-    return `${prefix}${String(count2).padStart(3, "0")}`;
-  } catch (error) {
-    console.error("Failed to generate batch number:", error);
-    return `BATCH-${(/* @__PURE__ */ new Date()).getFullYear()}-${Math.random().toString(36).substr(2, 9)}`;
-  } finally {
-    await session.close();
-  }
-}
-async function createMixingLog(log, ingredients) {
-  const session = getSession();
-  try {
-    const query = `
-      CREATE (m:MixingLog {
-        id: toInteger(timestamp()),
-        projectId: $projectId,
-        deliveryId: $deliveryId,
-        recipeId: $recipeId,
-        recipeName: $recipeName,
-        batchNumber: $batchNumber,
-        volume: $volume,
-        unit: $unit,
-        status: $status, // 'planned', 'in_progress', 'completed'
-        startTime: datetime($startTime),
-        endTime: datetime($endTime),
-        operatorId: $operatorId,
-        notes: $notes,
-        createdAt: datetime(),
-        updatedAt: datetime()
-      })
-      RETURN m.id as id
-    `;
-    const logResult = await session.run(query, {
-      projectId: log.projectId || null,
-      deliveryId: log.deliveryId || null,
-      recipeId: log.recipeId || null,
-      recipeName: log.recipeName || null,
-      batchNumber: log.batchNumber,
-      volume: log.volume || 0,
-      unit: log.unit || "m3",
-      status: log.status || "planned",
-      startTime: log.startTime ? new Date(log.startTime).toISOString() : null,
-      endTime: log.endTime ? new Date(log.endTime).toISOString() : null,
-      operatorId: log.operatorId || null,
-      notes: log.notes || null
-    });
-    const batchId = logResult.records[0]?.get("id").toNumber();
-    for (const ingredient of ingredients) {
-      await session.run(`
-         MATCH (m:MixingLog {id: $batchId})
-         MATCH (mat:Material {id: $materialId})
-         MERGE (m)-[r:USED_INGREDIENT]->(mat)
-         SET r.id = toInteger(timestamp() + $rand), // Pseudo-unique ID for relationship if needed
-             r.plannedQuantity = $plannedQuantity,
-             r.actualQuantity = $actualQuantity,
-             r.unit = $unit,
-             r.inventoryDeducted = false
-       `, {
-        batchId,
-        materialId: ingredient.materialId,
-        plannedQuantity: ingredient.plannedQuantity,
-        actualQuantity: ingredient.actualQuantity || null,
-        unit: ingredient.unit,
-        rand: Math.floor(Math.random() * 1e3)
-      });
-    }
-    return batchId;
-  } catch (error) {
-    console.error("Failed to create mixing log:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-async function updateMixingLogStatus(id, status, updates) {
-  const session = getSession();
-  try {
-    let setClause = `m.status = $status, m.updatedAt = datetime()`;
-    let params = { id, status };
-    if (updates?.endTime) {
-      setClause += `, m.endTime = datetime($endTime)`;
-      params.endTime = updates.endTime.toISOString();
-    }
-    if (updates?.approvedBy) {
-      setClause += `, m.approvedBy = $approvedBy`;
-      params.approvedBy = updates.approvedBy;
-    }
-    if (updates?.qualityNotes) {
-      setClause += `, m.qualityNotes = $qualityNotes`;
-      params.qualityNotes = updates.qualityNotes;
-    }
-    await session.run(`
-      MATCH (m:MixingLog {id: $id})
-      SET ${setClause}
-    `, params);
-    return true;
-  } catch (error) {
-    console.error("Failed to update mixing log status:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
-}
-async function deductMaterialsFromInventory(batchId) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog {id: $batchId})-[r:USED_INGREDIENT]->(mat:Material)
-      WHERE r.inventoryDeducted = false OR r.inventoryDeducted IS NULL
-      WITH r, mat
-      SET mat.quantity = mat.quantity - COALESCE(r.actualQuantity, r.plannedQuantity, 0),
-          r.inventoryDeducted = true
-    `;
-    await session.run(query, { batchId });
-    return true;
-  } catch (error) {
-    console.error("Failed to deduct materials from inventory:", error);
-    return false;
-  } finally {
-    await session.close();
-  }
-}
-async function getProductionSummary(startDate, endDate) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog)
-      WHERE m.status = 'completed' 
-        AND m.createdAt >= datetime($startDate) 
-        AND m.createdAt <= datetime($endDate)
-      RETURN count(m) as totalBatches, sum(m.volume) as totalVolume, collect(m) as batches
-    `;
-    const result = await session.run(query, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-    if (result.records.length === 0) return null;
-    const record = result.records[0];
-    const totalBatches = record.get("totalBatches").toNumber();
-    const totalVolume = record.get("totalVolume") || 0;
-    return {
-      totalBatches,
-      totalVolume,
-      avgVolumePerBatch: totalBatches > 0 ? totalVolume / totalBatches : 0,
-      batches: record.get("batches").map((n) => {
-        return { ...n.properties, id: parseInt(n.properties.id) };
-      })
-    };
-  } catch (error) {
-    console.error("Failed to get production summary:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-
-// server/routers/mixingLogs.ts
 var mixingLogsRouter = router({
   /**
    * Get all mixing logs with optional filters
@@ -8474,13 +8052,13 @@ var mixingLogsRouter = router({
       deliveryId: z11.number().optional()
     }).optional()
   ).query(async ({ input }) => {
-    return await getAllMixingLogs(input);
+    return await (void 0)(input);
   }),
   /**
    * Get a single mixing log with ingredients
    */
   getById: publicProcedure.input(z11.object({ id: z11.number() })).query(async ({ input }) => {
-    return await getMixingLogById(input.id);
+    return await (void 0)(input.id);
   }),
   /**
    * Create a new mixing batch
@@ -8495,15 +8073,15 @@ var mixingLogsRouter = router({
       notes: z11.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const recipe = await getRecipeById(input.recipeId);
+    const recipe = await (void 0)(input.recipeId);
     if (!recipe) {
       throw new Error("Recipe not found");
     }
-    const recipeIngredients2 = await getRecipeIngredients(input.recipeId);
+    const recipeIngredients2 = await (void 0)(input.recipeId);
     if (recipeIngredients2.length === 0) {
       throw new Error("Recipe has no ingredients");
     }
-    const batchNumber = await generateBatchNumber();
+    const batchNumber = await (void 0)();
     const volumeInLiters = input.volume * 1e3;
     const multiplier = volumeInLiters / recipe.yieldVolume;
     const batchIngredients2 = recipeIngredients2.map((ingredient) => ({
@@ -8513,7 +8091,7 @@ var mixingLogsRouter = router({
       unit: ingredient.unit,
       inventoryDeducted: false
     }));
-    const batchId = await createMixingLog(
+    const batchId = await (void 0)(
       {
         batchNumber,
         recipeId: input.recipeId,
@@ -8543,7 +8121,7 @@ var mixingLogsRouter = router({
       qualityNotes: z11.string().optional()
     })
   ).mutation(async ({ input, ctx }) => {
-    const success = await updateMixingLogStatus(
+    const success = await (void 0)(
       input.id,
       input.status,
       {
@@ -8553,7 +8131,7 @@ var mixingLogsRouter = router({
       }
     );
     if (success && input.status === "completed") {
-      await deductMaterialsFromInventory(input.id);
+      await (void 0)(input.id);
     }
     return { success };
   }),
@@ -8568,7 +8146,7 @@ var mixingLogsRouter = router({
       // ISO date string
     })
   ).query(async ({ input }) => {
-    return await getProductionSummary(
+    return await (void 0)(
       new Date(input.startDate),
       new Date(input.endDate)
     );
@@ -8577,191 +8155,36 @@ var mixingLogsRouter = router({
 
 // server/routers/productionAnalytics.ts
 import { z as z12 } from "zod";
-
-// server/db/productionAnalytics.ts
-async function getDailyProductionVolume(days = 30) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog)
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      RETURN date(m.createdAt) as date, sum(m.volume) as volume, count(m) as count
-      ORDER BY date
-    `;
-    const result = await session.run(query, { days });
-    return result.records.map((r) => ({
-      date: r.get("date").toString(),
-      volume: r.get("volume") || 0,
-      count: r.get("count").toNumber()
-    }));
-  } catch (error) {
-    console.error("Failed to get daily production volume:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getMaterialConsumptionTrends(days = 30) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog {status: 'completed'})
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      MATCH (m)-[r:USED_INGREDIENT]->(mat:Material)
-      RETURN mat.id as materialId, mat.name as name, mat.unit as unit, sum(COALESCE(r.actualQuantity, r.plannedQuantity)) as totalQuantity
-      ORDER BY totalQuantity DESC
-      LIMIT 10
-    `;
-    const result = await session.run(query, { days });
-    return result.records.map((r) => ({
-      materialId: r.get("materialId").toNumber(),
-      name: r.get("name"),
-      unit: r.get("unit"),
-      totalQuantity: r.get("totalQuantity") || 0
-    }));
-  } catch (error) {
-    console.error("Failed to get material consumption trends:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getProductionEfficiencyMetrics(days = 30) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog)
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      WITH count(m) as totalBatches,
-           count(CASE WHEN m.status = 'completed' THEN 1 END) as completedBatches,
-           count(CASE WHEN m.status = 'rejected' THEN 1 END) as rejectedBatches,
-           sum(CASE WHEN m.status = 'completed' THEN m.volume ELSE 0 END) as totalVolume,
-           avg(CASE WHEN m.status = 'completed' AND m.startTime IS NOT NULL AND m.endTime IS NOT NULL 
-               THEN duration.between(datetime(m.startTime), datetime(m.endTime)).seconds / 3600.0 ELSE NULL END) as avgBatchTimeHours
-      RETURN totalBatches, completedBatches, rejectedBatches, totalVolume, avgBatchTimeHours
-    `;
-    const result = await session.run(query, { days });
-    if (result.records.length === 0) return null;
-    const r = result.records[0];
-    const totalBatches = r.get("totalBatches").toNumber();
-    const completedBatches = r.get("completedBatches").toNumber();
-    const rejectedBatches = r.get("rejectedBatches").toNumber();
-    const totalVolume = r.get("totalVolume") || 0;
-    const avgBatchTime = r.get("avgBatchTimeHours") || 0;
-    const successRate = totalBatches > 0 ? completedBatches / totalBatches * 100 : 0;
-    const avgBatchVolume = completedBatches > 0 ? totalVolume / completedBatches : 0;
-    const utilization = totalBatches > 0 ? completedBatches / totalBatches * 100 : 0;
-    return {
-      totalBatches,
-      completedBatches,
-      rejectedBatches,
-      successRate: Math.round(successRate * 100) / 100,
-      totalVolume: Math.round(totalVolume * 100) / 100,
-      avgBatchVolume: Math.round(avgBatchVolume * 100) / 100,
-      avgBatchTime: Math.round(avgBatchTime * 100) / 100,
-      utilization: Math.round(utilization * 100) / 100,
-      period: `Last ${days} days`
-    };
-  } catch (error) {
-    console.error("Failed to get production efficiency metrics:", error);
-    return null;
-  } finally {
-    await session.close();
-  }
-}
-async function getProductionByRecipe(days = 30) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog {status: 'completed'})
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      RETURN m.recipeId as recipeId, m.recipeName as recipeName, sum(m.volume) as volume, count(m) as count
-      ORDER BY volume DESC
-    `;
-    const result = await session.run(query, { days });
-    return result.records.map((r) => ({
-      recipeId: r.get("recipeId") ? r.get("recipeId").toNumber() : null,
-      recipeName: r.get("recipeName") || "Unknown Recipe",
-      volume: r.get("volume") || 0,
-      count: r.get("count").toNumber()
-    }));
-  } catch (error) {
-    console.error("Failed to get production by recipe:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-async function getHourlyProductionRate(days = 7) {
-  const session = getSession();
-  try {
-    const query = `
-      MATCH (m:MixingLog {status: 'completed'})
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      WITH m, 
-           toString(datetime(m.createdAt).year) + '-' + 
-           toString(datetime(m.createdAt).month) + '-' + 
-           toString(datetime(m.createdAt).day) + ' ' + 
-           toString(datetime(m.createdAt).hour) + ':00' as hour
-      RETURN hour, count(m) as count
-      ORDER BY hour
-    `;
-    const result = await session.run(`
-      MATCH (m:MixingLog {status: 'completed'})
-      WHERE m.createdAt >= date() - duration('P'+$days+'D')
-      RETURN m.createdAt as createdAt
-    `, { days });
-    const rateByHour = {};
-    for (const r of result.records) {
-      const d = new Date(r.get("createdAt").toString());
-      const dateStr = d.toISOString().split("T")[0];
-      const hourStr = String(d.getHours()).padStart(2, "0");
-      const key = `${dateStr} ${hourStr}:00`;
-      if (!rateByHour[key]) {
-        rateByHour[key] = { hour: key, count: 0 };
-      }
-      rateByHour[key].count++;
-    }
-    return Object.values(rateByHour).sort((a, b) => a.hour.localeCompare(b.hour));
-  } catch (error) {
-    console.error("Failed to get hourly production rate:", error);
-    return [];
-  } finally {
-    await session.close();
-  }
-}
-
-// server/routers/productionAnalytics.ts
 var productionAnalyticsRouter = router({
   /**
    * Get daily production volume
    */
   getDailyVolume: protectedProcedure.input(z12.object({ days: z12.number().optional().default(30) })).query(async ({ input }) => {
-    return await getDailyProductionVolume(input.days);
+    return await (void 0)(input.days);
   }),
   /**
    * Get material consumption trends
    */
   getMaterialConsumption: protectedProcedure.input(z12.object({ days: z12.number().optional().default(30) })).query(async ({ input }) => {
-    return await getMaterialConsumptionTrends(input.days);
+    return await (void 0)(input.days);
   }),
   /**
    * Get production efficiency metrics
    */
   getEfficiencyMetrics: protectedProcedure.input(z12.object({ days: z12.number().optional().default(30) })).query(async ({ input }) => {
-    return await getProductionEfficiencyMetrics(input.days);
+    return await (void 0)(input.days);
   }),
   /**
    * Get production by recipe
    */
   getProductionByRecipe: protectedProcedure.input(z12.object({ days: z12.number().optional().default(30) })).query(async ({ input }) => {
-    return await getProductionByRecipe(input.days);
+    return await (void 0)(input.days);
   }),
   /**
    * Get hourly production rate
    */
   getHourlyRate: protectedProcedure.input(z12.object({ days: z12.number().optional().default(7) })).query(async ({ input }) => {
-    return await getHourlyProductionRate(input.days);
+    return await (void 0)(input.days);
   })
 });
 
@@ -10039,11 +9462,11 @@ Please reorder these materials to avoid project delays.`;
       const { sendSMS: sendSMS2 } = await Promise.resolve().then(() => (init_sms(), sms_exports));
       const smsResults = await Promise.all(
         adminUsers.map(
-          (user2) => sendSMS2({
-            phoneNumber: user2.phoneNumber,
+          (user) => sendSMS2({
+            phoneNumber: user.phoneNumber,
             message: smsMessage
           }).catch((err) => {
-            console.error(`Failed to send SMS to ${user2.phoneNumber}:`, err);
+            console.error(`Failed to send SMS to ${user.phoneNumber}:`, err);
             return { success: false };
           })
         )
@@ -11104,17 +10527,17 @@ Please reorder these materials to avoid project delays.`;
 
 // server/_core/context.ts
 async function createContext(opts) {
-  let user2 = null;
+  let user = null;
   try {
     const syncedUser = await syncClerkUser(opts.req);
-    user2 = syncedUser;
+    user = syncedUser;
   } catch (error) {
-    user2 = null;
+    user = null;
   }
   return {
     req: opts.req,
     res: opts.res,
-    user: user2
+    user
   };
 }
 
@@ -11240,10 +10663,10 @@ async function checkAllOverdueTasks() {
   try {
     console.log("[TriggerJobs] Checking for overdue tasks...");
     const users3 = await (void 0)();
-    for (const user2 of users3) {
-      const overdueTasks = await getOverdueTasks(user2.id);
+    for (const user of users3) {
+      const overdueTasks = await getOverdueTasks(user.id);
       if (overdueTasks.length > 0) {
-        await checkOverdueTaskTriggers(user2.id);
+        await checkOverdueTaskTriggers(user.id);
       }
     }
     console.log(`[TriggerJobs] Checked overdue tasks for ${users3.length} users`);
@@ -11314,7 +10737,7 @@ function initializeTriggerJobs() {
 // server/_core/stockJobs.ts
 init_db();
 init_schema();
-import { eq as eq3 } from "drizzle-orm";
+import { eq as eq4 } from "drizzle-orm";
 init_sms();
 init_db();
 async function checkDailyStockLevels() {
@@ -11331,7 +10754,7 @@ async function checkDailyStockLevels() {
       console.log("[StockJobs] All stock levels are healthy.");
       return;
     }
-    const adminUsers = await db.select().from(users).where(eq3(users.role, "admin"));
+    const adminUsers = await db.select().from(users).where(eq4(users.role, "admin"));
     if (adminUsers.length === 0) {
       console.log("[StockJobs] No admin users found to notify.");
       return;
