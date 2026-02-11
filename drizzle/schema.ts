@@ -435,6 +435,20 @@ export const machineWorkHours = pgTable("machine_work_hours", {
   operatorId: integer("operatorId").references(() => users.id),
 });
 
+export const workHours = pgTable("work_hours", {
+  id: serial("id").primaryKey(),
+  employeeId: integer("employeeId")
+    .references(() => users.id)
+    .notNull(),
+  projectId: integer("projectId").references(() => projects.id),
+  date: timestamp("date").notNull(),
+  hoursWorked: text("hoursWorked").notNull(),
+  notes: text("notes"),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt").notNull().defaultNow(),
+});
+
 /**
  * Tasks and AI
  */
